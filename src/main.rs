@@ -1,13 +1,15 @@
 mod shared;
 mod attacks;
 mod moveGen;
+mod perft;
+mod gui;
+mod search;
 
-use std::default;
+use std::{default, env, io};
 use std::thread;
+use std::time::SystemTime;
 use shared::Sq;
 use shared::BoardPosition;
-use shared::SQUARE_TO_COORDINATES;
-use stacker::grow;
 
 /**********************************\
  ==================================
@@ -36,11 +38,11 @@ use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
 use attacks::ROOK_ATTACKS;
 use attacks::BISHOP_ATTACKS;
-use crate::moveGen::{generate_moves, make_move};
-
-use crate::shared::{cmk_position, empty_board, Move, parse_fen, Piece, print_board, start_position, tricky_position};
-
-
+use crate::gui::{parse_go, parse_move, parse_position};
+use crate::moveGen::{generate_moves, is_square_attacked, make_move, run_through_attacks};
+use crate::perft::{perft, perft_driver, pure_perft};
+use crate::shared::{cmk_position, empty_board, Move, parse_fen, Piece, print_board, start_position, tricky_position, SQUARE_TO_COORDINATES, coordinates_to_squares};
+use crate::shared::Sq::e5;
 
 /**********************************\
  ==================================
@@ -50,25 +52,41 @@ use crate::shared::{cmk_position, empty_board, Move, parse_fen, Piece, print_boa
  ==================================
 \**********************************/
 
+pub fn uci_loop() {
+    println!("id name Dual");
+    println!("id author Tomasz Stawowy");
+    println!("uciok");
+    let mut boardpos : BoardPosition = parse_fen(start_position);
+    loop {
+        // Read user input
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+
+        // Trim the input to remove newline characters
+        let command = input.trim();
+        let words : Vec<&str> = command.split_ascii_whitespace().collect();
+
+        // Handle the command
+        match words[0] {
+            "exit" => return,
+            "go" => parse_go(command, &boardpos),
+            "position" => boardpos = parse_position(command),
+            "ucinewgame" => boardpos = parse_position("position startpos"),
+            "uci" => println!("id name Dual\nid author Tomasz Stawow\nuciok"),
+            "isready" => println!("readyok"),
+            // Add more commands here as needed
+            _ => println!("Unknown command: {}", command),
+        }
+    }
+}
+
+
 fn main() {
-
-
     let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
     let handler = builder.spawn(|| {
         // thread code
-
-        let mut boardPos = parse_fen(tricky_position);
-        print_board(&boardPos);
-        //boardPos.side = 1;
-        let moveList = generate_moves(&boardPos);
-
-        for i in moveList{
-            print!("{}-{}", SQUARE_TO_COORDINATES[i.source_square as usize], SQUARE_TO_COORDINATES[i.target_square as usize]);
-            let alt = make_move(&boardPos, i);
-            print_board(&alt);
-        }
-        //print_board(boardPos);
-
+        //
+        uci_loop()
     }).unwrap();
     handler.join().unwrap();
 }

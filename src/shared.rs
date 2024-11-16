@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Formatter;
 use std::ops::BitAnd;
+use crate::shared::Piece::P;
 
 #[allow(non_camel_case_types)]
 #[allow(unused_variables)]
 #[allow(non_upper_case_globals)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BoardPosition {
     pub bitboards: [u64; 12],
     pub occupancies: [u64; 3],
@@ -40,6 +41,20 @@ pub struct Move{
     pub double_push: bool
 }
 
+pub fn moveToAlg(mv: &Move) -> String {
+    match mv.promoted_piece {
+        Piece::Q => format!("{}{}q", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
+        Piece::q => format!("{}{}q", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
+        Piece::N => format!("{}{}n", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
+        Piece::n => format!("{}{}n", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
+        Piece::R => format!("{}{}r", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
+        Piece::r => format!("{}{}r", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
+        Piece::B => format!("{}{}b", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
+        Piece::b => format!("{}{}b", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
+        _ => format!("{}{}", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize])
+    }
+}
+
 impl Default for Move {
     fn default() -> Move {
         Move{
@@ -60,15 +75,15 @@ impl fmt::Debug for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Move {{ {}-{}, piece: {:?}, P={:?}{}{}{}{} }}",
+            "Move {{ {}-{}: {:?}, P={:?}{}{}{}{} }}",
             SQUARE_TO_COORDINATES[self.source_square as usize],
             SQUARE_TO_COORDINATES[self.target_square as usize],
             self.piece,
             self.promoted_piece,
             if self.capture { "+" } else { "" },
-            if self.enpassant { "EP" } else { "" },
-            if self.castling { "O-O" } else { "" },
-            if self.double_push { "Double Push" } else { "" },
+            if self.enpassant { " EP" } else { "" },
+            if self.castling { " O-O" } else { "" },
+            if self.double_push { " dblPP" } else { "" },
         )
     }
 }
@@ -86,10 +101,10 @@ pub enum Sq {
 }
 
 // encode pieces
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Piece { P = 0, N = 1, B = 2, R = 3, Q = 4, K = 5, p = 6, n = 7, b = 8, r = 9, q = 10, k = 11}
 
-pub fn pieceTousize(piece: Piece) -> usize{
+pub fn pieceTousize(piece: &Piece) -> usize{
     match piece {
         Piece::P => 0,
         Piece::N => 1,
@@ -129,6 +144,31 @@ pub const SQUARE_TO_COORDINATES: [&str; 64] = [
     "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 ];
+
+pub fn coordinates_to_squares(coordinatestr: &str) -> usize {
+    let mut val: usize  = 0;
+    let mut chars = coordinatestr.chars();
+    let first = chars.next().unwrap();
+    let second = chars.next().unwrap();
+    
+    if first.is_ascii_alphabetic() && second.is_digit(10) {
+        match first {
+            'a' => val += 0,
+            'b' => val += 1,
+            'c' => val += 2,
+            'd' => val += 3,
+            'e' => val += 4,
+            'f' => val += 5,
+            'g' => val += 6,
+            'h' => val += 7,
+            _ => return 65
+        }
+        val = val + 56 - ((second.to_digit(10).unwrap() as i32 - 1) * 8) as usize;
+
+    }
+    
+    val
+}
 
 const ASCII_PIECES: [u8; 12] = [80, 78, 66, 82, 81, 75, 112, 110, 98, 114, 113, 107];
 
@@ -260,6 +300,7 @@ pub fn print_board(board: &BoardPosition)
 
     match board.enpassant {
         64 => println!("Enpassant not available"),
+        65 => println!("Enpassant not available"),
         _ => println!("Enpassant: {}", SQUARE_TO_COORDINATES[board.enpassant]),
     }
 
@@ -404,4 +445,8 @@ pub fn parse_fen(fen: &str) -> BoardPosition {
     board_position.occupancies[2] = board_position.occupancies[0] | board_position.occupancies[1];
 
     board_position
+}
+
+pub fn print_square(sq: u8) {
+    println!("{} - {}", sq, SQUARE_TO_COORDINATES[sq as usize]);
 }
