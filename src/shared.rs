@@ -1,8 +1,5 @@
-use std::collections::HashMap;
 use std::fmt;
-use std::fmt::Formatter;
 use std::ops::BitAnd;
-use crate::shared::Piece::P;
 
 #[allow(non_camel_case_types)]
 #[allow(unused_variables)]
@@ -41,7 +38,7 @@ pub struct Move{
     pub double_push: bool
 }
 
-pub fn moveToAlg(mv: &Move) -> String {
+pub fn move_to_alg(mv: &Move) -> String {
     match mv.promoted_piece {
         Piece::Q => format!("{}{}q", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
         Piece::q => format!("{}{}q", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
@@ -339,10 +336,7 @@ pub fn print_board(board: &BoardPosition)
 // FEN debug positions
 pub const empty_board: &str = "8/8/8/8/8/8/8/8 w - - ";
 pub const start_position: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
-pub const tricky_position: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
-pub const killer_position: &str = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
-pub const cmk_position: &str = "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9 ";
-
+pub const kiwipete: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
 pub fn parse_fen(fen: &str) -> BoardPosition {
 
     let mut board_position = BoardPosition {

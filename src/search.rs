@@ -1,6 +1,6 @@
 use crate::evaluate::evaluate;
 use crate::moveGen::{generate_moves, is_square_attacked, make_move};
-use crate::shared::{coordinates_to_squares, get_bit, moveToAlg, BoardPosition, Move, Piece};
+use crate::shared::{coordinates_to_squares, get_bit, move_to_alg, BoardPosition, Move, Piece};
 use crate::shared::Piece::{p, K};
 
 const MVV_LVA : [usize ; 36] = [
@@ -45,7 +45,7 @@ pub fn rand_search(board_position: &BoardPosition) {
         mv = moves.pop();
     }
     
-    println!("bestmove {}", moveToAlg(&mv.unwrap()))
+    println!("bestmove {}", move_to_alg(&mv.unwrap()))
 }
 
 
@@ -66,7 +66,13 @@ pub fn quiescence(board_position: &BoardPosition, alpha: i32, beta: i32) -> (i32
     }
 
     let move_list = generate_moves(&board_position);
-    let filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.capture == true).collect();
+    let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.capture == true).collect();
+    filtered_move_list.sort_by(|a, b| {
+        let score_a = get_move_score(board_position, a);
+        let score_b = get_move_score(board_position, b);
+        score_b.cmp(&score_a)
+    });
+    
     let mut nodes = 1;
 
     for mv in filtered_move_list {
@@ -153,7 +159,7 @@ pub fn search(board_position: &BoardPosition, depth: usize) {
 
     println!("info score cp {} depth {} nodes {}", score.1, depth, score.2);
     println!("Movelist: {:?}", score.0);
-    println!("bestmove {}", moveToAlg(&score.0.pop().unwrap().unwrap()))
+    println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()))
 }
 
 

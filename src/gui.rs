@@ -66,7 +66,7 @@ pub fn parse_position(command: &str) -> BoardPosition {
 }
 
 pub fn parse_go(command: &str, board_position: &BoardPosition) {
-    let mut depth = 4;
+    let mut depth = 6;
 
     let words : Vec<&str> = command.split_ascii_whitespace().collect();
 

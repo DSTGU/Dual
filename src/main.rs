@@ -43,7 +43,7 @@ use crate::evaluate::{evaluate, mirror_sq};
 use crate::gui::{parse_go, parse_move, parse_position};
 use crate::moveGen::{generate_moves, is_square_attacked, make_move, run_through_attacks};
 use crate::perft::{perft, perft_driver, pure_perft};
-use crate::shared::{cmk_position, empty_board, Move, parse_fen, Piece, print_board, start_position, tricky_position, SQUARE_TO_COORDINATES, coordinates_to_squares};
+use crate::shared::{ empty_board, Move, parse_fen, Piece, print_board, start_position, kiwipete, SQUARE_TO_COORDINATES, coordinates_to_squares};
 use crate::shared::Sq::e5;
 
 /**********************************\
