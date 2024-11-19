@@ -4,6 +4,7 @@ mod moveGen;
 mod perft;
 mod gui;
 mod search;
+mod evaluate;
 
 use std::{default, env, io};
 use std::thread;
@@ -38,6 +39,7 @@ use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
 use attacks::ROOK_ATTACKS;
 use attacks::BISHOP_ATTACKS;
+use crate::evaluate::{evaluate, mirror_sq};
 use crate::gui::{parse_go, parse_move, parse_position};
 use crate::moveGen::{generate_moves, is_square_attacked, make_move, run_through_attacks};
 use crate::perft::{perft, perft_driver, pure_perft};
@@ -72,7 +74,7 @@ pub fn uci_loop() {
             "go" => parse_go(command, &boardpos),
             "position" => boardpos = parse_position(command),
             "ucinewgame" => boardpos = parse_position("position startpos"),
-            "uci" => println!("id name Dual\nid author Tomasz Stawow\nuciok"),
+            "uci" => println!("id name Dual\nid author Tomasz Stawowy\nuciok"),
             "isready" => println!("readyok"),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),

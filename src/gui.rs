@@ -1,7 +1,7 @@
 use std::thread;
 use crate::moveGen::{generate_moves, make_move};
 use crate::perft::perft;
-use crate::search::rand_search;
+use crate::search::{rand_search, search};
 use crate::shared::{coordinates_to_squares, parse_fen, print_square, start_position, BoardPosition, Move};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
 use crate::uci_loop;
@@ -83,7 +83,7 @@ pub fn parse_go(command: &str, board_position: &BoardPosition) {
     let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
     let bp = board_position.clone();
     let handler = builder.spawn(move || {
-        rand_search(&bp);
+        search(&bp, depth);
     }).unwrap();
     handler.join().unwrap();
 
