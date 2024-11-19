@@ -104,20 +104,22 @@ pub enum Sq {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Piece { P = 0, N = 1, B = 2, R = 3, Q = 4, K = 5, p = 6, n = 7, b = 8, r = 9, q = 10, k = 11}
 
-pub fn pieceTousize(piece: &Piece) -> usize{
-    match piece {
-        Piece::P => 0,
-        Piece::N => 1,
-        Piece::B => 2,
-        Piece::R => 3,
-        Piece::Q => 4,
-        Piece::K => 5,
-        Piece::p => 6,
-        Piece::n => 7,
-        Piece::b => 8,
-        Piece::r => 9,
-        Piece::q => 10,
-        Piece::k => 11
+impl Piece {
+    pub(crate) fn to_usize(&self) -> usize {
+        match self {
+            Piece::P => 0,
+            Piece::N => 1,
+            Piece::B => 2,
+            Piece::R => 3,
+            Piece::Q => 4,
+            Piece::K => 5,
+            Piece::p => 6,
+            Piece::n => 7,
+            Piece::b => 8,
+            Piece::r => 9,
+            Piece::q => 10,
+            Piece::k => 11
+        }
     }
 }
 

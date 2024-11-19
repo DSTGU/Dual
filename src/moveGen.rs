@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::ops::BitXor;
 use crate::{BoardPosition, get_bit, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS, Piece, pop_bit, print_bitboard, print_board, set_bit};
 use crate::attacks::{get_bishop_attacks, get_queen_attacks, get_rook_attacks};
-use crate::shared::{Move, pieceTousize, SQUARE_TO_COORDINATES, coordinates_to_squares, print_square};
+use crate::shared::{Move, SQUARE_TO_COORDINATES, coordinates_to_squares, print_square};
 use crate::shared::Piece::{k, r, K, R};
 
 pub fn is_square_attacked(square: usize, board: &BoardPosition) -> bool {
@@ -505,7 +505,7 @@ pub fn make_move(board: &BoardPosition, moveToMake: &Move) -> Option<BoardPositi
         castle: board.castle,
     };
 
-    let piece = pieceTousize(&moveToMake.piece);
+    let piece = moveToMake.piece.to_usize();
 
     //move
     pop_bit(&mut newPosition.bitboards[piece], moveToMake.source_square as usize);
@@ -522,7 +522,7 @@ pub fn make_move(board: &BoardPosition, moveToMake: &Move) -> Option<BoardPositi
 
     if moveToMake.promoted_piece != Piece::P {
         pop_bit(&mut newPosition.bitboards[piece], moveToMake.target_square as usize);
-        set_bit(&mut newPosition.bitboards[pieceTousize(&moveToMake.promoted_piece)], moveToMake.target_square as usize)
+        set_bit(&mut newPosition.bitboards[moveToMake.promoted_piece.to_usize()], moveToMake.target_square as usize)
     }
 
     if moveToMake.enpassant {
@@ -548,20 +548,20 @@ pub fn make_move(board: &BoardPosition, moveToMake: &Move) -> Option<BoardPositi
     if moveToMake.castling {
         match moveToMake.target_square {
             58 => {
-                pop_bit(&mut newPosition.bitboards[pieceTousize(&R)], coordinates_to_squares("a1") as usize);
-                set_bit(&mut newPosition.bitboards[pieceTousize(&R)], coordinates_to_squares("d1") as usize);
+                pop_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("a1") as usize);
+                set_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("d1") as usize);
             },
             62 => {
-                pop_bit(&mut newPosition.bitboards[pieceTousize(&R)], coordinates_to_squares("h1") as usize);
-                set_bit(&mut newPosition.bitboards[pieceTousize(&R)], coordinates_to_squares("f1") as usize);
+                pop_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("h1") as usize);
+                set_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("f1") as usize);
             },
             2 => {
-                pop_bit(&mut newPosition.bitboards[pieceTousize(&r)], coordinates_to_squares("a8") as usize);
-                set_bit(&mut newPosition.bitboards[pieceTousize(&r)], coordinates_to_squares("d8") as usize);
+                pop_bit(&mut newPosition.bitboards[r.to_usize()], coordinates_to_squares("a8") as usize);
+                set_bit(&mut newPosition.bitboards[r.to_usize()], coordinates_to_squares("d8") as usize);
             },
             6 => {
-                pop_bit(&mut newPosition.bitboards[pieceTousize(&r)], coordinates_to_squares("h8") as usize);
-                set_bit(&mut newPosition.bitboards[pieceTousize(&r)], coordinates_to_squares("f8") as usize);
+                pop_bit(&mut newPosition.bitboards[r.to_usize()], coordinates_to_squares("h8") as usize);
+                set_bit(&mut newPosition.bitboards[r.to_usize()], coordinates_to_squares("f8") as usize);
             },
             _ => {}
         }

@@ -1,6 +1,39 @@
 use crate::evaluate::evaluate;
 use crate::moveGen::{generate_moves, is_square_attacked, make_move};
-use crate::shared::{coordinates_to_squares, moveToAlg, BoardPosition, Move};
+use crate::shared::{coordinates_to_squares, get_bit, moveToAlg, BoardPosition, Move, Piece};
+use crate::shared::Piece::{p, K};
+
+const MVV_LVA : [usize ; 36] = [
+105, 205, 305, 405, 505, 605,
+104, 204, 304, 404, 504, 604,
+103, 203, 303, 403, 503, 603,
+102, 202, 302, 402, 502, 602,
+101, 201, 301, 401, 501, 601,
+100, 200, 300, 400, 500, 600,
+];
+
+pub fn get_MVV_LVA(victim: usize, attacker: usize) -> usize {
+    MVV_LVA[victim % 6 + attacker % 6 * 6]
+}
+
+pub fn get_victim(board_position: &BoardPosition, mv: &Move) -> usize {
+    let sidevar = ((board_position.side + 1) % 2) * 6;
+
+    for i in 0+sidevar..6+sidevar {
+        if get_bit(board_position.bitboards[i], mv.target_square as usize) {
+            return i;
+        }
+    }
+
+    0
+}
+pub fn get_move_score(board_position: &BoardPosition, mv: &Move) -> usize {
+    if mv.capture == false {
+        return 0;
+    }
+    let victim = get_victim(board_position, mv);
+    get_MVV_LVA(victim, mv.piece.to_usize())
+}
 
 pub fn rand_search(board_position: &BoardPosition) {
 
@@ -15,14 +48,63 @@ pub fn rand_search(board_position: &BoardPosition) {
     println!("bestmove {}", moveToAlg(&mv.unwrap()))
 }
 
-pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usize) -> (Vec<Option<Move>>, i32, i32) {
-    if depth == 0 {
-        return (vec![], evaluate(board_position), 0);
+
+pub fn quiescence(board_position: &BoardPosition, alpha: i32, beta: i32) -> (i32, i32) {
+
+    let eval = evaluate(board_position);
+
+    if eval >= beta
+    {
+        return (beta,0);
     }
 
     let mut new_alpha = alpha;
 
-    let moveList = generate_moves(&board_position);
+    if (eval > alpha)
+    {
+        new_alpha = eval;
+    }
+
+    let move_list = generate_moves(&board_position);
+    let filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.capture == true).collect();
+    let mut nodes = 1;
+
+    for mv in filtered_move_list {
+        let nbp_option = make_move(&board_position, &mv);
+
+        if let Some(nbp) = nbp_option {
+            let res = quiescence(&nbp, -beta, -new_alpha);
+            nodes += res.1;
+
+            if -res.0 >= beta {
+                return (beta, nodes);
+            }
+
+            if -res.0 > new_alpha {
+                new_alpha = -res.0;
+            }
+        }
+    }
+
+
+    (new_alpha, nodes)
+}
+
+pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usize) -> (Vec<Option<Move>>, i32, i32) {
+
+    if depth == 0 {
+        let score = quiescence(board_position, alpha, beta);
+        return (vec![], score.0, score.1)
+    }
+
+    let mut new_alpha = alpha;
+
+    let mut moveList = generate_moves(&board_position);
+    moveList.sort_by(|a, b| {
+        let score_a = get_move_score(board_position, a);
+        let score_b = get_move_score(board_position, b);
+        score_b.cmp(&score_a)
+    });
     
     // Move, eval (alpha), nodes
     let mut nodes = 1;
@@ -31,8 +113,8 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
     let mut bestMoveList = vec![];
 
     let mut legal_moves = 0;
-    
     for mv in moveList {
+
         let nbpOption = make_move(&board_position, &mv);
 
         if let Some(nbp) = nbpOption {
@@ -54,7 +136,7 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
     
     if legal_moves == 0 {
             if is_square_attacked(board_position.bitboards[6*board_position.side+5].trailing_zeros() as usize, board_position) {
-                return (vec![], -500000, 1)
+                return (vec![], -4999999, 1)
             }
             else {
                 return (vec![], 0, 1)
@@ -66,10 +148,10 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
 }
 
 pub fn search(board_position: &BoardPosition, depth: usize) {
-    let mut score = negamax(&board_position, -500000, 500000, depth);
+    let mut score = negamax(&board_position, -5000000, 5000000, depth);
     
 
-    println!("info debug eval {} nodes {}", score.1, score.2);
+    println!("info score cp {} depth {} nodes {}", score.1, depth, score.2);
     println!("Movelist: {:?}", score.0);
     println!("bestmove {}", moveToAlg(&score.0.pop().unwrap().unwrap()))
 }

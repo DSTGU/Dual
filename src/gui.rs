@@ -1,7 +1,7 @@
 use std::thread;
 use crate::moveGen::{generate_moves, make_move};
 use crate::perft::perft;
-use crate::search::{rand_search, search};
+use crate::search::{search};
 use crate::shared::{coordinates_to_squares, parse_fen, print_square, start_position, BoardPosition, Move};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
 use crate::uci_loop;
@@ -66,7 +66,7 @@ pub fn parse_position(command: &str) -> BoardPosition {
 }
 
 pub fn parse_go(command: &str, board_position: &BoardPosition) {
-    let mut depth = 6;
+    let mut depth = 4;
 
     let words : Vec<&str> = command.split_ascii_whitespace().collect();
 

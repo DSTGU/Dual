@@ -75,6 +75,7 @@ pub fn uci_loop() {
             "position" => boardpos = parse_position(command),
             "ucinewgame" => boardpos = parse_position("position startpos"),
             "uci" => println!("id name Dual\nid author Tomasz Stawowy\nuciok"),
+            "printboard" => print_board(&boardpos),
             "isready" => println!("readyok"),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
