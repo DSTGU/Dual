@@ -74,7 +74,7 @@ pub fn pure_perft(board: &BoardPosition, depth: usize) {
         let mut cnt = 0;
             if let Some(board) = board {
                 cnt = perft_driver(&board, depth - 1);
-                println!("{}{} {}", SQUARE_TO_COORDINATES[i.source_square as usize], SQUARE_TO_COORDINATES[i.target_square as usize], cnt);
+                println!("{}{} {}", SQUARE_TO_COORDINATES[i.get_source_square() as usize], SQUARE_TO_COORDINATES[i.get_target_square() as usize], cnt);
             }
         movecount += cnt;
         

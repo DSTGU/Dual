@@ -99,17 +99,18 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                 if !(target_square > 63) && !get_bit(board.occupancies[2], target_square as usize) {
                     // Pawn promotion
                     if source_square >= 8 && source_square <= 15 {
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::P, promoted_piece: Piece::Q, ..Default::default()});
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::P, promoted_piece: Piece::R, ..Default::default()});
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::P, promoted_piece: Piece::N, ..Default::default()});
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::P, promoted_piece: Piece::B, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::Q, 0, 0, 0, 0 ));
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::R, 0, 0, 0, 0 ));
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::B, 0, 0, 0, 0 ));
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::N, 0, 0, 0, 0 ));
+
                     } else {
                         // One square ahead pawn move
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::P, 0, 0, 0, 0 ));
 
                         // Two squares ahead pawn move
                         if source_square >= 48 && source_square <= 55 && !get_bit(board.occupancies[2], (target_square - 8) as usize) {
-                            move_list.push(Move {source_square: source_square as u8, target_square: (target_square - 8) as u8, double_push: true, ..Default::default()});
+                            move_list.push(Move::create(source_square as u32, target_square as u32 - 8, Piece::P, Piece::P, 0, 0, 0, 1 ));
                         }
                     }
                 }
@@ -124,15 +125,14 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
 
                     // Pawn promotion
                     if source_square >= 8 && source_square <= 15 {
-
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::P, promoted_piece: Piece::Q, capture: true, ..Default::default()});
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::P, promoted_piece: Piece::R, capture: true, ..Default::default()});
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::P, promoted_piece: Piece::N, capture: true, ..Default::default()});
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::P, promoted_piece: Piece::B, capture: true, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::Q, 1, 0, 0, 0 ));
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::R, 1, 0, 0, 0 ));
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::B, 1, 0, 0, 0 ));
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::N, 1, 0, 0, 0 ));
 
                     } else {
                         // One square ahead pawn move
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::P, capture:true,  ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::P, 1, 0, 0, 0 ));
                     }
 
                     // Pop ls1b of the pawn attacks
@@ -148,7 +148,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                     if enpassant_attacks != 0 {
                         // Init enpassant capture target square
                         let target_enpassant = enpassant_attacks.trailing_zeros() as usize;
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_enpassant as u8, piece: Piece::P, capture: true, enpassant: true, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_enpassant as u32, Piece::P, Piece::P, 1, 1, 0, 0 ));
                     }
                 }
 
@@ -166,11 +166,11 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
 
                 while attacks != 0 {
                     let target_square = attacks.trailing_zeros() as usize;
-                    // One square ahead pawn move
+                    // One square ahead king move
                     if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::K, capture: true, ..Default::default()});
-                    }else {
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::K, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::K, Piece::P, 1, 0, 0, 0 ));
+                    } else {
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::K, Piece::P, 0, 0, 0, 0 ));
                     }
                     pop_bit(&mut attacks, target_square);
                 }
@@ -183,7 +183,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                 if !get_bit(board.occupancies[2], 61) && !get_bit(board.occupancies[2], 62) {
                     // Make sure king and the f1 squares are not under attack
                     if !is_square_attacked(60, &board) && !is_square_attacked(61, board) {
-                        move_list.push(Move {source_square: 60, target_square: 62, piece: Piece::K, castling: true, ..Default::default()});
+                        move_list.push(Move::create(60, 62, Piece::K, Piece::P, 0, 0, 1, 0 ));
                     }
                 }
             }
@@ -194,7 +194,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                 if !get_bit(board.occupancies[2], 59) && !get_bit(board.occupancies[2], 58) && !get_bit(board.occupancies[2], 57) {
                     // Make sure king and the d1 squares are not under attack
                     if !is_square_attacked(60, board) && !is_square_attacked(59, board) {
-                        move_list.push(Move {source_square: 60, target_square: 58, piece: Piece::K, castling: true, ..Default::default()});
+                        move_list.push(Move::create(60, 58, Piece::K, Piece::P, 0, 0, 1, 0 ));
                     }
                 }
             }
@@ -212,9 +212,9 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                 while attacks != 0 {
                     let target_square = attacks.trailing_zeros() as usize;
                     if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::N, capture: true, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::N, Piece::P, 1, 0, 0, 0 ));
                     } else {
-                        move_list.push(Move { source_square: source_square as u8, target_square: target_square as u8, piece: Piece::N, ..Default::default() });
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::N, Piece::P, 0, 0, 0, 0 ));
                     }
                     pop_bit(&mut attacks, target_square);
                 }
@@ -235,9 +235,9 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                     // One square ahead pawn move
 
                     if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::B, capture: true, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::B, Piece::P, 1, 0, 0, 0 ));
                     } else {
-                        move_list.push(Move { source_square: source_square as u8, target_square: target_square as u8, piece: Piece::B, ..Default::default() });
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::B, Piece::P, 0, 0, 0, 0 ));
                     }
                     pop_bit(&mut attacks, target_square);
                 }
@@ -257,9 +257,10 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                     let target_square = attacks.trailing_zeros() as usize;
                     // One square ahead pawn move
                     if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::R, capture: true, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::R, Piece::P, 1, 0, 0, 0 ));
+
                     } else {
-                        move_list.push(Move { source_square: source_square as u8, target_square: target_square as u8, piece: Piece::R, ..Default::default() });
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::R, Piece::P, 0, 0, 0, 0 ));
                     }
                     pop_bit(&mut attacks, target_square);
                 }
@@ -279,9 +280,9 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                     let target_square = attacks.trailing_zeros() as usize;
                     // One square ahead pawn move
                     if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::Q, capture: true, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::Q, Piece::P, 1, 0, 0, 0 ));
                     } else {
-                        move_list.push(Move { source_square: source_square as u8, target_square: target_square as u8, piece: Piece::Q, ..Default::default() });
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::Q, Piece::P, 0, 0, 0, 0 ));
                     }
                     pop_bit(&mut attacks, target_square);
                 }
@@ -304,19 +305,18 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
             if !(target_square > 63) && !get_bit(board.occupancies[2], target_square as usize) {
                 // Pawn promotion
                 if source_square >= 48 && source_square <= 55 {
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, promoted_piece: Piece::q, ..Default::default()});
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, promoted_piece: Piece::r, ..Default::default()});
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, promoted_piece: Piece::n, ..Default::default()});
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, promoted_piece: Piece::b, ..Default::default()});
-
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::q, 0, 0, 0, 0 ));
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::r, 0, 0, 0, 0 ));
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::n, 0, 0, 0, 0 ));
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::b, 0, 0, 0, 0 ));
 
                 } else {
                     // One square ahead pawn move
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::p, 0, 0, 0, 0 ));
 
                     // Two squares ahead pawn move
                     if source_square >= 8 && source_square <= 15 && !get_bit(board.occupancies[2], (target_square + 8) as usize) {
-                        move_list.push(Move {source_square: source_square as u8, target_square: (target_square+8) as u8, piece: Piece::p, double_push: true, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32 + 8, Piece::p, Piece::P, 0, 0, 0, 1 ));
                     }
                 }
             }
@@ -331,14 +331,14 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
 
                 // Pawn promotion
                 if source_square >= 48 && source_square <= 55 {
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, promoted_piece: Piece::q, capture: true, ..Default::default()});
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, promoted_piece: Piece::r, capture: true, ..Default::default()});
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, promoted_piece: Piece::n, capture: true, ..Default::default()});
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, promoted_piece: Piece::b, capture: true, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::q, 1, 0, 0, 0 ));
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::r, 1, 0, 0, 0 ));
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::n, 1, 0, 0, 0 ));
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::b, 1, 0, 0, 0 ));
 
                 } else {
                     // One square ahead pawn move
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::p, capture: true, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::P, 1, 0, 0, 0 ));
 
                 }
                 // Pop ls1b of the pawn attacks
@@ -354,7 +354,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                 if enpassant_attacks != 0 {
                     // Init enpassant capture target square
                     let target_enpassant = enpassant_attacks.trailing_zeros() as usize;
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_enpassant as u8, piece: Piece::p, capture: true, enpassant: true, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_enpassant as u32, Piece::p, Piece::P, 1, 1, 0, 0 ));
 
                 }
             }
@@ -373,9 +373,10 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
             while attacks != 0 {
                 let target_square = attacks.trailing_zeros() as usize;
                     if get_bit(board.occupancies[0], target_square){
-                        move_list.push(Move { source_square: source_square as u8, target_square: target_square as u8, piece: Piece::k, capture: true, ..Default::default()});
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::k, Piece::P, 1, 0, 0, 0 ));
+
                     } else {
-                        move_list.push(Move { source_square: source_square as u8, target_square: target_square as u8, piece: Piece::k, ..Default::default() });
+                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::k, Piece::P, 0, 0, 0, 0 ));
                     }
                 pop_bit(&mut attacks, target_square);
             }
@@ -390,7 +391,8 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
             if !get_bit(board.occupancies[2], 5 ) && !get_bit(board.occupancies[2], 6) {
                 // Make sure king and the f1 squares are not under attack
                 if !is_square_attacked(4, board) && !is_square_attacked(5, board) {
-                    move_list.push(Move {source_square: 4, target_square: 6, piece: Piece::k, castling: true, ..Default::default()});
+                    move_list.push(Move::create(4, 6, Piece::k, Piece::P, 0, 0, 1, 0 ));
+
                 }
             }
         }
@@ -401,7 +403,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
             if !get_bit(board.occupancies[2], 3) && !get_bit(board.occupancies[2], 2) && !get_bit(board.occupancies[2], 1) {
                 // Make sure king and the d1 squares are not under attack
                 if !is_square_attacked(4, board) && !is_square_attacked(3, board) {
-                    move_list.push(Move {source_square: 4, target_square: 2, piece: Piece::k, castling: true, ..Default::default()});
+                    move_list.push(Move::create(4, 2 , Piece::k, Piece::P, 0, 0, 1, 0 ));
                 }
             }
         }
@@ -419,9 +421,9 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                 let target_square = attacks.trailing_zeros() as usize;
                 // One square ahead n move
                 if get_bit(board.occupancies[0], target_square){
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::n, capture: true, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::n, Piece::P, 1, 0, 0, 0 ));
                 } else {
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::n, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::n, Piece::P, 0, 0, 0, 0 ));
                 }
 
                 pop_bit(&mut attacks, target_square);
@@ -441,9 +443,9 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
             while attacks != 0 {
                 let target_square = attacks.trailing_zeros() as usize;
                 if get_bit(board.occupancies[0], target_square){
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::b, capture: true, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::b, Piece::P, 1, 0, 0, 0 ));
                 } else {
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::b, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::b, Piece::P, 0, 0, 0, 0 )); 
                 }
                 pop_bit(&mut attacks, target_square);
             }
@@ -462,9 +464,9 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                 let target_square = attacks.trailing_zeros() as usize;
                 // One square ahead pawn move
                 if get_bit(board.occupancies[0], target_square){
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::r, capture: true, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::r, Piece::P, 1, 0, 0, 0 ));
                 } else {
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::r, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::r, Piece::P, 0, 0, 0, 0 ));
                 }
                 pop_bit(&mut attacks, target_square);
             }
@@ -484,9 +486,9 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
                 let target_square = attacks.trailing_zeros() as usize;
                 // One square ahead pawn move
                 if get_bit(board.occupancies[0], target_square){
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::q, capture: true, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::q, Piece::P, 1, 0, 0, 0 ));
                 } else {
-                    move_list.push(Move {source_square: source_square as u8, target_square: target_square as u8, piece: Piece::q, ..Default::default()});
+                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::q, Piece::P, 0, 0, 0, 0 ));
                 }
                 pop_bit(&mut attacks, target_square);
             }
@@ -505,48 +507,48 @@ pub fn make_move(board: &BoardPosition, moveToMake: &Move) -> Option<BoardPositi
         castle: board.castle,
     };
 
-    let piece = moveToMake.piece.to_usize();
+    let piece = moveToMake.get_piece() as usize;
 
     //move
-    pop_bit(&mut newPosition.bitboards[piece], moveToMake.source_square as usize);
-    set_bit(&mut newPosition.bitboards[piece], moveToMake.target_square as usize);
+    pop_bit(&mut newPosition.bitboards[piece], moveToMake.get_source_square() as usize);
+    set_bit(&mut newPosition.bitboards[piece], moveToMake.get_target_square() as usize);
 
 
     //capture
-    if moveToMake.capture == true {
+    if moveToMake.get_capture() == true {
         for i in 0..6{
-            pop_bit(&mut newPosition.bitboards[newPosition.side * 6 + i], moveToMake.target_square as usize);
+            pop_bit(&mut newPosition.bitboards[newPosition.side * 6 + i], moveToMake.get_target_square() as usize);
         }
-        pop_bit(&mut newPosition.occupancies[newPosition.side], moveToMake.target_square as usize);
+        pop_bit(&mut newPosition.occupancies[newPosition.side], moveToMake.get_target_square() as usize);
     }
 
-    if moveToMake.promoted_piece != Piece::P {
-        pop_bit(&mut newPosition.bitboards[piece], moveToMake.target_square as usize);
-        set_bit(&mut newPosition.bitboards[moveToMake.promoted_piece.to_usize()], moveToMake.target_square as usize)
+    if moveToMake.get_promoted() != 0 {
+        pop_bit(&mut newPosition.bitboards[piece], moveToMake.get_target_square() as usize);
+        set_bit(&mut newPosition.bitboards[moveToMake.get_promoted() as usize], moveToMake.get_target_square() as usize)
     }
 
-    if moveToMake.enpassant {
+    if moveToMake.get_enpassant() {
         if piece < 6 {
-            pop_bit(&mut newPosition.bitboards[6], (moveToMake.target_square + 8) as usize)
+            pop_bit(&mut newPosition.bitboards[6], (moveToMake.get_target_square() + 8) as usize)
         }
         else {
-            pop_bit(&mut newPosition.bitboards[0], (moveToMake.target_square - 8) as usize)
+            pop_bit(&mut newPosition.bitboards[0], (moveToMake.get_target_square() - 8) as usize)
         }
     }
 
     newPosition.enpassant = 64;
 
-    if moveToMake.double_push {
+    if moveToMake.get_double_pawn_push() {
         if piece < 6 {
-            newPosition.enpassant = (moveToMake.target_square + 8) as usize;
+            newPosition.enpassant = (moveToMake.get_target_square() + 8) as usize;
         }
         else {
-            newPosition.enpassant = (moveToMake.target_square - 8) as usize;
+            newPosition.enpassant = (moveToMake.get_target_square() - 8) as usize;
         }
     }
 
-    if moveToMake.castling {
-        match moveToMake.target_square {
+    if moveToMake.get_castling() {
+        match moveToMake.get_target_square() {
             58 => {
                 pop_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("a1") as usize);
                 set_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("d1") as usize);
@@ -567,8 +569,8 @@ pub fn make_move(board: &BoardPosition, moveToMake: &Move) -> Option<BoardPositi
         }
     }
 
-    newPosition.castle = newPosition.castle & CASTLING_RIGHTS[moveToMake.source_square as usize] as usize;
-    newPosition.castle = newPosition.castle & CASTLING_RIGHTS[moveToMake.target_square as usize] as usize;
+    newPosition.castle = newPosition.castle & CASTLING_RIGHTS[moveToMake.get_source_square() as usize] as usize;
+    newPosition.castle = newPosition.castle & CASTLING_RIGHTS[moveToMake.get_target_square() as usize] as usize;
 
     newPosition.occupancies[0] = newPosition.bitboards[0 .. 6].iter().fold(0, |acc, &b| acc | b);
     newPosition.occupancies[1] = newPosition.bitboards[6 .. 12].iter().fold(0, |acc, &b| acc | b);
@@ -644,12 +646,14 @@ mod tests {
         handler.join().unwrap();
     }
 
+    #[test]
     fn test_double_push() {
 
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
             let boardPos = parse_fen("rnbqkbnr/1ppppppp/p7/P7/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 2"); //Rook on e3
-            let mv = Move {source_square: coordinates_to_squares("b7") as u8, target_square: coordinates_to_squares("b5") as u8, piece: Piece::P, double_push: true, ..Default::default()};
+            let mv = Move::create(coordinates_to_squares("b7") as u32, coordinates_to_squares("b5") as u32, Piece::P, Piece::P, 0, 0, 0, 1 );
+            println!("{:?}", mv);
             let newBoard = make_move(&boardPos, &mv).unwrap();
             assert_eq!(newBoard.enpassant, coordinates_to_squares("b6"));
         }).unwrap();

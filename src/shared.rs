@@ -29,42 +29,87 @@ pub struct BoardPosition {
 
 #[derive(Clone, Copy)]
 pub struct Move {
-    pub source_square: u8,
-    pub target_square: u8,
-    pub piece: Piece,
-    pub promoted_piece: Piece,
-    pub capture: bool,
-    pub enpassant: bool,
-    pub castling: bool,
-    pub double_push: bool
+    // pub source_square: u8,
+    // pub target_square: u8,
+    // pub piece: Piece,
+    // pub promoted_piece: Piece,
+    // pub capture: bool,
+    // pub enpassant: bool,
+    // pub castling: bool,
+    // pub double_push: bool
+    pub mv: u32
+}
+
+impl Move {
+    pub fn create(source_square: u32, target_square: u32, piece: Piece, promoted_piece: Piece, capture: u32, enpassant: u32, castling: u32, double_push: u32) -> Move {
+        let value : u32 = (source_square) +
+            (target_square << 6) +
+            ((piece.to_usize() as u32) << 12) +
+            ((promoted_piece.to_usize() as u32) << 16) +
+            (capture << 20) +
+            (enpassant << 21) +
+            (castling << 22) +
+            (double_push << 23);
+        Move {mv: value}
+    }
+
+    pub fn get_source_square(self: &Move) -> u32 {
+        self.mv & 0x3f
+    }
+
+    pub fn get_target_square(self: &Move) -> u32 {
+        (self.mv & 0xfc0) >> 6
+    }
+
+    pub fn get_piece(self: &Move) -> u32 {
+        (self.mv & 0xf000) >> 12
+    }
+
+    pub fn get_promoted(self: &Move) -> u32 {
+        (self.mv & 0xf0000) >> 16
+    }
+
+    pub fn get_capture(self: &Move) -> bool {
+        if self.mv & 0x100000 > 0 {
+            return true;
+        }
+        false
+    }
+
+    pub fn get_enpassant(self: &Move) -> bool {
+        if self.mv & 0x200000 > 0 {
+            return true;
+        }
+        false
+    }
+
+    pub fn get_castling(self: &Move) -> bool {
+        if self.mv & 0x400000 > 0 {
+            return true;
+        }
+        false
+    }
+
+    pub fn get_double_pawn_push(self: &Move) -> bool {
+        if self.mv & 0x800000 > 0 {
+            return true;
+        }
+        false
+    }
+
 }
 
 pub fn move_to_alg(mv: &Move) -> String {
-    match mv.promoted_piece {
-        Piece::Q => format!("{}{}q", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
-        Piece::q => format!("{}{}q", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
-        Piece::N => format!("{}{}n", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
-        Piece::n => format!("{}{}n", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
-        Piece::R => format!("{}{}r", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
-        Piece::r => format!("{}{}r", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
-        Piece::B => format!("{}{}b", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
-        Piece::b => format!("{}{}b", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize]),
-        _ => format!("{}{}", SQUARE_TO_COORDINATES[mv.source_square as usize], SQUARE_TO_COORDINATES[mv.target_square as usize])
-    }
-}
-
-impl Default for Move {
-    fn default() -> Move {
-        Move{
-            source_square: 64,
-            target_square: 64,
-            piece: Piece::P,
-            promoted_piece: Piece::P,
-            capture: false,
-            enpassant: false,
-            castling: false,
-            double_push: false
-        }
+    match mv.get_promoted() {
+        4 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        11 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        1 => format!("{}{}n", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        7 => format!("{}{}n", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        3 => format!("{}{}r", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        9 => format!("{}{}r", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        2 => format!("{}{}b", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        8 => format!("{}{}b", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        _ => format!("{}{}", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize])
     }
 }
 
@@ -73,14 +118,14 @@ impl fmt::Debug for Move {
         write!(
             f,
             "Move {{ {}-{}: {:?}, P={:?}{}{}{}{} }}",
-            SQUARE_TO_COORDINATES[self.source_square as usize],
-            SQUARE_TO_COORDINATES[self.target_square as usize],
-            self.piece,
-            self.promoted_piece,
-            if self.capture { "+" } else { "" },
-            if self.enpassant { " EP" } else { "" },
-            if self.castling { " O-O" } else { "" },
-            if self.double_push { " dblPP" } else { "" },
+            SQUARE_TO_COORDINATES[self.get_source_square() as usize],
+            SQUARE_TO_COORDINATES[self.get_target_square() as usize],
+            self.get_piece(),
+            self.get_promoted(),
+            if self.get_capture() { "+" } else { "" },
+            if self.get_enpassant() { " EP" } else { "" },
+            if self.get_castling() { " O-O" } else { "" },
+            if self.get_double_pawn_push() { " dblPP" } else { "" },
         )
     }
 }

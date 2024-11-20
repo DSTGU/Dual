@@ -24,7 +24,7 @@ pub fn get_victim(board_position: &BoardPosition, mv: &Move) -> usize {
     let sidevar = ((board_position.side + 1) % 2) * 6;
 
     for i in 0+sidevar..6+sidevar {
-        if get_bit(board_position.bitboards[i], mv.target_square as usize) {
+        if get_bit(board_position.bitboards[i], mv.get_target_square() as usize) {
             return i;
         }
     }
@@ -32,9 +32,9 @@ pub fn get_victim(board_position: &BoardPosition, mv: &Move) -> usize {
     0
 }
 pub fn get_move_score(board_position: &BoardPosition, mv: &Move) -> usize {
-    if mv.capture == true {
+    if mv.get_capture() == true {
         let victim = get_victim(board_position, mv);
-        return get_MVV_LVA(victim, mv.piece.to_usize());
+        return get_MVV_LVA(victim, mv.get_piece() as usize);
     }
     else {
         
@@ -75,7 +75,7 @@ pub fn quiescence(board_position: &BoardPosition, alpha: i32, beta: i32) -> (i32
     }
 
     let move_list = generate_moves(&board_position);
-    let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.capture == true).collect();
+    let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.get_capture() == true).collect();
     filtered_move_list.sort_by(|a, b| {
         let score_a = get_move_score(board_position, a);
         let score_b = get_move_score(board_position, b);
