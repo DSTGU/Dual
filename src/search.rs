@@ -12,6 +12,10 @@ const MVV_LVA : [usize ; 36] = [
 100, 200, 300, 400, 500, 600,
 ];
 
+static mut max_depth : usize = 0;
+static mut KILLER_MOVES : [[usize; 2]; 128 ] = [[0; 2]; 128];
+static mut HISTORY_MOVES : [[usize; 12]; 64 ] = [[0; 12]; 64];
+
 pub fn get_MVV_LVA(victim: usize, attacker: usize) -> usize {
     MVV_LVA[victim % 6 + attacker % 6 * 6]
 }
@@ -28,11 +32,16 @@ pub fn get_victim(board_position: &BoardPosition, mv: &Move) -> usize {
     0
 }
 pub fn get_move_score(board_position: &BoardPosition, mv: &Move) -> usize {
-    if mv.capture == false {
-        return 0;
+    if mv.capture == true {
+        let victim = get_victim(board_position, mv);
+        return get_MVV_LVA(victim, mv.piece.to_usize());
     }
-    let victim = get_victim(board_position, mv);
-    get_MVV_LVA(victim, mv.piece.to_usize())
+    else {
+        
+    }
+    
+    return 0;
+
 }
 
 pub fn rand_search(board_position: &BoardPosition) {
@@ -160,17 +169,34 @@ pub fn score_to_mate( score: i32, depth: usize) -> i32 {
     (- score - 4999900  - depth as i32 ) / 2
 }
 
+pub fn collectPv(moves: &Vec<Option<Move>>) -> String {
+    moves
+        .iter()
+        .filter_map(|x| x.as_ref().map(move_to_alg))
+        .rev()
+        .reduce(|a, b| a + " " + &b)
+        .unwrap_or_default()
+}
+
 pub fn search(board_position: &BoardPosition, depth: usize) {
-    let mut score = negamax(&board_position, -5000000, 5000000, depth);
+    unsafe {
+        max_depth = depth; 
+    }
     
+
+    
+    let mut score = negamax(&board_position, -5000000, 5000000, depth);
+
+    let pv = collectPv(&score.0);
+
     if score.1 > 4000000 || score.1 < -4000000 {
         
         let mate = score_to_mate( score.1, depth);
-    
-        println!("info score mate {} depth {} nodes {}", mate, depth, score.2);
+
+        println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.2, pv);
     }
     else {
-        println!("info score cp {} depth {} nodes {}", score.1, depth, score.2);
+        println!("info score cp {} depth {} nodes {} pv {}", score.1, depth, score.2, pv);
     }
     println!("Movelist: {:?}", score.0);
     println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()))

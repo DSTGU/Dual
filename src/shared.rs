@@ -27,7 +27,8 @@ pub struct BoardPosition {
     */
 }
 
-pub struct Move{
+#[derive(Clone, Copy)]
+pub struct Move {
     pub source_square: u8,
     pub target_square: u8,
     pub piece: Piece,
@@ -55,8 +56,8 @@ pub fn move_to_alg(mv: &Move) -> String {
 impl Default for Move {
     fn default() -> Move {
         Move{
-            source_square: 65,
-            target_square: 65,
+            source_square: 64,
+            target_square: 64,
             piece: Piece::P,
             promoted_piece: Piece::P,
             capture: false,
@@ -64,7 +65,6 @@ impl Default for Move {
             castling: false,
             double_push: false
         }
-
     }
 }
 
@@ -98,7 +98,7 @@ pub enum Sq {
 }
 
 // encode pieces
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Piece { P = 0, N = 1, B = 2, R = 3, Q = 4, K = 5, p = 6, n = 7, b = 8, r = 9, q = 10, k = 11}
 
 impl Piece {

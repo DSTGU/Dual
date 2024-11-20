@@ -55,11 +55,11 @@ use crate::shared::Sq::e5;
 \**********************************/
 
 pub fn uci_loop() {
-    println!("id name Dual v0.3.0");
+    println!("id name Dual v0.2.1");
     println!("id author Tomasz Stawowy");
     println!("uciok");
     let mut boardpos : BoardPosition = parse_fen(start_position);
-    loop {
+    loop {  
         // Read user input
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();

@@ -80,9 +80,7 @@ pub fn parse_go(command: &str, board_position: &BoardPosition) {
             _ => ()
         }
     }
-
-    println!("info depth {}", depth);
-
+    
     let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
     let bp = board_position.clone();
     let handler = builder.spawn(move || {
