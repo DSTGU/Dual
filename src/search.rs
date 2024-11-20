@@ -72,7 +72,7 @@ pub fn quiescence(board_position: &BoardPosition, alpha: i32, beta: i32) -> (i32
         let score_b = get_move_score(board_position, b);
         score_b.cmp(&score_a)
     });
-    
+
     let mut nodes = 1;
 
     for mv in filtered_move_list {
@@ -142,7 +142,7 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
     
     if legal_moves == 0 {
             if is_square_attacked(board_position.bitboards[6*board_position.side+5].trailing_zeros() as usize, board_position) {
-                return (vec![], -4999999, 1)
+                return (vec![], -4999900 - depth as i32, 1)
             }
             else {
                 return (vec![], 0, 1)
@@ -153,11 +153,25 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
     (bestMoveList, new_alpha, nodes)
 }
 
+pub fn score_to_mate( score: i32, depth: usize) -> i32 {
+    if score > 0 {
+        return (- score + 4999901 + depth as i32 ) / 2
+    }
+    (- score - 4999900  - depth as i32 ) / 2
+}
+
 pub fn search(board_position: &BoardPosition, depth: usize) {
     let mut score = negamax(&board_position, -5000000, 5000000, depth);
     
-
-    println!("info score cp {} depth {} nodes {}", score.1, depth, score.2);
+    if score.1 > 4000000 || score.1 < -4000000 {
+        
+        let mate = score_to_mate( score.1, depth);
+    
+        println!("info score mate {} depth {} nodes {}", mate, depth, score.2);
+    }
+    else {
+        println!("info score cp {} depth {} nodes {}", score.1, depth, score.2);
+    }
     println!("Movelist: {:?}", score.0);
     println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()))
 }

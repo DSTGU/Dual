@@ -55,7 +55,7 @@ use crate::shared::Sq::e5;
 \**********************************/
 
 pub fn uci_loop() {
-    println!("id name Dual");
+    println!("id name Dual v0.3.0");
     println!("id author Tomasz Stawowy");
     println!("uciok");
     let mut boardpos : BoardPosition = parse_fen(start_position);
