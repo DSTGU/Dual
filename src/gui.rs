@@ -72,21 +72,32 @@ pub fn depth_func(figures: u32) -> usize{
 pub fn parse_go(command: &str, board_position: &BoardPosition) {
     let mut depth = depth_func(board_position.occupancies[2].count_ones());
     let words : Vec<&str> = command.split_ascii_whitespace().collect();
-
+    let mut wtime : Option<usize> = None;
+    let mut btime : Option<usize> = None;
+    
+    
     for i in 0..words.len()/2 {
         match words[2 * i + 1] {
             "depth" => depth = words[2*i+2].parse().unwrap_or(6),
-            "perft" => {perft(board_position, words[2*i+2].parse().unwrap_or(4)); return;}
+            "perft" => {perft(board_position, words[2*i+2].parse().unwrap_or(4)); return;},
+            "wtime" => wtime = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "btime" => btime = Some(words[2*i+2].parse().unwrap_or(1000)),
             _ => ()
         }
     }
-    
-    let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
     let bp = board_position.clone();
-    let handler = builder.spawn(move || {
-        search(&bp, depth);
-    }).unwrap();
-    handler.join().unwrap();
+    let mut time : Option<usize> = None;
+    
+    if board_position.side == 1 {
+        time = btime;
+    }
+    else {
+        time = wtime;
+    }
+
+        search(&bp, depth, time);
+    
+
 
 }
 
