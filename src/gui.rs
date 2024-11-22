@@ -66,7 +66,7 @@ pub fn parse_position(command: &str) -> BoardPosition {
 }
 
 pub fn depth_func(figures: u32) -> usize{
-    ((9.0 / ((figures - 1) as f32).powf(0.28)) + 2.0) as usize
+    ((9.0 / ((figures - 1) as f32).powf(0.20)) + 1.5) as usize
 }
 
 pub fn parse_go(command: &str, board_position: &BoardPosition) {

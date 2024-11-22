@@ -168,7 +168,7 @@ pub fn evaluate(board_position: &BoardPosition) -> i32 {
             if p > 5 {
                 score -= ((9 - phase) * MG_TABLES[p-6][mirror_sq(square)]) + (phase * EG_TABLES[p-6][mirror_sq(square)]);
             } else {
-                score += (9 - phase) * MG_TABLES[p][square] + phase * MG_TABLES[p][square];
+                score += (9 - phase) * MG_TABLES[p][square] + phase * EG_TABLES[p][square];
             }
             
             pop_bit(&mut x, square);
