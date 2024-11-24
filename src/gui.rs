@@ -70,7 +70,7 @@ pub fn depth_func(figures: u32) -> usize{
 }
 
 pub fn parse_go(command: &str, board_position: &BoardPosition) {
-    let mut depth = depth_func(board_position.occupancies[2].count_ones());
+    let mut depth = None; //depth_func(board_position.occupancies[2].count_ones());
     let words : Vec<&str> = command.split_ascii_whitespace().collect();
     let mut wtime : Option<usize> = None;
     let mut btime : Option<usize> = None;
@@ -78,7 +78,7 @@ pub fn parse_go(command: &str, board_position: &BoardPosition) {
     
     for i in 0..words.len()/2 {
         match words[2 * i + 1] {
-            "depth" => depth = words[2*i+2].parse().unwrap_or(6),
+            "depth" => depth = Some(words[2*i+2].parse().unwrap_or(6)),
             "perft" => {perft(board_position, words[2*i+2].parse().unwrap_or(4)); return;},
             "wtime" => wtime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "btime" => btime = Some(words[2*i+2].parse().unwrap_or(1000)),
