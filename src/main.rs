@@ -55,7 +55,7 @@ use crate::shared::Sq::e5;
 \**********************************/
 
 pub fn uci_loop() {
-    println!("id name Dual v0.2.4");
+    println!("id name Dual v0.2.5");
     println!("id author Tomasz Stawowy");
     println!("uciok");
     let mut boardpos : BoardPosition = parse_fen(start_position);
@@ -74,7 +74,7 @@ pub fn uci_loop() {
             "go" => parse_go(command, &boardpos),
             "position" => boardpos = parse_position(command),
             "ucinewgame" => boardpos = parse_position("position startpos"),
-            "uci" => println!("id name Dual v0.2.4\nid author Tomasz Stawowy\nuciok"),
+            "uci" => println!("id name Dual v0.2.5\nid author Tomasz Stawowy\nuciok"),
             "printboard" => print_board(&boardpos),
             "isready" => println!("readyok"),
             // Add more commands here as needed

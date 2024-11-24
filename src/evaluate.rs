@@ -147,18 +147,32 @@ const EG_TABLES: [[i32; 64]; 6] = [
 pub fn mirror_sq(score: usize) -> usize {
     (7-score/8)*8+score%8
 }
+
+pub fn determine_phase(board_position: &BoardPosition) -> i32 {
+    let knight_phase = 1;
+    let bishop_phase = 1;
+    let rook_phase = 2;
+    let queen_phase = 4;
+    let total_phase = knight_phase * 4 + bishop_phase * 4 + rook_phase * 4 + queen_phase * 2;
+
+    let mut phase = total_phase;
+    phase -= knight_phase * board_position.bitboards[1].count_ones() as i32;
+    phase -= knight_phase * board_position.bitboards[7].count_ones() as i32;
+    phase -= bishop_phase * board_position.bitboards[2].count_ones() as i32;
+    phase -= bishop_phase * board_position.bitboards[8].count_ones() as i32;
+    phase -= rook_phase * board_position.bitboards[3].count_ones() as i32;
+    phase -= rook_phase * board_position.bitboards[9].count_ones() as i32;
+    phase -= queen_phase * board_position.bitboards[4].count_ones() as i32;
+    phase -= queen_phase * board_position.bitboards[10].count_ones() as i32;
+
+    (phase * 256 + (total_phase / 2)) / total_phase
+}
 pub fn evaluate(board_position: &BoardPosition) -> i32 {
-    let mut score : i32 = 0;
 
-    let mut phase :i32 = 0;
+    let mut mg_score = 0;
+    let mut eg_score = 0;
+    let phase = determine_phase(board_position);
     
-    if board_position.occupancies[2].count_ones() < 18 {
-        if board_position.occupancies[2].count_ones() < 9 { 
-            phase = 9;
-        }
-        phase = 18 - board_position.occupancies[2].count_ones() as i32;
-    }
-
     for p in 0..12 {
         let mut x = board_position.bitboards[p];
         
@@ -166,14 +180,18 @@ pub fn evaluate(board_position: &BoardPosition) -> i32 {
             let square = x.trailing_zeros() as usize;
             
             if p > 5 {
-                score -= ((9 - phase) * MG_TABLES[p-6][mirror_sq(square)]) + (phase * EG_TABLES[p-6][mirror_sq(square)]);
+                mg_score -= MG_TABLES[p-6][mirror_sq(square)];
+                eg_score -= EG_TABLES[p-6][mirror_sq(square)];
             } else {
-                score += (9 - phase) * MG_TABLES[p][square] + phase * EG_TABLES[p][square];
+                mg_score += MG_TABLES[p][square];
+                eg_score += EG_TABLES[p][square];
             }
             
             pop_bit(&mut x, square);
         }
     }
-    score = score/9;
+
+    let mut score = (mg_score * (256-phase) + eg_score * phase) / 256;
+
     score * (board_position.side as i32 * 2 - 1 ) * -1
 }

@@ -144,26 +144,30 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
     let mut legal_moves = 0;
     let mut is_PV_node = false;
 
-    for mv in moveList {
+    for (idx, mv) in moveList.iter().enumerate() {
 
-        let nbpOption = make_move(&board_position, &mv);
+        let nbpOption = make_move(&board_position, mv);
 
         if let Some(nbp) = nbpOption {
             legal_moves += 1;
+            let mut newdepth = depth-1;
             let mut res = (vec![], 0, 0);
-
+            // if idx > 3 && depth >= 4 {
+            //     newdepth = depth - 2;
+            // }
+            
              if is_PV_node {
-                 res = negamax(&nbp, -new_alpha - 1, -new_alpha, depth - 1);
+                 res = negamax(&nbp, -new_alpha - 1, -new_alpha, newdepth);
                  nodes += res.2;
 
                  if -res.1 > new_alpha && -res.1 < beta {
                      //println!("failure");
-                     res = negamax(&nbp, -beta, -new_alpha, depth - 1);
+                     res = negamax(&nbp, -beta, -new_alpha, depth-1);
                      nodes += res.2;
                  }
              }
              else {
-                res = negamax(&nbp, -beta, -new_alpha, depth - 1);
+                res = negamax(&nbp, -beta, -new_alpha, depth-1);
                  nodes += res.2;
              }
             
@@ -195,7 +199,7 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
                 }
                 
                 new_alpha = -res.1;
-                bestMove = Some(mv);
+                bestMove = Some(*mv);
                 bestMoveList = res.0;
                 is_PV_node = true;
             }
