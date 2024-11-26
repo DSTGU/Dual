@@ -37,14 +37,9 @@ use shared::print_bitboard;
 use attacks::PAWN_ATTACKS;
 use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
-use attacks::ROOK_ATTACKS;
-use attacks::BISHOP_ATTACKS;
-use crate::evaluate::{evaluate, mirror_sq};
-use crate::gui::{parse_go, parse_move, parse_position};
-use crate::moveGen::{generate_moves, is_square_attacked, make_move, run_through_attacks};
-use crate::perft::{perft, perft_driver, pure_perft};
-use crate::shared::{ empty_board, Move, parse_fen, Piece, print_board, start_position, kiwipete, SQUARE_TO_COORDINATES, coordinates_to_squares};
-use crate::shared::Sq::e5;
+use crate::attacks::get_bishop_attacks;
+use crate::gui::{parse_go, parse_position};
+use crate::shared::{ parse_fen, Piece, print_board, start_position, coordinates_to_squares};
 
 /**********************************\
  ==================================
@@ -77,6 +72,7 @@ pub fn uci_loop() {
             "uci" => println!("id name Dual v0.2.5\nid author Tomasz Stawowy\nuciok"),
             "printboard" => print_board(&boardpos),
             "isready" => println!("readyok"),
+            "rw" => print_bitboard(get_bishop_attacks(coordinates_to_squares("b3"),0)),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
         }

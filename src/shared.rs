@@ -286,7 +286,7 @@ pub fn print_bitboard(bitboard: u64) {
     println!("\n     a b c d e f g h\n");
 
     // print bitboard as unsigned decimal number
-    println!("     Bitboard: {}", bitboard);
+    println!("{}", bitboard);
 }
 
 // print board
