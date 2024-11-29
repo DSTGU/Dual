@@ -1,7 +1,5 @@
-use::std::sync::Mutex;
 use std::sync::{Once};
 use lazy_static::lazy_static;
-use crate::{BoardPosition, Piece};
 
 use crate::shared::set_bit;
 use crate::shared::pop_bit;
@@ -18,7 +16,7 @@ const NOT_H_FILE: u64 = 9187201950435737471;
 const NOT_HG_FILE: u64 = 4557430888798830399;
 const NOT_AB_FILE: u64 = 18229723555195321596;
 
-
+// PAWN_ATTACKS[side][square] - 0 = białe, 1 = czarne
 lazy_static! {
     pub static ref PAWN_ATTACKS: [[u64; 64]; 2] = {
         let mut pawn_attacks = [[0; 64]; 2];
@@ -31,7 +29,6 @@ lazy_static! {
         });
             pawn_attacks
     };
-
 }
 
 lazy_static! {

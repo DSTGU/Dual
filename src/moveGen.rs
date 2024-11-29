@@ -1,9 +1,9 @@
 use std::borrow::Borrow;
 use std::ops::BitXor;
-use crate::{BoardPosition, get_bit, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS, Piece, pop_bit, print_bitboard, print_board, set_bit};
+use crate::{BoardPosition, get_bit, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS, Piece, pop_bit, print_bitboard, set_bit};
 use crate::attacks::{get_bishop_attacks, get_queen_attacks, get_rook_attacks};
-use crate::shared::{Move, SQUARE_TO_COORDINATES, coordinates_to_squares, print_square};
-use crate::shared::Piece::{k, r, K, R};
+use crate::shared::{Move, coordinates_to_squares};
+use crate::shared::Piece::{r, R};
 
 pub fn is_square_attacked(square: usize, board: &BoardPosition) -> bool {
     // Attacked by white pawns
@@ -40,9 +40,7 @@ pub fn is_square_attacked(square: usize, board: &BoardPosition) -> bool {
 
     // Attacked by kings
     if KING_ATTACKS[square] & (if board.side == 0 { board.bitboards[Piece::k as usize] } else { board.bitboards[Piece::K as usize] }) != 0 {
-
         return true;
-
     }
 
     // By default, return false
@@ -51,7 +49,6 @@ pub fn is_square_attacked(square: usize, board: &BoardPosition) -> bool {
 
 
 pub fn run_through_attacks(board_position: &BoardPosition) -> u64 {
-    
     let mut cnt = 0;
     for y in 0..8 {
         for x in 0..8{
