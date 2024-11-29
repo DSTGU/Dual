@@ -50,7 +50,7 @@ use crate::shared::{ parse_fen, Piece, print_board, start_position, coordinates_
 \**********************************/
 
 pub fn uci_loop() {
-    println!("id name Dual v0.2.5");
+    println!("id name Dual v0.2.6");
     println!("id author Tomasz Stawowy");
     println!("uciok");
     let mut boardpos : BoardPosition = parse_fen(start_position);
@@ -69,7 +69,7 @@ pub fn uci_loop() {
             "go" => parse_go(command, &boardpos),
             "position" => boardpos = parse_position(command),
             "ucinewgame" => boardpos = parse_position("position startpos"),
-            "uci" => println!("id name Dual v0.2.5\nid author Tomasz Stawowy\nuciok"),
+            "uci" => println!("id name Dual v0.2.6\nid author Tomasz Stawowy\nuciok"),
             "printboard" => print_board(&boardpos),
             "isready" => println!("readyok"),
             "rw" => print_bitboard(get_bishop_attacks(coordinates_to_squares("b3"),0)),

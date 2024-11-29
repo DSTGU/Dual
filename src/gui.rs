@@ -20,10 +20,10 @@ pub fn parse_move(board: &BoardPosition, moveToParse: &str) -> Option<Move> {
         }
         return legal_moves.pop();
     }
-
+    
     let mut piece = 0;
 
-    let char = moveToParse[5..5].to_ascii_lowercase();
+    let char = moveToParse[4..5].to_ascii_lowercase();
     let ch = char.as_str();
 
     match ch {
