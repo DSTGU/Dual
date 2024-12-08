@@ -18,6 +18,7 @@ const MVV_LVA : [usize ; 36] = [
 static mut max_depth : usize = 0;
 static mut KILLER_MOVE : [[u32; 256]; 2 ] = [[0; 256]; 2];
 static mut HISTORY_MOVE : [[usize; 64]; 12 ] = [[0; 64]; 12];
+static mut previter_bestmove : u32 = 0;
 
 pub fn get_MVV_LVA(victim: usize, attacker: usize) -> usize {
     MVV_LVA[victim % 6 + attacker % 6 * 6]
@@ -35,6 +36,15 @@ pub fn get_victim(board_position: &BoardPosition, mv: &Move) -> usize {
     0
 }
 pub fn get_move_score(board_position: &BoardPosition, mv: &Move, ply: usize) -> usize {
+
+    unsafe {
+        if ply == 0 && mv.mv == previter_bestmove {
+            return 605000001;
+        }
+    }
+
+    //println!("ply: {}", ply);
+
     if mv.get_capture() == true {
         let victim = get_victim(board_position, mv);
         return get_MVV_LVA(victim, mv.get_piece() as usize);
@@ -156,20 +166,20 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
             //     newdepth = depth - 2;
             // }
             
-             if is_PV_node {
-                 res = negamax(&nbp, -new_alpha - 1, -new_alpha, newdepth);
-                 nodes += res.2;
-
-                 if -res.1 > new_alpha && -res.1 < beta {
-                     //println!("failure");
-                     res = negamax(&nbp, -beta, -new_alpha, depth-1);
-                     nodes += res.2;
-                 }
-             }
-             else {
+             // if is_PV_node {
+             //     res = negamax(&nbp, -new_alpha - 1, -new_alpha, newdepth);
+             //     nodes += res.2;
+             //
+             //     if -res.1 > new_alpha && -res.1 < beta {
+             //         //println!("failure");
+             //         res = negamax(&nbp, -beta, -new_alpha, depth-1);
+             //         nodes += res.2;
+             //     }
+             // }
+             // else {
                 res = negamax(&nbp, -beta, -new_alpha, depth-1);
                  nodes += res.2;
-             }
+             // }
             
             // unsafe {
             //     println!("|{}|, {} - {:?}", max_depth - depth, is_PV_node, res);
@@ -240,11 +250,37 @@ pub fn single_depth_search(board_position: &BoardPosition, depth: usize) -> (Vec
     score
 }
 
+pub fn single_depth_search_aspirated(board_position: &BoardPosition, depth: usize, eval: i32) -> (Vec<Option<Move>>, i32, i32){
+    let mut aspiration_lower = 50;
+    let mut aspiration_higher = 50;
+
+    let mut score = (vec!(), 0, 0);
+
+    while score.0.len() == 0 {
+        score = negamax(&board_position, eval-aspiration_lower, eval+aspiration_higher, depth);
+
+        if score.0.len() > 0 {
+            return score;
+        }
+
+        if score.1 < eval {
+            aspiration_lower = aspiration_lower * 2;
+        }
+        else {
+            aspiration_higher = aspiration_higher * 2;
+        }
+    }
+
+    score
+}
+
+
 pub fn search(board_position: &BoardPosition, depth: Option<usize>, time: Option<usize>) {
 
     unsafe {
         KILLER_MOVE = [[0; 256]; 2];
         HISTORY_MOVE = [[0; 64]; 12];
+        previter_bestmove = 0;
     }
 
 
@@ -285,18 +321,26 @@ pub fn search(board_position: &BoardPosition, depth: Option<usize>, time: Option
         else {
             time_avail = 10000000;
         }
-        let mut depth = 4;
+        let mut depth = 3;
+        unsafe {
+            max_depth = depth;
+            KILLER_MOVE = [[0; 256]; 2];
+            HISTORY_MOVE = [[0; 64]; 12];
+            previter_bestmove = 0;
+        }
         let bp = board_position.clone();
-        let mut score = (vec!(), 0, 0);
+        let mut score = single_depth_search(board_position, 3);
+        depth = 4;
         let handler = builder.spawn(move || {
             while now.elapsed().unwrap().as_millis() < time_avail as u128 {
                 unsafe {
                     max_depth = depth;
                     KILLER_MOVE = [[0; 256]; 2];
                     HISTORY_MOVE = [[0; 64]; 12];
+                    //previter_bestmove = score.0.pop().unwrap().unwrap().mv;
                 }
                 
-                score = single_depth_search(&bp, depth);
+                score = single_depth_search_aspirated(&bp, depth, score.1);
 
                 let pv = collectPv(&score.0);
 

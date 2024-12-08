@@ -193,5 +193,5 @@ pub fn evaluate(board_position: &BoardPosition) -> i32 {
 
     let mut score = (mg_score * (256-phase) + eg_score * phase) / 256;
 
-    score * (board_position.side as i32 * 2 - 1 ) * -1
+    score * (board_position.side as i32 * 2 - 1 ) * -1 + 15
 }
