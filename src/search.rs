@@ -256,13 +256,20 @@ pub fn single_depth_search_aspirated(board_position: &BoardPosition, depth: usiz
 
     let mut score = (vec!(), 0, 0);
 
-    while score.0.len() == 0 {
+    loop {
+        println!("low: -{}, high: {}", aspiration_lower, aspiration_higher);
         score = negamax(&board_position, eval-aspiration_lower, eval+aspiration_higher, depth);
 
+        //println!("aspiration, score: {:?}", score);
+
         if score.0.len() > 0 {
-            return score;
+            if score.0[0].is_some() {
+                //println!("returning: {:?}", score);
+                return score;
+            }
         }
 
+        //println!("aspiration failed, score: {:?}", score);
         if score.1 < eval {
             aspiration_lower = aspiration_lower * 2;
         }
@@ -270,8 +277,6 @@ pub fn single_depth_search_aspirated(board_position: &BoardPosition, depth: usiz
             aspiration_higher = aspiration_higher * 2;
         }
     }
-
-    score
 }
 
 
