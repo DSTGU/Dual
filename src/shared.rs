@@ -28,6 +28,18 @@ pub struct BoardPosition {
 }
 
 #[derive(Clone, Copy)]
+pub struct OldMove {
+    pub source_square: u8,
+    pub target_square: u8,
+    pub piece: Piece,
+    pub promoted_piece: Piece,
+    pub capture: bool,
+    pub enpassant: bool,
+    pub castling: bool,
+    pub double_push: bool
+}
+
+#[derive(Clone, Copy)]
 pub struct Move {
     // pub source_square: u8,
     // pub target_square: u8,
@@ -287,6 +299,7 @@ pub fn print_bitboard(bitboard: u64) {
 
     // print bitboard as unsigned decimal number
     println!("{}", bitboard);
+    println!("{:#064b}", bitboard);
 }
 
 // print board

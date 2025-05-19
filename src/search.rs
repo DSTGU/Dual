@@ -1,10 +1,13 @@
+use std::borrow::ToOwned;
 use std::cmp::max;
+use std::string::ToString;
 use std::thread;
 use std::time::SystemTime;
 use crate::evaluate::evaluate;
 use crate::moveGen::{generate_moves, is_square_attacked, make_move};
-use crate::shared::{coordinates_to_squares, get_bit, move_to_alg, BoardPosition, Move, Piece};
-use crate::shared::Piece::{p, K};
+use crate::shared::{coordinates_to_squares, get_bit, move_to_alg, BoardPosition, Move, OldMove, Piece};
+use crate::shared::Piece::{p, K, P};
+use crate::shared::Sq::a1;
 
 const MVV_LVA : [usize ; 36] = [
 105000000, 205000000, 305000000, 405000000, 505000000, 605000000,
@@ -18,6 +21,7 @@ const MVV_LVA : [usize ; 36] = [
 static mut max_depth : usize = 0;
 static mut KILLER_MOVE : [[u32; 256]; 2 ] = [[0; 256]; 2];
 static mut HISTORY_MOVE : [[usize; 64]; 12 ] = [[0; 64]; 12];
+static mut TEST_STATIC : [OldMove ; 53] =  [OldMove{source_square: 3, target_square: 4 , piece: K, promoted_piece: P, double_push: false, capture: false, enpassant: false, castling: false}; 53];
 
 pub fn get_MVV_LVA(victim: usize, attacker: usize) -> usize {
     MVV_LVA[victim % 6 + attacker % 6 * 6]
@@ -117,12 +121,19 @@ pub fn quiescence(board_position: &BoardPosition, alpha: i32, beta: i32, ply: us
     (new_alpha, nodes)
 }
 
-pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usize) -> (Vec<Option<Move>>, i32, i32) {
+pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usize, time: Option<(SystemTime, usize)>) -> (Vec<Option<Move>>, i32, i32) {
 
     if depth == 0 {
         let score = quiescence(board_position, alpha, beta, 1);
         return (vec![], score.0, score.1)
     }
+
+    if let Some(x) = time {
+        if x.0.elapsed().unwrap().as_millis() as usize > x.1 {
+            return (vec![], 0, 0);
+        }
+    }
+
 
     let mut new_alpha = alpha;
 
@@ -157,17 +168,17 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
             // }
             
              if is_PV_node {
-                 res = negamax(&nbp, -new_alpha - 1, -new_alpha, newdepth);
+                 res = negamax(&nbp, -new_alpha - 1, -new_alpha, newdepth, time);
                  nodes += res.2;
 
                  if -res.1 > new_alpha && -res.1 < beta {
                      //println!("failure");
-                     res = negamax(&nbp, -beta, -new_alpha, depth-1);
+                     res = negamax(&nbp, -beta, -new_alpha, depth-1, time);
                      nodes += res.2;
                  }
              }
              else {
-                res = negamax(&nbp, -beta, -new_alpha, depth-1);
+                res = negamax(&nbp, -beta, -new_alpha, depth-1, time);
                  nodes += res.2;
              }
             
@@ -235,89 +246,158 @@ pub fn collectPv(moves: &Vec<Option<Move>>) -> String {
         .unwrap_or_default()
 }
 
-pub fn single_depth_search(board_position: &BoardPosition, depth: usize) -> (Vec<Option<Move>>, i32, i32){
-    let mut score = negamax(&board_position, -5000000, 5000000, depth);
+pub fn single_depth_search(board_position: &BoardPosition, depth: usize, time: Option<(SystemTime, usize)>) -> (Vec<Option<Move>>, i32, i32){
+    let mut score = negamax(&board_position, -5000000, 5000000, depth, time);
     score
 }
 
-pub fn search(board_position: &BoardPosition, depth: Option<usize>, time: Option<usize>) {
+pub enum Time {
+    Managed(usize),
+    Fixed(usize),
+    None
+}
+
+pub fn search(board_position: &BoardPosition, depth: Option<usize>, time: Time) {
 
     unsafe {
         KILLER_MOVE = [[0; 256]; 2];
         HISTORY_MOVE = [[0; 64]; 12];
     }
 
+    match time {
+        Time::Managed(n) => {
+            let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+            let now = SystemTime::now();
+            let mut time_avail= n/60;
+            let mut depth = 4;
+            let bp = board_position.clone();
+            let mut score = (vec!(), 0, 0);
+            let handler = builder.spawn(move || {
+                while now.elapsed().unwrap().as_millis() < time_avail as u128 {
+                    unsafe {
+                        max_depth = depth;
+                        KILLER_MOVE = [[0; 256]; 2];
+                        HISTORY_MOVE = [[0; 64]; 12];
+                    }
 
-    if time.is_none() && depth.is_some() {
+                    score = single_depth_search(&bp, depth, None);
 
-        unsafe {
-            max_depth = depth.unwrap();
+                    let pv = collectPv(&score.0);
+
+                    if score.1 > 4000000 || score.1 < -4000000 {
+
+                        let mate = score_to_mate( score.1, depth);
+
+                        println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.2, pv);
+                    }
+                    else {
+                        println!("info score cp {} depth {} nodes {} pv {}", score.1, depth, score.2, pv);
+                    }
+
+                    depth = depth + 1;
+                }
+
+
+                println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()));
+            }).unwrap();
+            handler.join().unwrap();
         }
+        Time::Fixed(n) => {
+            let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+            let now = SystemTime::now();
+            let mut depth = 4;
+            let bp = board_position.clone();
+            let mut score = (vec!(), 0, 0);
+            let handler = builder.spawn(move || {
+                while now.elapsed().unwrap().as_millis() < n as u128 {
+                    unsafe {
+                        max_depth = depth;
+                        KILLER_MOVE = [[0; 256]; 2];
+                        HISTORY_MOVE = [[0; 64]; 12];
+                    }
 
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let bp = board_position.clone();
-        let handler = builder.spawn(move || {
-            let mut score = single_depth_search(&bp, depth.unwrap());
+                    let new_score = single_depth_search(&bp, depth, Some((now, n)));
 
-            let pv = collectPv(&score.0);
+                    if n > now.elapsed().unwrap().as_millis() as usize {
+                        score = new_score;
+                    let pv = collectPv(&score.0);
 
-            if score.1 > 4000000 || score.1 < -4000000 {
+                    if score.1 > 4000000 || score.1 < -4000000 {
 
-                let mate = score_to_mate( score.1, depth.unwrap());
+                        let mate = score_to_mate( score.1, depth);
 
-                println!("info score mate {} depth {} nodes {} pv {}", mate, depth.unwrap(), score.2, pv);
+                        println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.2, pv);
+                    }
+                    else {
+                        println!("info score cp {} depth {} nodes {} pv {}", score.1, depth, score.2, pv);
+                    } }
+
+                    depth = depth + 1;
+                }
+
+
+                println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()));
+            }).unwrap();
+            handler.join().unwrap();
+        }
+        Time::None => {
+            if let Some(n) = depth {
+                unsafe {
+                    max_depth = depth.unwrap();
+                }
+
+                let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+                let bp = board_position.clone();
+                let handler = builder.spawn(move || {
+                    let mut score = single_depth_search(&bp, depth.unwrap(), None);
+
+                    let pv = collectPv(&score.0);
+
+                    if score.1 > 4000000 || score.1 < -4000000 {
+                        let mate = score_to_mate(score.1, depth.unwrap());
+
+                        println!("info score mate {} depth {} nodes {} pv {}", mate, depth.unwrap(), score.2, pv);
+                    } else {
+                        println!("info score cp {} depth {} nodes {} pv {}", score.1, depth.unwrap(), score.2, pv);
+                    }
+                    //println!("Movelist: {:?}", score.0);
+                    println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()));
+                }).unwrap();
+                handler.join().unwrap();
             }
             else {
-                println!("info score cp {} depth {} nodes {} pv {}", score.1, depth.unwrap(), score.2, pv);
+                let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+                let mut depth = 4;
+                let bp = board_position.clone();
+                let mut score = (vec!(), 0, 0);
+                let handler = builder.spawn(move || {
+                    while true {
+                        unsafe {
+                            max_depth = depth;
+                            KILLER_MOVE = [[0; 256]; 2];
+                            HISTORY_MOVE = [[0; 64]; 12];
+                        }
+
+                        score = single_depth_search(&bp, depth, None);
+
+                        let pv = collectPv(&score.0);
+
+                        if score.1 > 4000000 || score.1 < -4000000 {
+
+                            let mate = score_to_mate( score.1, depth);
+
+                            println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.2, pv);
+                        }
+                        else {
+                            println!("info score cp {} depth {} nodes {} pv {}", score.1, depth, score.2, pv);
+                        }
+
+                        depth = depth + 1;
+                    }
+                }).unwrap();
+                handler.join().unwrap();
             }
-           //println!("Movelist: {:?}", score.0);
-            println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()));
-            
-        }).unwrap();
-        handler.join().unwrap();
-    } else {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let now = SystemTime::now();
-        let mut time_avail= 0;
-            if let Some(x) = time {
-                time_avail = x/60
-            }
-        else {
-            time_avail = 10000000;
         }
-        let mut depth = 4;
-        let bp = board_position.clone();
-        let mut score = (vec!(), 0, 0);
-        let handler = builder.spawn(move || {
-            while now.elapsed().unwrap().as_millis() < time_avail as u128 {
-                unsafe {
-                    max_depth = depth;
-                    KILLER_MOVE = [[0; 256]; 2];
-                    HISTORY_MOVE = [[0; 64]; 12];
-                }
-                
-                score = single_depth_search(&bp, depth);
-
-                let pv = collectPv(&score.0);
-
-                if score.1 > 4000000 || score.1 < -4000000 {
-
-                    let mate = score_to_mate( score.1, depth);
-
-                    println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.2, pv);
-                }
-                else {
-                    println!("info score cp {} depth {} nodes {} pv {}", score.1, depth, score.2, pv);
-                }
-                
-                depth = depth + 1;
-            }
-
-
-            println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()));
-        }).unwrap();
-        handler.join().unwrap();
-        
     }
     
 }

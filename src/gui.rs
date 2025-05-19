@@ -1,7 +1,8 @@
 use std::thread;
 use crate::moveGen::{generate_moves, make_move};
 use crate::perft::perft;
-use crate::search::{search};
+use crate::search::{search, Time};
+use crate::search::Time::{Fixed, Managed};
 use crate::shared::{coordinates_to_squares, parse_fen, print_square, start_position, BoardPosition, Move};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
 use crate::uci_loop;
@@ -72,30 +73,22 @@ pub fn depth_func(figures: u32) -> usize{
 pub fn parse_go(command: &str, board_position: &BoardPosition) {
     let mut depth = None; //depth_func(board_position.occupancies[2].count_ones());
     let words : Vec<&str> = command.split_ascii_whitespace().collect();
-    let mut wtime : Option<usize> = None;
-    let mut btime : Option<usize> = None;
+    let mut time: Time = Time::None;
     
     
     for i in 0..words.len()/2 {
         match words[2 * i + 1] {
             "depth" => depth = Some(words[2*i+2].parse().unwrap_or(6)),
             "perft" => {perft(board_position, words[2*i+2].parse().unwrap_or(4)); return;},
-            "wtime" => wtime = Some(words[2*i+2].parse().unwrap_or(1000)),
-            "btime" => btime = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "wtime" => if board_position.side == 0 {time = Managed(words[2*i+2].parse().unwrap_or(1000))},
+            "btime" => if board_position.side == 1 {time = Managed(words[2*i+2].parse().unwrap_or(1000))},
+            "movetime" => time = Fixed(words[2*i+2].parse().unwrap_or(1000)),
             _ => ()
         }
     }
     let bp = board_position.clone();
-    let mut time : Option<usize> = None;
-    
-    if board_position.side == 1 {
-        time = btime;
-    }
-    else {
-        time = wtime;
-    }
 
-        search(&bp, depth, time);
+    search(&bp, depth, time);
     
 
 
