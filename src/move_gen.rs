@@ -1,6 +1,5 @@
-use std::borrow::Borrow;
 use std::ops::BitXor;
-use crate::{BoardPosition, get_bit, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS, Piece, pop_bit, print_bitboard, set_bit};
+use crate::{BoardPosition, get_bit, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS, Piece, pop_bit, set_bit};
 use crate::attacks::{get_bishop_attacks, get_queen_attacks, get_rook_attacks};
 use crate::shared::{Move, coordinates_to_squares};
 use crate::shared::Piece::{r, R};
@@ -48,33 +47,7 @@ pub fn is_square_attacked(square: usize, board: &BoardPosition) -> bool {
 }
 
 
-pub fn run_through_attacks(board_position: &BoardPosition) -> u64 {
-    let mut cnt = 0;
-    for y in 0..8 {
-        for x in 0..8{
-            
-            //println!("Square: {}, coordinate: {}, Attacked: {}", x+8*y, SQUARE_TO_COORDINATES[x+8*y], is_square_attacked(x+8*y, board_position));
-            cnt = cnt * 2;
-            if is_square_attacked(x+8*y, board_position) {
-                cnt += 1;
-            }
-        }
-    }
-
-    // for y in 0..8 {
-    //         println!("{} {} {} {} {} {} {} {}", is_square_attacked(8*y, board_position) as usize, is_square_attacked(8*y+1, board_position) as usize, is_square_attacked(8*y+2, board_position) as usize, is_square_attacked(8*y+3, board_position) as usize, is_square_attacked(8*y+4, board_position) as usize, is_square_attacked(8*y+5, board_position) as usize, is_square_attacked(8*y+6, board_position) as usize, is_square_attacked(8*y+7, board_position) as usize)
-    // }
-    
-    print_bitboard(cnt);
-    cnt
-
-}
-
 pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
-    // Define source and target squares
-    let mut source_square: usize;
-    let mut target_square: usize;
-
     // Define current piece's bitboard copy and its attacks
     let mut bitboard;
     let mut attacks: u64;
@@ -495,8 +468,8 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
     move_list
 }
 
-pub fn make_move(board: &BoardPosition, moveToMake: &Move) -> Option<BoardPosition> {
-    let mut newPosition = BoardPosition {
+pub fn make_move(board: &BoardPosition, move_to_make: &Move) -> Option<BoardPosition> {
+    let mut new_position = BoardPosition {
         bitboards: board.bitboards.clone(),
         occupancies: board.occupancies.clone(),
         side: (board.side + 1) % 2,
@@ -504,92 +477,92 @@ pub fn make_move(board: &BoardPosition, moveToMake: &Move) -> Option<BoardPositi
         castle: board.castle,
     };
 
-    let piece = moveToMake.get_piece() as usize;
+    let piece = move_to_make.get_piece() as usize;
 
     //move
-    pop_bit(&mut newPosition.bitboards[piece], moveToMake.get_source_square() as usize);
-    set_bit(&mut newPosition.bitboards[piece], moveToMake.get_target_square() as usize);
+    pop_bit(&mut new_position.bitboards[piece], move_to_make.get_source_square() as usize);
+    set_bit(&mut new_position.bitboards[piece], move_to_make.get_target_square() as usize);
 
 
     //capture
-    if moveToMake.get_capture() == true {
+    if move_to_make.get_capture() == true {
         for i in 0..6{
-            pop_bit(&mut newPosition.bitboards[newPosition.side * 6 + i], moveToMake.get_target_square() as usize);
+            pop_bit(&mut new_position.bitboards[new_position.side * 6 + i], move_to_make.get_target_square() as usize);
         }
-        pop_bit(&mut newPosition.occupancies[newPosition.side], moveToMake.get_target_square() as usize);
+        pop_bit(&mut new_position.occupancies[new_position.side], move_to_make.get_target_square() as usize);
     }
 
-    if moveToMake.get_promoted() != 0 {
-        pop_bit(&mut newPosition.bitboards[piece], moveToMake.get_target_square() as usize);
-        set_bit(&mut newPosition.bitboards[moveToMake.get_promoted() as usize], moveToMake.get_target_square() as usize)
+    if move_to_make.get_promoted() != 0 {
+        pop_bit(&mut new_position.bitboards[piece], move_to_make.get_target_square() as usize);
+        set_bit(&mut new_position.bitboards[move_to_make.get_promoted() as usize], move_to_make.get_target_square() as usize)
     }
 
-    if moveToMake.get_enpassant() {
+    if move_to_make.get_enpassant() {
         if piece < 6 {
-            pop_bit(&mut newPosition.bitboards[6], (moveToMake.get_target_square() + 8) as usize)
+            pop_bit(&mut new_position.bitboards[6], (move_to_make.get_target_square() + 8) as usize)
         }
         else {
-            pop_bit(&mut newPosition.bitboards[0], (moveToMake.get_target_square() - 8) as usize)
+            pop_bit(&mut new_position.bitboards[0], (move_to_make.get_target_square() - 8) as usize)
         }
     }
 
-    newPosition.enpassant = 64;
+    new_position.enpassant = 64;
 
-    if moveToMake.get_double_pawn_push() {
+    if move_to_make.get_double_pawn_push() {
         if piece < 6 {
-            newPosition.enpassant = (moveToMake.get_target_square() + 8) as usize;
+            new_position.enpassant = (move_to_make.get_target_square() + 8) as usize;
         }
         else {
-            newPosition.enpassant = (moveToMake.get_target_square() - 8) as usize;
+            new_position.enpassant = (move_to_make.get_target_square() - 8) as usize;
         }
     }
 
-    if moveToMake.get_castling() {
-        match moveToMake.get_target_square() {
+    if move_to_make.get_castling() {
+        match move_to_make.get_target_square() {
             58 => {
-                pop_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("a1") as usize);
-                set_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("d1") as usize);
+                pop_bit(&mut new_position.bitboards[R.to_usize()], coordinates_to_squares("a1") as usize);
+                set_bit(&mut new_position.bitboards[R.to_usize()], coordinates_to_squares("d1") as usize);
             },
             62 => {
-                pop_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("h1") as usize);
-                set_bit(&mut newPosition.bitboards[R.to_usize()], coordinates_to_squares("f1") as usize);
+                pop_bit(&mut new_position.bitboards[R.to_usize()], coordinates_to_squares("h1") as usize);
+                set_bit(&mut new_position.bitboards[R.to_usize()], coordinates_to_squares("f1") as usize);
             },
             2 => {
-                pop_bit(&mut newPosition.bitboards[r.to_usize()], coordinates_to_squares("a8") as usize);
-                set_bit(&mut newPosition.bitboards[r.to_usize()], coordinates_to_squares("d8") as usize);
+                pop_bit(&mut new_position.bitboards[r.to_usize()], coordinates_to_squares("a8") as usize);
+                set_bit(&mut new_position.bitboards[r.to_usize()], coordinates_to_squares("d8") as usize);
             },
             6 => {
-                pop_bit(&mut newPosition.bitboards[r.to_usize()], coordinates_to_squares("h8") as usize);
-                set_bit(&mut newPosition.bitboards[r.to_usize()], coordinates_to_squares("f8") as usize);
+                pop_bit(&mut new_position.bitboards[r.to_usize()], coordinates_to_squares("h8") as usize);
+                set_bit(&mut new_position.bitboards[r.to_usize()], coordinates_to_squares("f8") as usize);
             },
             _ => {}
         }
     }
 
-    newPosition.castle = newPosition.castle & CASTLING_RIGHTS[moveToMake.get_source_square() as usize] as usize;
-    newPosition.castle = newPosition.castle & CASTLING_RIGHTS[moveToMake.get_target_square() as usize] as usize;
+    new_position.castle = new_position.castle & CASTLING_RIGHTS[move_to_make.get_source_square() as usize] as usize;
+    new_position.castle = new_position.castle & CASTLING_RIGHTS[move_to_make.get_target_square() as usize] as usize;
 
-    newPosition.occupancies[0] = newPosition.bitboards[0 .. 6].iter().fold(0, |acc, &b| acc | b);
-    newPosition.occupancies[1] = newPosition.bitboards[6 .. 12].iter().fold(0, |acc, &b| acc | b);
-    newPosition.occupancies[2] = newPosition.occupancies[0 .. 2].iter().fold(0, |acc, &b| acc | b);
+    new_position.occupancies[0] = new_position.bitboards[0 .. 6].iter().fold(0, |acc, &b| acc | b);
+    new_position.occupancies[1] = new_position.bitboards[6 .. 12].iter().fold(0, |acc, &b| acc | b);
+    new_position.occupancies[2] = new_position.occupancies[0 .. 2].iter().fold(0, |acc, &b| acc | b);
     
-    let mut kingSq: usize = 65;
+    let king_sq: usize;
 
-    if newPosition.side != 0 {
-        kingSq = newPosition.bitboards[5].trailing_zeros() as usize;
+    if new_position.side != 0 {
+        king_sq = new_position.bitboards[5].trailing_zeros() as usize;
     }
     else {
-        kingSq = newPosition.bitboards[11].trailing_zeros() as usize;
+        king_sq = new_position.bitboards[11].trailing_zeros() as usize;
     }
-    newPosition.side = board.side;
+    new_position.side = board.side;
     
-    if is_square_attacked(kingSq, &newPosition) {
+    if is_square_attacked(king_sq, &new_position) {
         return None;
     }  
     
-    newPosition.side = board.side.bitxor(1);
+    new_position.side = board.side.bitxor(1);
 
-    Some(newPosition)
+    Some(new_position)
 
 }
 
@@ -608,15 +581,37 @@ pub const CASTLING_RIGHTS: [u8; 64] = [
 #[cfg(test)]
 mod tests {
     use std::thread;
-    use crate::moveGen::{is_square_attacked, make_move, run_through_attacks};
-    use crate::shared::{coordinates_to_squares, parse_fen, Move, Piece};
+    use crate::move_gen::{is_square_attacked, make_move};
+    use crate::shared::{BoardPosition, Move, Piece, coordinates_to_squares, parse_fen, print_bitboard};
+
+    pub fn run_through_attacks(board_position: &BoardPosition) -> u64 {
+        let mut cnt = 0;
+        for y in 0..8 {
+            for x in 0..8{
+                
+                //println!("Square: {}, coordinate: {}, Attacked: {}", x+8*y, SQUARE_TO_COORDINATES[x+8*y], is_square_attacked(x+8*y, board_position));
+                cnt = cnt * 2;
+                if is_square_attacked(x+8*y, board_position) {
+                    cnt += 1;
+                }
+            }
+        }
+
+        // for y in 0..8 {
+        //         println!("{} {} {} {} {} {} {} {}", is_square_attacked(8*y, board_position) as usize, is_square_attacked(8*y+1, board_position) as usize, is_square_attacked(8*y+2, board_position) as usize, is_square_attacked(8*y+3, board_position) as usize, is_square_attacked(8*y+4, board_position) as usize, is_square_attacked(8*y+5, board_position) as usize, is_square_attacked(8*y+6, board_position) as usize, is_square_attacked(8*y+7, board_position) as usize)
+        // }
+        
+        print_bitboard(cnt);
+        cnt
+
+    }
 
     #[test]
     fn test_attacked_squares_kiwipete() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let boardPos = parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"); //Rook on e3
-            assert_eq!(run_through_attacks(&boardPos), 18437032593966828032);
+            let board_pos = parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"); //Rook on e3
+            assert_eq!(run_through_attacks(&board_pos), 18437032593966828032);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -626,8 +621,8 @@ mod tests {
 
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let boardPos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
-            assert_eq!(is_square_attacked(coordinates_to_squares("d3"), &boardPos), true);
+            let board_pos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
+            assert_eq!(is_square_attacked(coordinates_to_squares("d3"), &board_pos), true);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -637,8 +632,8 @@ mod tests {
 
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let boardPos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
-            assert_eq!(is_square_attacked(coordinates_to_squares("b1"), &boardPos), false);
+            let board_pos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
+            assert_eq!(is_square_attacked(coordinates_to_squares("b1"), &board_pos), false);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -648,11 +643,11 @@ mod tests {
 
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let boardPos = parse_fen("rnbqkbnr/1ppppppp/p7/P7/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 2"); //Rook on e3
+            let board_pos = parse_fen("rnbqkbnr/1ppppppp/p7/P7/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 2"); //Rook on e3
             let mv = Move::create(coordinates_to_squares("b7") as u32, coordinates_to_squares("b5") as u32, Piece::P, Piece::P, 0, 0, 0, 1 );
             println!("{:?}", mv);
-            let newBoard = make_move(&boardPos, &mv).unwrap();
-            assert_eq!(newBoard.enpassant, coordinates_to_squares("b6"));
+            let new_board = make_move(&board_pos, &mv).unwrap();
+            assert_eq!(new_board.enpassant, coordinates_to_squares("b6"));
         }).unwrap();
         handler.join().unwrap();
     }

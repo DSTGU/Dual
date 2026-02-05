@@ -1,17 +1,15 @@
-use std::thread;
-use crate::moveGen::{generate_moves, make_move};
+use crate::move_gen::{generate_moves, make_move};
 use crate::perft::perft;
 use crate::search::{search};
-use crate::shared::{coordinates_to_squares, parse_fen, print_square, start_position, BoardPosition, Move};
+use crate::shared::{coordinates_to_squares, parse_fen, START_POSITION, BoardPosition, Move};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
-use crate::uci_loop;
 
-pub fn parse_move(board: &BoardPosition, moveToParse: &str) -> Option<Move> {
+pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 
     let legal_moves = generate_moves(board);
 
-    let src = coordinates_to_squares(&moveToParse[0..2]);
-    let target = coordinates_to_squares(&moveToParse[2..4]);
+    let src = coordinates_to_squares(&move_to_parse[0..2]);
+    let target = coordinates_to_squares(&move_to_parse[2..4]);
     let mut legal_moves : Vec<Move> = legal_moves.into_iter().filter(|x| x.get_source_square() == src as u32 && x.get_target_square() == target as u32).collect();
 
     if legal_moves.len() < 2 {
@@ -21,9 +19,7 @@ pub fn parse_move(board: &BoardPosition, moveToParse: &str) -> Option<Move> {
         return legal_moves.pop();
     }
     
-    let mut piece = 0;
-
-    let char = moveToParse[4..5].to_ascii_lowercase();
+    let char = move_to_parse[4..5].to_ascii_lowercase();
     let ch = char.as_str();
 
     match ch {
@@ -38,6 +34,10 @@ pub fn parse_move(board: &BoardPosition, moveToParse: &str) -> Option<Move> {
 pub fn parse_position(command: &str) -> BoardPosition {
     let words : Vec<&str> = command.split(" ").collect();
 
+    if words.len() < 2 {
+        return parse_fen(START_POSITION);
+    }
+
     match words[1] {
         "fen" => {
             let mut pos = parse_fen(&command[13..]);
@@ -51,7 +51,7 @@ pub fn parse_position(command: &str) -> BoardPosition {
             pos
         },
         "startpos" => {
-            let mut pos = parse_fen(start_position);
+            let mut pos = parse_fen(START_POSITION);
             for &i in words[2..].iter() {
                 let mov = parse_move(&pos, i);
                 if let Some(x) = mov {
@@ -60,14 +60,14 @@ pub fn parse_position(command: &str) -> BoardPosition {
 
             }
             pos },
-        _ => parse_fen(start_position)
+        _ => parse_fen(START_POSITION)
     }
 
 }
 
-pub fn depth_func(figures: u32) -> usize{
-    ((9.0 / ((figures - 1) as f32).powf(0.20)) + 1.5) as usize
-}
+// pub fn depth_func(figures: u32) -> usize{
+//     ((9.0 / ((figures - 1) as f32).powf(0.20)) + 1.5) as usize
+// }
 
 pub fn parse_go(command: &str, board_position: &BoardPosition) {
     let mut depth = None; //depth_func(board_position.occupancies[2].count_ones());
@@ -86,7 +86,7 @@ pub fn parse_go(command: &str, board_position: &BoardPosition) {
         }
     }
     let bp = board_position.clone();
-    let mut time : Option<usize> = None;
+    let time : Option<usize>;
     
     if board_position.side == 1 {
         time = btime;
@@ -105,16 +105,15 @@ pub fn parse_go(command: &str, board_position: &BoardPosition) {
 mod tests {
     use std::thread;
     use crate::gui::{parse_go, parse_position};
-    use crate::moveGen::{is_square_attacked, make_move, run_through_attacks};
-    use crate::shared::{coordinates_to_squares, parse_fen, start_position, Move, Piece};
+    use crate::shared::{parse_fen, START_POSITION};
 
     #[test]
     fn test_position_startpos() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let boardPos = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 xdddddd");
-            let cmdResult = parse_position("position startpos");
-            assert_eq!(boardPos, cmdResult);
+            let board_pos = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 xdddddd");
+            let cmd_result = parse_position("position startpos");
+            assert_eq!(board_pos, cmd_result);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -124,9 +123,9 @@ mod tests {
     fn test_position_fen() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let boardPos = parse_fen("r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
-            let cmdResult = parse_position("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
-            assert_eq!(boardPos, cmdResult);
+            let board_pos = parse_fen("r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
+            let cmd_result = parse_position("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
+            assert_eq!(board_pos, cmd_result);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -135,9 +134,9 @@ mod tests {
     fn test_position_fen_moves() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let boardPos = parse_fen("r1bqkbnr/1p1ppppp/8/p1p5/3nP2P/5N2/PPPPQPP1/RNB1KB1R w KQkq - 2 5");
-            let cmdResult = parse_position("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4 d1e2 c6d4");
-            assert_eq!(boardPos, cmdResult);
+            let board_pos = parse_fen("r1bqkbnr/1p1ppppp/8/p1p5/3nP2P/5N2/PPPPQPP1/RNB1KB1R w KQkq - 2 5");
+            let cmd_result = parse_position("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4 d1e2 c6d4");
+            assert_eq!(board_pos, cmd_result);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -146,9 +145,9 @@ mod tests {
     fn test_position_startpos_moves() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let boardPos = parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
-            let cmdResult = parse_position("position startpos e2e4 d7d5");
-            assert_eq!(boardPos, cmdResult);
+            let board_pos = parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
+            let cmd_result = parse_position("position startpos e2e4 d7d5");
+            assert_eq!(board_pos, cmd_result);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -158,7 +157,7 @@ mod tests {
     fn test_go() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let board = parse_fen(start_position);
+            let board = parse_fen(START_POSITION);
             parse_go("go depth 13", &board);
         }).unwrap();
         handler.join().unwrap();

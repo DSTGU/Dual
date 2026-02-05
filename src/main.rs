@@ -1,15 +1,13 @@
 mod shared;
 mod attacks;
-mod moveGen;
+mod move_gen;
 mod perft;
 mod gui;
 mod search;
 mod evaluate;
 
-use std::{default, env, io};
+use std::io;
 use std::thread;
-use std::time::SystemTime;
-use shared::Sq;
 use shared::BoardPosition;
 
 /**********************************\
@@ -39,7 +37,7 @@ use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
 use crate::attacks::get_bishop_attacks;
 use crate::gui::{parse_go, parse_position};
-use crate::shared::{ parse_fen, Piece, print_board, start_position, coordinates_to_squares};
+use crate::shared::{ parse_fen, Piece, print_board, START_POSITION, coordinates_to_squares};
 
 /**********************************\
  ==================================
@@ -53,7 +51,7 @@ pub fn uci_loop() {
     println!("id name Dual v0.2.7");
     println!("id author Tomasz Stawowy");
     println!("uciok");
-    let mut boardpos : BoardPosition = parse_fen(start_position);
+    let mut boardpos : BoardPosition = parse_fen(START_POSITION);
     loop {  
         // Read user input
         let mut input = String::new();

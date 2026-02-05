@@ -165,8 +165,8 @@ fn mask_bishop_attacks(square: usize) -> u64 {
 
     while r <= 6 && f <= 6
     {
-        let mut bitboard : u64 = 1;
-        attacks |= (bitboard << (r * 8 + f) as u64);
+        let bitboard : u64 = 1;
+        attacks |= bitboard << (r * 8 + f) as u64;
         r += 1;
         f += 1;
     }
@@ -176,8 +176,8 @@ fn mask_bishop_attacks(square: usize) -> u64 {
 
     while r >= 1 && f <= 6
     {
-        let mut bitboard : u64 = 1;
-        attacks |= (bitboard << ((r * 8 + f ) as u64));
+        let bitboard : u64 = 1;
+        attacks |= bitboard << ((r * 8 + f ) as u64);
         r -= 1;
         f += 1;
     }
@@ -187,8 +187,8 @@ fn mask_bishop_attacks(square: usize) -> u64 {
 
     while r <= 6 && f >= 1
     {
-        let mut bitboard : u64 = 1;
-        attacks |= (bitboard << ((r * 8 + f) as u64));
+        let bitboard : u64 = 1;
+        attacks |= bitboard << ((r * 8 + f) as u64);
         r += 1;
         f -= 1;
     }
@@ -198,8 +198,8 @@ fn mask_bishop_attacks(square: usize) -> u64 {
 
     while r >= 1 && f >= 1
     {
-        let mut bitboard : u64 = 1;
-        attacks |= (bitboard << ((r * 8 + f) as u64));
+        let bitboard : u64 = 1;
+        attacks |= bitboard << ((r * 8 + f) as u64);
         r -= 1;
         f -= 1;
     }

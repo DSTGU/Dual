@@ -131,19 +131,20 @@ impl fmt::Debug for Move {
 }
 
 // board squares
-pub enum Sq {
-    a8, b8, c8, d8, e8, f8, g8, h8,
-    a7, b7, c7, d7, e7, f7, g7, h7,
-    a6, b6, c6, d6, e6, f6, g6, h6,
-    a5, b5, c5, d5, e5, f5, g5, h5,
-    a4, b4, c4, d4, e4, f4, g4, h4,
-    a3, b3, c3, d3, e3, f3, g3, h3,
-    a2, b2, c2, d2, e2, f2, g2, h2,
-    a1, b1, c1, d1, e1, f1, g1, h1, no_sq = 64
-}
+// pub enum Sq {
+//     a8, b8, c8, d8, e8, f8, g8, h8,
+//     a7, b7, c7, d7, e7, f7, g7, h7,
+//     a6, b6, c6, d6, e6, f6, g6, h6,
+//     a5, b5, c5, d5, e5, f5, g5, h5,
+//     a4, b4, c4, d4, e4, f4, g4, h4,
+//     a3, b3, c3, d3, e3, f3, g3, h3,
+//     a2, b2, c2, d2, e2, f2, g2, h2,
+//     a1, b1, c1, d1, e1, f1, g1, h1, no_sq = 64
+// }
 
 // encode pieces
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[allow(non_camel_case_types)]
 pub enum Piece { P = 0, N = 1, B = 2, R = 3, Q = 4, K = 5, p = 6, n = 7, b = 8, r = 9, q = 10, k = 11}
 
 impl Piece {
@@ -165,7 +166,7 @@ impl Piece {
     }
 }
 
-pub enum Castle { wk = 1, wq = 2, bk = 4, bq = 8 }
+pub enum Castle { Wk = 1, Wq = 2, Bk = 4, Bq = 8 }
 
 impl BitAnd<Castle> for usize {
     type Output = usize;
@@ -175,7 +176,7 @@ impl BitAnd<Castle> for usize {
     }
 }
 
-pub enum Side {white = 0,black = 1,both = 2}
+// pub enum Side {white = 0,black = 1,both = 2}
 
 
 pub const SQUARE_TO_COORDINATES: [&str; 64] = [
@@ -217,28 +218,24 @@ pub fn coordinates_to_squares(coordinatestr: &str) -> usize {
 const ASCII_PIECES: [u8; 12] = [80, 78, 66, 82, 81, 75, 112, 110, 98, 114, 113, 107];
 
 // convert ASCII character pieces to encoded constants
-const char_pieces: [(char, i32); 12] = [
-('P', 0),
-('N', 1),
-('B', 2),
-('R', 3),
-('Q', 4),
-('K', 5),
-('p', 6),
-('n', 7),
-('b', 8),
-('r', 9),
-('q', 10),
-('k', 11),
-];
+// const CHAR_PIECES: [(char, i32); 12] = [
+// ('P', 0),
+// ('N', 1),
+// ('B', 2),
+// ('R', 3),
+// ('Q', 4),
+// ('K', 5),
+// ('p', 6),
+// ('n', 7),
+// ('b', 8),
+// ('r', 9),
+// ('q', 10),
+// ('k', 11),
+// ];
 
 
 /**********************************\
-==================================
-
           Bit manipulations
-
-==================================
 \**********************************/
 
 pub fn set_bit(bitboard: &mut u64, square: usize) {
@@ -253,9 +250,7 @@ pub fn pop_bit(bitboard: &mut u64, square: usize) { *bitboard &= !(1u64 << squar
 
 
 /***************************\
-
                IO
-
 \**************************/
 
 pub fn print_bitboard(bitboard: u64) {
@@ -351,19 +346,19 @@ pub fn print_board(board: &BoardPosition)
 
     // print castling rights
 
-    if board.castle & Castle::wk != 0
+    if board.castle & Castle::Wk != 0
     {
         print!("K");
     }
-    if board.castle & Castle::wq != 0
+    if board.castle & Castle::Wq != 0
     {
         print!("Q");
     }
-    if board.castle & Castle::bk != 0
+    if board.castle & Castle::Bk != 0
     {
         print!("k");
     }
-    if board.castle & Castle::bq != 0
+    if board.castle & Castle::Bq != 0
     {
         print!("q");
     }
@@ -373,15 +368,13 @@ pub fn print_board(board: &BoardPosition)
 //LS1b - trailing zeros !! - invalid = 64, not -1
 
 /******************************************\
-
                    FEN STUFF
-
 \******************************************/
 
 // FEN debug positions
-pub const empty_board: &str = "8/8/8/8/8/8/8/8 w - - ";
-pub const start_position: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
-pub const kiwipete: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
+pub const EMPTY_BOARD: &str = "8/8/8/8/8/8/8/8 w - - ";
+pub const START_POSITION: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
+pub const KIWIPETE: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
 pub fn parse_fen(fen: &str) -> BoardPosition {
 
     let mut board_position = BoardPosition {
@@ -486,8 +479,4 @@ pub fn parse_fen(fen: &str) -> BoardPosition {
     board_position.occupancies[2] = board_position.occupancies[0] | board_position.occupancies[1];
 
     board_position
-}
-
-pub fn print_square(sq: u8) {
-    println!("{} - {}", sq, SQUARE_TO_COORDINATES[sq as usize]);
 }
