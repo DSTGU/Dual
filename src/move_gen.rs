@@ -1,589 +1,615 @@
-use std::ops::BitXor;
-use crate::{BoardPosition, get_bit, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS, Piece, pop_bit, set_bit};
+use crate::{
+    get_bit, pop_bit, set_bit, BoardPosition, Piece, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS,
+};
 use crate::attacks::{get_bishop_attacks, get_queen_attacks, get_rook_attacks};
-use crate::shared::{Move, coordinates_to_squares};
-use crate::shared::Piece::{r, R};
+use crate::shared::Move;
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/// Castling rights mask indexed by square.  Each entry is a bitmask of the
+/// castling rights that must be *preserved* when a piece leaves or lands on
+/// that square.  A value of 15 (0b1111) means "no restriction".
+pub const CASTLING_RIGHTS: [u8; 64] = [
+    7, 15, 15, 15,  3, 15, 15, 11,
+   15, 15, 15, 15, 15, 15, 15, 15,
+   15, 15, 15, 15, 15, 15, 15, 15,
+   15, 15, 15, 15, 15, 15, 15, 15,
+   15, 15, 15, 15, 15, 15, 15, 15,
+   15, 15, 15, 15, 15, 15, 15, 15,
+   15, 15, 15, 15, 15, 15, 15, 15,
+   13, 15, 15, 15, 12, 15, 15, 14,
+];
+
+// Pre-computed target squares for castling rook moves (source, target).
+// Index: 0 = white kingside, 1 = white queenside, 2 = black kingside, 3 = black queenside.
+// h1=63, f1=61, a1=56, d1=59, h8=7, f8=5, a8=0, d8=3
+const CASTLING_ROOK_MOVES: [(usize, usize); 4] = [
+    (63, 61), // White O-O:   h1 -> f1
+    (56, 59), // White O-O-O: a1 -> d1
+    (7, 5),   // Black O-O:   h8 -> f8
+    (0, 3),   // Black O-O-O: a8 -> d8
+];
+
+// Piece index offsets: white pieces are 0..6, black pieces are 6..12.
+// For a given side, the king bitboard index is:
+//   side 0 (white) -> Piece::K = 5
+//   side 1 (black) -> Piece::k = 11
+const KING_INDEX: [usize; 2] = [Piece::K as usize, Piece::k as usize];
+
+// ---------------------------------------------------------------------------
+// is_square_attacked
+// ---------------------------------------------------------------------------
+
+/// Returns true if `square` is attacked by any piece of the side that is
+/// **not** `board.side` (i.e. the side that is about to move is checking
+/// whether the given square is under attack by the opponent).
 pub fn is_square_attacked(square: usize, board: &BoardPosition) -> bool {
-    // Attacked by white pawns
-    if board.side == 1 && (PAWN_ATTACKS[1][square] & board.bitboards[Piece::P as usize]) != 0 {
+    // Check if the opponent of the side to move attacks this square.
+    let opponent = 1 - board.side;
+    let occ = board.occupancies[2];
+
+    // Pawns: use PAWN_ATTACKS[board.side] which gives the reverse-attack
+    // directions (i.e. squares from which an opponent pawn would attack).
+    let pawn_bb = board.bitboards[if opponent == 0 {
+        Piece::P as usize
+    } else {
+        Piece::p as usize
+    }];
+    if PAWN_ATTACKS[board.side][square] & pawn_bb != 0 {
         return true;
     }
 
-    // Attacked by black pawns
-    if board.side == 0 && (PAWN_ATTACKS[0][square] & board.bitboards[Piece::p as usize]) != 0 {
+    // Knights
+    let knight_bb = board.bitboards[if opponent == 0 {
+        Piece::N as usize
+    } else {
+        Piece::n as usize
+    }];
+    if KNIGHT_ATTACKS[square] & knight_bb != 0 {
         return true;
     }
 
-    // Attacked by knights
-    if KNIGHT_ATTACKS[square] & (if board.side == 0 { board.bitboards[Piece::n as usize] } else { board.bitboards[Piece::N as usize] }) != 0 {
+    // Bishops
+    let bishop_bb = board.bitboards[if opponent == 0 {
+        Piece::B as usize
+    } else {
+        Piece::b as usize
+    }];
+    if get_bishop_attacks(square, occ) & bishop_bb != 0 {
         return true;
     }
 
-
-    // Attacked by bishops
-    if get_bishop_attacks(square, board.occupancies[2]) & (if board.side == 0 { board.bitboards[Piece::b as usize] } else { board.bitboards[Piece::B as usize] }) != 0 {
+    // Rooks
+    let rook_bb = board.bitboards[if opponent == 0 {
+        Piece::R as usize
+    } else {
+        Piece::r as usize
+    }];
+    if get_rook_attacks(square, occ) & rook_bb != 0 {
         return true;
     }
 
-
-    // Attacked by rooks
-    if get_rook_attacks(square, board.occupancies[2]) & (if board.side == 0 { board.bitboards[Piece::r as usize] } else { board.bitboards[Piece::R as usize] }) != 0 {
+    // Queens
+    let queen_bb = board.bitboards[if opponent == 0 {
+        Piece::Q as usize
+    } else {
+        Piece::q as usize
+    }];
+    if get_queen_attacks(square, occ) & queen_bb != 0 {
         return true;
     }
 
-    // Attacked by queens
-    if get_queen_attacks(square, board.occupancies[2]) & (if board.side == 0 { board.bitboards[Piece::q as usize] } else { board.bitboards[Piece::Q as usize] }) != 0 {
+    // Kings
+    let king_bb = board.bitboards[if opponent == 0 {
+        Piece::K as usize
+    } else {
+        Piece::k as usize
+    }];
+    if KING_ATTACKS[square] & king_bb != 0 {
         return true;
     }
 
-    // Attacked by kings
-    if KING_ATTACKS[square] & (if board.side == 0 { board.bitboards[Piece::k as usize] } else { board.bitboards[Piece::K as usize] }) != 0 {
-        return true;
-    }
-
-    // By default, return false
     false
 }
 
-
-pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
-    // Define current piece's bitboard copy and its attacks
-    let mut bitboard;
-    let mut attacks: u64;
-    
-    let mut move_list: Vec<Move> = Vec::new();
-    if board.side == 0
-    {
-            // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::P as usize];
-            // Loop over white pawns within white pawn bitboard
-            while bitboard != 0 {
-                // Init source square
-                let source_square = bitboard.trailing_zeros() as usize;
-
-                // Init target square
-                let target_square = source_square.wrapping_sub(8) as usize;
-
-                // Generate quiet pawn moves
-                if !(target_square > 63) && !get_bit(board.occupancies[2], target_square as usize) {
-                    // Pawn promotion
-                    if source_square >= 8 && source_square <= 15 {
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::Q, 0, 0, 0, 0 ));
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::R, 0, 0, 0, 0 ));
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::B, 0, 0, 0, 0 ));
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::N, 0, 0, 0, 0 ));
-
-                    } else {
-                        // One square ahead pawn move
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::P, 0, 0, 0, 0 ));
-
-                        // Two squares ahead pawn move
-                        if source_square >= 48 && source_square <= 55 && !get_bit(board.occupancies[2], (target_square - 8) as usize) {
-                            move_list.push(Move::create(source_square as u32, target_square as u32 - 8, Piece::P, Piece::P, 0, 0, 0, 1 ));
-                        }
-                    }
-                }
-
-                // Init pawn attacks bitboard
-                attacks = PAWN_ATTACKS[board.side][source_square] & board.occupancies[1];
-
-                // Generate pawn captures
-                while attacks != 0 {
-                    // Init target square
-                    let target_square = attacks.trailing_zeros() as usize;
-
-                    // Pawn promotion
-                    if source_square >= 8 && source_square <= 15 {
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::Q, 1, 0, 0, 0 ));
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::R, 1, 0, 0, 0 ));
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::B, 1, 0, 0, 0 ));
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::N, 1, 0, 0, 0 ));
-
-                    } else {
-                        // One square ahead pawn move
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::P, Piece::P, 1, 0, 0, 0 ));
-                    }
-
-                    // Pop ls1b of the pawn attacks
-                    pop_bit(&mut attacks, target_square);
-                }
-
-                // Generate en passant captures
-                if board.enpassant < 64 {
-                    // Lookup pawn attacks and bitwise AND with enpassant square (bit)
-                    let enpassant_attacks = PAWN_ATTACKS[board.side][source_square] & (1u64 << board.enpassant);
-
-                    // Make sure enpassant capture available
-                    if enpassant_attacks != 0 {
-                        // Init enpassant capture target square
-                        let target_enpassant = enpassant_attacks.trailing_zeros() as usize;
-                        move_list.push(Move::create(source_square as u32, target_enpassant as u32, Piece::P, Piece::P, 1, 1, 0, 0 ));
-                    }
-                }
-
-                // Pop ls1b from piece bitboard copy
-                pop_bit(&mut bitboard, source_square as usize);
-            }
-
-            // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::K as usize];
-            while bitboard != 0 {
-                // Init source square
-                let source_square = bitboard.trailing_zeros() as usize;
-
-                let mut attacks = KING_ATTACKS[source_square] & !board.occupancies[0];
-
-                while attacks != 0 {
-                    let target_square = attacks.trailing_zeros() as usize;
-                    // One square ahead king move
-                    if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::K, Piece::P, 1, 0, 0, 0 ));
-                    } else {
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::K, Piece::P, 0, 0, 0, 0 ));
-                    }
-                    pop_bit(&mut attacks, target_square);
-                }
-                pop_bit(&mut bitboard, source_square);
-            }
-
-            // King side castling is available
-            if board.castle & 1 != 0 {
-                // Make sure squares between king and king's rook are empty
-                if !get_bit(board.occupancies[2], 61) && !get_bit(board.occupancies[2], 62) {
-                    // Make sure king and the f1 squares are not under attack
-                    if !is_square_attacked(60, &board) && !is_square_attacked(61, board) {
-                        move_list.push(Move::create(60, 62, Piece::K, Piece::P, 0, 0, 1, 0 ));
-                    }
-                }
-            }
-
-            // Queen side castling is available
-            if board.castle & 2 != 0 {
-                // Make sure squares between king and queen's rook are empty
-                if !get_bit(board.occupancies[2], 59) && !get_bit(board.occupancies[2], 58) && !get_bit(board.occupancies[2], 57) {
-                    // Make sure king and the d1 squares are not under attack
-                    if !is_square_attacked(60, board) && !is_square_attacked(59, board) {
-                        move_list.push(Move::create(60, 58, Piece::K, Piece::P, 0, 0, 1, 0 ));
-                    }
-                }
-            }
-
-
-            // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::N as usize];
-            while bitboard != 0
-            {
-                // Init source square
-                let source_square = bitboard.trailing_zeros() as usize;
-
-                let mut attacks = KNIGHT_ATTACKS[source_square] & !board.occupancies[0];
-
-                while attacks != 0 {
-                    let target_square = attacks.trailing_zeros() as usize;
-                    if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::N, Piece::P, 1, 0, 0, 0 ));
-                    } else {
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::N, Piece::P, 0, 0, 0, 0 ));
-                    }
-                    pop_bit(&mut attacks, target_square);
-                }
-                pop_bit(&mut bitboard, source_square);
-            }
-
-            // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::B as usize];
-            while bitboard != 0
-            {
-                // Init source square
-                let source_square = bitboard.trailing_zeros() as usize;
-
-                let mut attacks = get_bishop_attacks(source_square,board.occupancies[2]) & !board.occupancies[0];
-
-                while attacks != 0 {
-                    let target_square = attacks.trailing_zeros() as usize;
-                    // One square ahead pawn move
-
-                    if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::B, Piece::P, 1, 0, 0, 0 ));
-                    } else {
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::B, Piece::P, 0, 0, 0, 0 ));
-                    }
-                    pop_bit(&mut attacks, target_square);
-                }
-                pop_bit(&mut bitboard, source_square);
-            }
-
-            // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::R as usize];
-            while bitboard != 0
-            {
-                // Init source square
-                let source_square = bitboard.trailing_zeros() as usize;
-
-                let mut attacks = get_rook_attacks(source_square,board.occupancies[2]) & !board.occupancies[0];
-
-                while attacks != 0 {
-                    let target_square = attacks.trailing_zeros() as usize;
-                    // One square ahead pawn move
-                    if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::R, Piece::P, 1, 0, 0, 0 ));
-
-                    } else {
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::R, Piece::P, 0, 0, 0, 0 ));
-                    }
-                    pop_bit(&mut attacks, target_square);
-                }
-                pop_bit(&mut bitboard, source_square);
-            }
-
-            // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::Q as usize];
-            while bitboard != 0
-            {
-                // Init source square
-                let source_square = bitboard.trailing_zeros() as usize;
-
-                let mut attacks = get_queen_attacks(source_square,board.occupancies[2]) & !board.occupancies[0];
-
-                while attacks != 0 {
-                    let target_square = attacks.trailing_zeros() as usize;
-                    // One square ahead pawn move
-                    if get_bit(board.occupancies[1], target_square){
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::Q, Piece::P, 1, 0, 0, 0 ));
-                    } else {
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::Q, Piece::P, 0, 0, 0, 0 ));
-                    }
-                    pop_bit(&mut attacks, target_square);
-                }
-                pop_bit(&mut bitboard, source_square);
-            }
-
-        }
-    else {
-        // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::p as usize];
-        // Loop over black pawns within white pawn bitboard
-        while bitboard != 0 {
-            // Init source square
-            let source_square = bitboard.trailing_zeros() as usize;
-
-            // Init target square
-            let target_square = source_square + 8 as usize;
-
-            // Generate quiet pawn moves
-            if !(target_square > 63) && !get_bit(board.occupancies[2], target_square as usize) {
-                // Pawn promotion
-                if source_square >= 48 && source_square <= 55 {
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::q, 0, 0, 0, 0 ));
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::r, 0, 0, 0, 0 ));
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::n, 0, 0, 0, 0 ));
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::b, 0, 0, 0, 0 ));
-
-                } else {
-                    // One square ahead pawn move
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::p, 0, 0, 0, 0 ));
-
-                    // Two squares ahead pawn move
-                    if source_square >= 8 && source_square <= 15 && !get_bit(board.occupancies[2], (target_square + 8) as usize) {
-                        move_list.push(Move::create(source_square as u32, target_square as u32 + 8, Piece::p, Piece::P, 0, 0, 0, 1 ));
-                    }
-                }
-            }
-
-            // Init pawn attacks bitboard
-            attacks = PAWN_ATTACKS[board.side][source_square] & board.occupancies[0];
-
-            // Generate pawn captures
-            while attacks != 0 {
-                // Init target square
-                let target_square = attacks.trailing_zeros() as usize;
-
-                // Pawn promotion
-                if source_square >= 48 && source_square <= 55 {
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::q, 1, 0, 0, 0 ));
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::r, 1, 0, 0, 0 ));
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::n, 1, 0, 0, 0 ));
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::b, 1, 0, 0, 0 ));
-
-                } else {
-                    // One square ahead pawn move
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::p, Piece::P, 1, 0, 0, 0 ));
-
-                }
-                // Pop ls1b of the pawn attacks
-                pop_bit(&mut attacks, target_square);
-            }
-
-            // Generate en passant captures
-            if board.enpassant < 64 {
-                // Lookup pawn attacks and bitwise AND with enpassant square (bit)
-                let enpassant_attacks = PAWN_ATTACKS[board.side][source_square] & (1u64 << board.enpassant);
-
-                // Make sure enpassant capture available
-                if enpassant_attacks != 0 {
-                    // Init enpassant capture target square
-                    let target_enpassant = enpassant_attacks.trailing_zeros() as usize;
-                    move_list.push(Move::create(source_square as u32, target_enpassant as u32, Piece::p, Piece::P, 1, 1, 0, 0 ));
-
-                }
-            }
-
-            // Pop ls1b from piece bitboard copy
-            pop_bit(&mut bitboard, source_square as usize);
-        }
-
-        // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::k as usize];
-        while bitboard != 0 {
-            // Init source square
-            let source_square = bitboard.trailing_zeros() as usize;
-
-            let mut attacks = KING_ATTACKS[source_square] & !board.occupancies[1];
-            while attacks != 0 {
-                let target_square = attacks.trailing_zeros() as usize;
-                    if get_bit(board.occupancies[0], target_square){
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::k, Piece::P, 1, 0, 0, 0 ));
-
-                    } else {
-                        move_list.push(Move::create(source_square as u32, target_square as u32, Piece::k, Piece::P, 0, 0, 0, 0 ));
-                    }
-                pop_bit(&mut attacks, target_square);
-            }
-            pop_bit(&mut bitboard, source_square);
-        }
-        
-        
-        // King side castling is available
-        if board.castle & 4 != 0 {
-
-            // Make sure squares between king and king's rook are empty
-            if !get_bit(board.occupancies[2], 5 ) && !get_bit(board.occupancies[2], 6) {
-                // Make sure king and the f1 squares are not under attack
-                if !is_square_attacked(4, board) && !is_square_attacked(5, board) {
-                    move_list.push(Move::create(4, 6, Piece::k, Piece::P, 0, 0, 1, 0 ));
-
-                }
-            }
-        }
-
-        // Queen side castling is available1
-        if board.castle & 8 != 0 {
-            // Make sure squares between king and queen's rook are empty
-            if !get_bit(board.occupancies[2], 3) && !get_bit(board.occupancies[2], 2) && !get_bit(board.occupancies[2], 1) {
-                // Make sure king and the d1 squares are not under attack
-                if !is_square_attacked(4, board) && !is_square_attacked(3, board) {
-                    move_list.push(Move::create(4, 2 , Piece::k, Piece::P, 0, 0, 1, 0 ));
-                }
-            }
-        }
-
-        // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::n as usize];
-        while bitboard != 0
-        {
-            // Init source square
-            let source_square = bitboard.trailing_zeros() as usize;
-
-            let mut attacks = KNIGHT_ATTACKS[source_square] & !board.occupancies[1];
-
-            while attacks != 0 {
-                let target_square = attacks.trailing_zeros() as usize;
-                // One square ahead n move
-                if get_bit(board.occupancies[0], target_square){
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::n, Piece::P, 1, 0, 0, 0 ));
-                } else {
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::n, Piece::P, 0, 0, 0, 0 ));
-                }
-
-                pop_bit(&mut attacks, target_square);
-            }
-            pop_bit(&mut bitboard, source_square);
-        }
-
-        // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::b as usize];
-        while bitboard != 0
-        {
-            // Init source square
-            let source_square = bitboard.trailing_zeros() as usize;
-
-            let mut attacks = get_bishop_attacks(source_square,board.occupancies[2]) & !board.occupancies[1];
-
-            while attacks != 0 {
-                let target_square = attacks.trailing_zeros() as usize;
-                if get_bit(board.occupancies[0], target_square){
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::b, Piece::P, 1, 0, 0, 0 ));
-                } else {
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::b, Piece::P, 0, 0, 0, 0 )); 
-                }
-                pop_bit(&mut attacks, target_square);
-            }
-            pop_bit(&mut bitboard, source_square);
-        }
-
-        // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::r as usize];
-        while bitboard != 0
-        {
-            // Init source square
-            let source_square = bitboard.trailing_zeros() as usize;
-
-            let mut attacks = get_rook_attacks(source_square,board.occupancies[2]) & !board.occupancies[1];
-            while attacks != 0 {
-                let target_square = attacks.trailing_zeros() as usize;
-                // One square ahead pawn move
-                if get_bit(board.occupancies[0], target_square){
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::r, Piece::P, 1, 0, 0, 0 ));
-                } else {
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::r, Piece::P, 0, 0, 0, 0 ));
-                }
-                pop_bit(&mut attacks, target_square);
-            }
-            pop_bit(&mut bitboard, source_square);
-        }
-
-        // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::q as usize];
-        while bitboard != 0
-        {
-            // Init source square
-            let source_square = bitboard.trailing_zeros() as usize;
-
-            let mut attacks = get_queen_attacks(source_square,board.occupancies[2]) & !board.occupancies[1];
-
-            while attacks != 0 {
-                let target_square = attacks.trailing_zeros() as usize;
-                // One square ahead pawn move
-                if get_bit(board.occupancies[0], target_square){
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::q, Piece::P, 1, 0, 0, 0 ));
-                } else {
-                    move_list.push(Move::create(source_square as u32, target_square as u32, Piece::q, Piece::P, 0, 0, 0, 0 ));
-                }
-                pop_bit(&mut attacks, target_square);
-            }
-            pop_bit(&mut bitboard, source_square);
-        }
-    }
-    move_list
+// ---------------------------------------------------------------------------
+// Move generation helpers
+// ---------------------------------------------------------------------------
+
+/// Push a non-capture move into the list.
+#[inline(always)]
+fn push_quiet(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, promoted: Piece) {
+    moves.push(Move::create(
+        source as u32,
+        target as u32,
+        piece,
+        promoted,
+        0, 0, 0, 0,
+    ));
 }
 
+/// Push a capture move into the list.
+#[inline(always)]
+fn push_capture(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, promoted: Piece) {
+    moves.push(Move::create(
+        source as u32,
+        target as u32,
+        piece,
+        promoted,
+        1, 0, 0, 0,
+    ));
+}
+
+/// Push a double-pawn-push move into the list.
+#[inline(always)]
+fn push_double_push(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece) {
+    moves.push(Move::create(
+        source as u32,
+        target as u32,
+        piece,
+        Piece::P, // placeholder, not a real promotion
+        0, 0, 0, 1,
+    ));
+}
+
+/// Push an en-passant capture into the list.
+#[inline(always)]
+fn push_enpassant(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece) {
+    moves.push(Move::create(
+        source as u32,
+        target as u32,
+        piece,
+        Piece::P, // placeholder
+        1, 1, 0, 0,
+    ));
+}
+
+/// Push a castling move into the list.
+#[inline(always)]
+fn push_castle(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece) {
+    moves.push(Move::create(
+        source as u32,
+        target as u32,
+        piece,
+        Piece::P, // placeholder
+        0, 0, 1, 0,
+    ));
+}
+
+// ---------------------------------------------------------------------------
+// Per-piece move generation (side-parameterised)
+// ---------------------------------------------------------------------------
+
+/// Generate all pawn moves for `side`.
+fn generate_pawn_moves(
+    board: &BoardPosition,
+    side: usize,
+    moves: &mut Vec<Move>,
+) {
+    let piece = if side == 0 { Piece::P } else { Piece::p };
+    let promo_rank_range: (usize, usize) = if side == 0 { (8, 15) } else { (48, 55) };
+    let start_rank_range: (usize, usize) = if side == 0 { (48, 55) } else { (8, 15) };
+    let direction: isize = if side == 0 { -8 } else { 8 };
+    let opp_occ = board.occupancies[1 - side];
+    let all_occ = board.occupancies[2];
+
+    let mut bb = board.bitboards[piece as usize];
+    while bb != 0 {
+        let source = bb.trailing_zeros() as usize;
+        pop_bit(&mut bb, source);
+
+        let target = (source as isize + direction) as usize;
+
+        // Quiet moves (single push)
+        if target < 64 && !get_bit(all_occ, target) {
+            if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
+                // Promotion
+                for promo in promotion_pieces(side) {
+                    push_quiet(moves, source, target, piece, promo);
+                }
+            } else {
+                push_quiet(moves, source, target, piece, piece);
+
+                // Double push
+                if source >= start_rank_range.0 && source <= start_rank_range.1 {
+                    let target2 = (target as isize + direction) as usize;
+                    if target2 < 64 && !get_bit(all_occ, target2) {
+                        push_double_push(moves, source, target2, piece);
+                    }
+                }
+            }
+        }
+
+        // Captures
+        let mut attacks = PAWN_ATTACKS[side][source] & opp_occ;
+        while attacks != 0 {
+            let cap_target = attacks.trailing_zeros() as usize;
+            pop_bit(&mut attacks, cap_target);
+
+            if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
+                for promo in promotion_pieces(side) {
+                    push_capture(moves, source, cap_target, piece, promo);
+                }
+            } else {
+                push_capture(moves, source, cap_target, piece, piece);
+            }
+        }
+
+        // En passant
+        if board.enpassant < 64 {
+            let ep_bit = PAWN_ATTACKS[side][source] & (1u64 << board.enpassant);
+            if ep_bit != 0 {
+                let ep_target = ep_bit.trailing_zeros() as usize;
+                push_enpassant(moves, source, ep_target, piece);
+            }
+        }
+    }
+}
+
+/// Generate all king moves (non-castling) for `side`.
+fn generate_king_moves(
+    board: &BoardPosition,
+    side: usize,
+    moves: &mut Vec<Move>,
+) {
+    let piece = if side == 0 { Piece::K } else { Piece::k };
+    let our_occ = board.occupancies[side];
+
+    let mut bb = board.bitboards[piece as usize];
+    while bb != 0 {
+        let source = bb.trailing_zeros() as usize;
+        pop_bit(&mut bb, source);
+
+        let mut attacks = KING_ATTACKS[source] & !our_occ;
+        while attacks != 0 {
+            let target = attacks.trailing_zeros() as usize;
+            pop_bit(&mut attacks, target);
+
+            if get_bit(board.occupancies[1 - side], target) {
+                push_capture(moves, source, target, piece, piece);
+            } else {
+                push_quiet(moves, source, target, piece, piece);
+            }
+        }
+    }
+}
+
+/// Generate castling moves for `side`.
+fn generate_castling_moves(
+    board: &BoardPosition,
+    side: usize,
+    moves: &mut Vec<Move>,
+) {
+    let piece = if side == 0 { Piece::K } else { Piece::k };
+    let occ = board.occupancies[2];
+
+    if side == 0 {
+        // White kingside (O-O): king e1->g1, rook h1->f1
+        if board.castle & 1 != 0
+            && !get_bit(occ, 61)
+            && !get_bit(occ, 62)
+            && !is_square_attacked(60, board)
+            && !is_square_attacked(61, board)
+        {
+            push_castle(moves, 60, 62, piece);
+        }
+        // White queenside (O-O-O): king e1->c1, rook a1->d1
+        if board.castle & 2 != 0
+            && !get_bit(occ, 59)
+            && !get_bit(occ, 58)
+            && !get_bit(occ, 57)
+            && !is_square_attacked(60, board)
+            && !is_square_attacked(59, board)
+        {
+            push_castle(moves, 60, 58, piece);
+        }
+    } else {
+        // Black kingside (O-O): king e8->g8, rook h8->f8
+        if board.castle & 4 != 0
+            && !get_bit(occ, 5)
+            && !get_bit(occ, 6)
+            && !is_square_attacked(4, board)
+            && !is_square_attacked(5, board)
+        {
+            push_castle(moves, 4, 6, piece);
+        }
+        // Black queenside (O-O-O): king e8->c8, rook a8->d8
+        if board.castle & 8 != 0
+            && !get_bit(occ, 3)
+            && !get_bit(occ, 2)
+            && !get_bit(occ, 1)
+            && !is_square_attacked(4, board)
+            && !is_square_attacked(3, board)
+        {
+            push_castle(moves, 4, 2, piece);
+        }
+    }
+}
+
+/// Generate all knight moves for `side`.
+fn generate_knight_moves(
+    board: &BoardPosition,
+    side: usize,
+    moves: &mut Vec<Move>,
+) {
+    let piece = if side == 0 { Piece::N } else { Piece::n };
+    let our_occ = board.occupancies[side];
+
+    let mut bb = board.bitboards[piece as usize];
+    while bb != 0 {
+        let source = bb.trailing_zeros() as usize;
+        pop_bit(&mut bb, source);
+
+        let mut attacks = KNIGHT_ATTACKS[source] & !our_occ;
+        while attacks != 0 {
+            let target = attacks.trailing_zeros() as usize;
+            pop_bit(&mut attacks, target);
+
+            if get_bit(board.occupancies[1 - side], target) {
+                push_capture(moves, source, target, piece, piece);
+            } else {
+                push_quiet(moves, source, target, piece, piece);
+            }
+        }
+    }
+}
+
+/// Generate all bishop moves for `side`.
+fn generate_bishop_moves(
+    board: &BoardPosition,
+    side: usize,
+    moves: &mut Vec<Move>,
+) {
+    let piece = if side == 0 { Piece::B } else { Piece::b };
+    let our_occ = board.occupancies[side];
+
+    let mut bb = board.bitboards[piece as usize];
+    while bb != 0 {
+        let source = bb.trailing_zeros() as usize;
+        pop_bit(&mut bb, source);
+
+        let mut attacks = get_bishop_attacks(source, board.occupancies[2]) & !our_occ;
+        while attacks != 0 {
+            let target = attacks.trailing_zeros() as usize;
+            pop_bit(&mut attacks, target);
+
+            if get_bit(board.occupancies[1 - side], target) {
+                push_capture(moves, source, target, piece, piece);
+            } else {
+                push_quiet(moves, source, target, piece, piece);
+            }
+        }
+    }
+}
+
+/// Generate all rook moves for `side`.
+fn generate_rook_moves(
+    board: &BoardPosition,
+    side: usize,
+    moves: &mut Vec<Move>,
+) {
+    let piece = if side == 0 { Piece::R } else { Piece::r };
+    let our_occ = board.occupancies[side];
+
+    let mut bb = board.bitboards[piece as usize];
+    while bb != 0 {
+        let source = bb.trailing_zeros() as usize;
+        pop_bit(&mut bb, source);
+
+        let mut attacks = get_rook_attacks(source, board.occupancies[2]) & !our_occ;
+        while attacks != 0 {
+            let target = attacks.trailing_zeros() as usize;
+            pop_bit(&mut attacks, target);
+
+            if get_bit(board.occupancies[1 - side], target) {
+                push_capture(moves, source, target, piece, piece);
+            } else {
+                push_quiet(moves, source, target, piece, piece);
+            }
+        }
+    }
+}
+
+/// Generate all queen moves for `side`.
+fn generate_queen_moves(
+    board: &BoardPosition,
+    side: usize,
+    moves: &mut Vec<Move>,
+) {
+    let piece = if side == 0 { Piece::Q } else { Piece::q };
+    let our_occ = board.occupancies[side];
+
+    let mut bb = board.bitboards[piece as usize];
+    while bb != 0 {
+        let source = bb.trailing_zeros() as usize;
+        pop_bit(&mut bb, source);
+
+        let mut attacks = get_queen_attacks(source, board.occupancies[2]) & !our_occ;
+        while attacks != 0 {
+            let target = attacks.trailing_zeros() as usize;
+            pop_bit(&mut attacks, target);
+
+            if get_bit(board.occupancies[1 - side], target) {
+                push_capture(moves, source, target, piece, piece);
+            } else {
+                push_quiet(moves, source, target, piece, piece);
+            }
+        }
+    }
+}
+
+/// Return the four promotion piece types for the given side.
+#[inline(always)]
+fn promotion_pieces(side: usize) -> [Piece; 4] {
+    if side == 0 {
+        [Piece::Q, Piece::R, Piece::B, Piece::N]
+    } else {
+        [Piece::q, Piece::r, Piece::n, Piece::b]
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Public API: generate_moves
+// ---------------------------------------------------------------------------
+
+/// Generate all pseudo-legal moves for the side to move.
+pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
+    let side = board.side;
+    // Typical legal positions have ~35 moves; 64 avoids most reallocations.
+    let mut moves = Vec::with_capacity(64);
+
+    generate_pawn_moves(board, side, &mut moves);
+    generate_king_moves(board, side, &mut moves);
+    generate_castling_moves(board, side, &mut moves);
+    generate_knight_moves(board, side, &mut moves);
+    generate_bishop_moves(board, side, &mut moves);
+    generate_rook_moves(board, side, &mut moves);
+    generate_queen_moves(board, side, &mut moves);
+
+    moves
+}
+
+// ---------------------------------------------------------------------------
+// make_move
+// ---------------------------------------------------------------------------
+
+/// Apply `move_to_make` to `board` and return the resulting position, or
+/// `None` if the move leaves the king in check.
 pub fn make_move(board: &BoardPosition, move_to_make: &Move) -> Option<BoardPosition> {
-    let mut new_position = BoardPosition {
-        bitboards: board.bitboards.clone(),
-        occupancies: board.occupancies.clone(),
-        side: (board.side + 1) % 2,
+    let mut new = BoardPosition {
+        bitboards: board.bitboards,
+        occupancies: board.occupancies,
+        side: board.side,
         enpassant: board.enpassant,
         castle: board.castle,
     };
 
-    let piece = move_to_make.get_piece() as usize;
+    let piece_idx = move_to_make.get_piece() as usize;
+    let source = move_to_make.get_source_square() as usize;
+    let target = move_to_make.get_target_square() as usize;
+    let is_capture = move_to_make.get_capture();
+    let is_enpassant = move_to_make.get_enpassant();
+    let is_castling = move_to_make.get_castling();
+    let is_double_push = move_to_make.get_double_pawn_push();
+    let promoted = move_to_make.get_promoted();
 
-    //move
-    pop_bit(&mut new_position.bitboards[piece], move_to_make.get_source_square() as usize);
-    set_bit(&mut new_position.bitboards[piece], move_to_make.get_target_square() as usize);
+    // Move the piece: clear source, set target
+    pop_bit(&mut new.bitboards[piece_idx], source);
+    set_bit(&mut new.bitboards[piece_idx], target);
 
+    // Handle captures: remove the captured piece from opponent's bitboards.
+    if is_capture {
+        let opp_side = 1 - new.side;
+        let opp_occ = new.occupancies[opp_side];
 
-    //capture
-    if move_to_make.get_capture() == true {
-        for i in 0..6{
-            pop_bit(&mut new_position.bitboards[new_position.side * 6 + i], move_to_make.get_target_square() as usize);
+        // Iterate only over opponent piece types that actually occupy the
+        // target square.  This is faster than blindly clearing all 6 slots.
+        let base = opp_side * 6;
+        for i in 0..6 {
+            let idx = base + i;
+            if get_bit(opp_occ, target) {
+                pop_bit(&mut new.bitboards[idx], target);
+            }
         }
-        pop_bit(&mut new_position.occupancies[new_position.side], move_to_make.get_target_square() as usize);
+        pop_bit(&mut new.occupancies[opp_side], target);
     }
 
-    if move_to_make.get_promoted() != 0 {
-        pop_bit(&mut new_position.bitboards[piece], move_to_make.get_target_square() as usize);
-        set_bit(&mut new_position.bitboards[move_to_make.get_promoted() as usize], move_to_make.get_target_square() as usize)
+    // Handle promotion: replace the pawn with the promoted piece.
+    if promoted != 0 {
+        pop_bit(&mut new.bitboards[piece_idx], target);
+        set_bit(&mut new.bitboards[promoted as usize], target);
     }
 
-    if move_to_make.get_enpassant() {
-        if piece < 6 {
-            pop_bit(&mut new_position.bitboards[6], (move_to_make.get_target_square() + 8) as usize)
-        }
-        else {
-            pop_bit(&mut new_position.bitboards[0], (move_to_make.get_target_square() - 8) as usize)
-        }
-    }
-
-    new_position.enpassant = 64;
-
-    if move_to_make.get_double_pawn_push() {
-        if piece < 6 {
-            new_position.enpassant = (move_to_make.get_target_square() + 8) as usize;
-        }
-        else {
-            new_position.enpassant = (move_to_make.get_target_square() - 8) as usize;
+    // Handle en passant: remove the captured pawn (which is on a different
+    // square from the target).
+    if is_enpassant {
+        if piece_idx < 6 {
+            // White pawn captured a black pawn on the rank below target.
+            pop_bit(&mut new.bitboards[Piece::p as usize], target + 8);
+        } else {
+            // Black pawn captured a white pawn on the rank above target.
+            pop_bit(&mut new.bitboards[Piece::P as usize], target - 8);
         }
     }
 
-    if move_to_make.get_castling() {
-        match move_to_make.get_target_square() {
-            58 => {
-                pop_bit(&mut new_position.bitboards[R.to_usize()], coordinates_to_squares("a1") as usize);
-                set_bit(&mut new_position.bitboards[R.to_usize()], coordinates_to_squares("d1") as usize);
-            },
+    // Reset en passant square; set it again if this was a double pawn push.
+    new.enpassant = 64;
+    if is_double_push {
+        if piece_idx < 6 {
+            new.enpassant = target + 8;
+        } else {
+            new.enpassant = target - 8;
+        }
+    }
+
+    // Handle castling: move the rook.
+    if is_castling {
+        match target {
+            // White kingside
             62 => {
-                pop_bit(&mut new_position.bitboards[R.to_usize()], coordinates_to_squares("h1") as usize);
-                set_bit(&mut new_position.bitboards[R.to_usize()], coordinates_to_squares("f1") as usize);
-            },
-            2 => {
-                pop_bit(&mut new_position.bitboards[r.to_usize()], coordinates_to_squares("a8") as usize);
-                set_bit(&mut new_position.bitboards[r.to_usize()], coordinates_to_squares("d8") as usize);
-            },
+                pop_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].0);
+                set_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].1);
+            }
+            // White queenside
+            58 => {
+                pop_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].0);
+                set_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].1);
+            }
+            // Black kingside
             6 => {
-                pop_bit(&mut new_position.bitboards[r.to_usize()], coordinates_to_squares("h8") as usize);
-                set_bit(&mut new_position.bitboards[r.to_usize()], coordinates_to_squares("f8") as usize);
-            },
+                pop_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].0);
+                set_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].1);
+            }
+            // Black queenside
+            2 => {
+                pop_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].0);
+                set_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].1);
+            }
             _ => {}
         }
     }
 
-    new_position.castle = new_position.castle & CASTLING_RIGHTS[move_to_make.get_source_square() as usize] as usize;
-    new_position.castle = new_position.castle & CASTLING_RIGHTS[move_to_make.get_target_square() as usize] as usize;
+    // Update castling rights.
+    new.castle &= CASTLING_RIGHTS[source] as usize;
+    new.castle &= CASTLING_RIGHTS[target] as usize;
 
-    new_position.occupancies[0] = new_position.bitboards[0 .. 6].iter().fold(0, |acc, &b| acc | b);
-    new_position.occupancies[1] = new_position.bitboards[6 .. 12].iter().fold(0, |acc, &b| acc | b);
-    new_position.occupancies[2] = new_position.occupancies[0 .. 2].iter().fold(0, |acc, &b| acc | b);
-    
-    let king_sq: usize;
+    // Recompute occupancies.
+    new.occupancies[0] = new.bitboards[0..6].iter().fold(0, |acc, &b| acc | b);
+    new.occupancies[1] = new.bitboards[6..12].iter().fold(0, |acc, &b| acc | b);
+    new.occupancies[2] = new.occupancies[0] | new.occupancies[1];
 
-    if new_position.side != 0 {
-        king_sq = new_position.bitboards[5].trailing_zeros() as usize;
-    }
-    else {
-        king_sq = new_position.bitboards[11].trailing_zeros() as usize;
-    }
-    new_position.side = board.side;
-    
-    if is_square_attacked(king_sq, &new_position) {
+    // Find the king of the side that just moved to check for legality.
+    // is_square_attacked checks if the opponent of board.side attacks,
+    // so we need board.side to be the mover's side.
+    let king_idx = KING_INDEX[new.side];
+    let king_sq = new.bitboards[king_idx].trailing_zeros() as usize;
+
+    // Temporarily set side to the mover's side for the attack check
+    // (new.side is already board.side from initialization).
+    // is_square_attacked will check if the opponent (1 - new.side) attacks king_sq.
+
+    if is_square_attacked(king_sq, &new) {
         return None;
-    }  
-    
-    new_position.side = board.side.bitxor(1);
+    }
 
-    Some(new_position)
+    // Flip side for the returned position.
+    new.side = 1 - new.side;
 
+    Some(new)
 }
 
-pub const CASTLING_RIGHTS: [u8; 64] = [
-7, 15, 15, 15,  3, 15, 15, 11,
-15, 15, 15, 15, 15, 15, 15, 15,
-15, 15, 15, 15, 15, 15, 15, 15,
-15, 15, 15, 15, 15, 15, 15, 15,
-15, 15, 15, 15, 15, 15, 15, 15,
-15, 15, 15, 15, 15, 15, 15, 15,
-15, 15, 15, 15, 15, 15, 15, 15,
-13, 15, 15, 15, 12, 15, 15, 14];
-
-
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
-    use crate::move_gen::{is_square_attacked, make_move};
+    use crate::move_gen::is_square_attacked;
     use crate::perft::perft_driver;
     use crate::shared::{
-        coordinates_to_squares, parse_fen, print_bitboard, BoardPosition, Move, Piece,
+        coordinates_to_squares, parse_fen, print_bitboard, BoardPosition,
         ENDGAME_PERFT, KIWIPETE, START_POSITION,
     };
     use std::thread;
@@ -592,7 +618,6 @@ mod tests {
         let mut cnt = 0;
         for y in 0..8 {
             for x in 0..8 {
-                //println!("Square: {}, coordinate: {}, Attacked: {}", x+8*y, SQUARE_TO_COORDINATES[x+8*y], is_square_attacked(x+8*y, board_position));
                 cnt = cnt * 2;
                 if is_square_attacked(x + 8 * y, board_position) {
                     cnt += 1;
@@ -600,11 +625,8 @@ mod tests {
             }
         }
 
-        // for y in 0..8 {
-        //         println!("{} {} {} {} {} {} {} {}", is_square_attacked(8*y, board_position) as usize, is_square_attacked(8*y+1, board_position) as usize, is_square_attacked(8*y+2, board_position) as usize, is_square_attacked(8*y+3, board_position) as usize, is_square_attacked(8*y+4, board_position) as usize, is_square_attacked(8*y+5, board_position) as usize, is_square_attacked(8*y+6, board_position) as usize, is_square_attacked(8*y+7, board_position) as usize)
-        // }
-
         print_bitboard(cnt);
+
         cnt
     }
 
@@ -614,7 +636,7 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let board_pos =
-                    parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"); //Rook on e3
+                    parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
                 assert_eq!(run_through_attacks(&board_pos), 18437032593966828032);
             })
             .unwrap();
