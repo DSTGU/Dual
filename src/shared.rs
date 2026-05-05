@@ -27,6 +27,18 @@ pub struct BoardPosition {
     */
 }
 
+pub struct SearchState {
+    pub board_position: BoardPosition,
+
+}
+
+pub struct SearchAnswer {
+    pub search_state: SearchState,
+    pub move_list: Vec<Option<Move>>,
+    pub node_count: i32,
+    pub eval: i32
+}
+
 #[derive(Clone, Copy)]
 pub struct Move {
     // pub source_square: u8,
@@ -375,6 +387,8 @@ pub fn print_board(board: &BoardPosition)
 pub const EMPTY_BOARD: &str = "8/8/8/8/8/8/8/8 w - - ";
 pub const START_POSITION: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
 pub const KIWIPETE: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
+
+pub const ENDGAME_PERFT: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
 pub fn parse_fen(fen: &str) -> BoardPosition {
 
     let mut board_position = BoardPosition {

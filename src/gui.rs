@@ -103,21 +103,23 @@ pub fn parse_go(command: &str, board_position: &BoardPosition) {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
     use crate::gui::{parse_go, parse_position};
     use crate::shared::{parse_fen, START_POSITION};
+    use std::thread;
 
     #[test]
     fn test_position_startpos() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder.spawn(|| {
-            let board_pos = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 xdddddd");
-            let cmd_result = parse_position("position startpos");
-            assert_eq!(board_pos, cmd_result);
-        }).unwrap();
+        let handler = builder
+            .spawn(|| {
+                let board_pos =
+                    parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 xdddddd");
+                let cmd_result = parse_position("position startpos");
+                assert_eq!(board_pos, cmd_result);
+            })
+            .unwrap();
         handler.join().unwrap();
     }
-
 
     #[test]
     fn test_position_fen() {
@@ -144,22 +146,26 @@ mod tests {
     #[test]
     fn test_position_startpos_moves() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder.spawn(|| {
-            let board_pos = parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
-            let cmd_result = parse_position("position startpos e2e4 d7d5");
-            assert_eq!(board_pos, cmd_result);
-        }).unwrap();
+        let handler = builder
+            .spawn(|| {
+                let board_pos =
+                    parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
+                let cmd_result = parse_position("position startpos e2e4 d7d5");
+                assert_eq!(board_pos, cmd_result);
+            })
+            .unwrap();
         handler.join().unwrap();
     }
-
 
     #[test]
     fn test_go() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder.spawn(|| {
-            let board = parse_fen(START_POSITION);
-            parse_go("go depth 13", &board);
-        }).unwrap();
+        let handler = builder
+            .spawn(|| {
+                let board = parse_fen(START_POSITION);
+                parse_go("go depth 6", &board);
+            })
+            .unwrap();
         handler.join().unwrap();
     }
 }

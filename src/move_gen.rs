@@ -56,7 +56,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
     if board.side == 0
     {
             // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::P as usize].clone();
+            bitboard = board.bitboards[Piece::P as usize];
             // Loop over white pawns within white pawn bitboard
             while bitboard != 0 {
                 // Init source square
@@ -127,7 +127,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
             }
 
             // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::K as usize].clone();
+            bitboard = board.bitboards[Piece::K as usize];
             while bitboard != 0 {
                 // Init source square
                 let source_square = bitboard.trailing_zeros() as usize;
@@ -171,7 +171,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
 
 
             // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::N as usize].clone();
+            bitboard = board.bitboards[Piece::N as usize];
             while bitboard != 0
             {
                 // Init source square
@@ -192,7 +192,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
             }
 
             // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::B as usize].clone();
+            bitboard = board.bitboards[Piece::B as usize];
             while bitboard != 0
             {
                 // Init source square
@@ -215,7 +215,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
             }
 
             // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::R as usize].clone();
+            bitboard = board.bitboards[Piece::R as usize];
             while bitboard != 0
             {
                 // Init source square
@@ -238,7 +238,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
             }
 
             // Init piece bitboard copy
-            bitboard = board.bitboards[Piece::Q as usize].clone();
+            bitboard = board.bitboards[Piece::Q as usize];
             while bitboard != 0
             {
                 // Init source square
@@ -262,7 +262,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
         }
     else {
         // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::p as usize].clone();
+        bitboard = board.bitboards[Piece::p as usize];
         // Loop over black pawns within white pawn bitboard
         while bitboard != 0 {
             // Init source square
@@ -334,7 +334,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
         }
 
         // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::k as usize].clone();
+        bitboard = board.bitboards[Piece::k as usize];
         while bitboard != 0 {
             // Init source square
             let source_square = bitboard.trailing_zeros() as usize;
@@ -379,7 +379,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
         }
 
         // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::n as usize].clone();
+        bitboard = board.bitboards[Piece::n as usize];
         while bitboard != 0
         {
             // Init source square
@@ -402,7 +402,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
         }
 
         // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::b as usize].clone();
+        bitboard = board.bitboards[Piece::b as usize];
         while bitboard != 0
         {
             // Init source square
@@ -423,7 +423,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
         }
 
         // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::r as usize].clone();
+        bitboard = board.bitboards[Piece::r as usize];
         while bitboard != 0
         {
             // Init source square
@@ -444,7 +444,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
         }
 
         // Init piece bitboard copy
-        bitboard = board.bitboards[Piece::q as usize].clone();
+        bitboard = board.bitboards[Piece::q as usize];
         while bitboard != 0
         {
             // Init source square
@@ -580,18 +580,21 @@ pub const CASTLING_RIGHTS: [u8; 64] = [
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
     use crate::move_gen::{is_square_attacked, make_move};
-    use crate::shared::{BoardPosition, Move, Piece, coordinates_to_squares, parse_fen, print_bitboard};
+    use crate::perft::perft_driver;
+    use crate::shared::{
+        coordinates_to_squares, parse_fen, print_bitboard, BoardPosition, Move, Piece,
+        ENDGAME_PERFT, KIWIPETE, START_POSITION,
+    };
+    use std::thread;
 
     pub fn run_through_attacks(board_position: &BoardPosition) -> u64 {
         let mut cnt = 0;
         for y in 0..8 {
-            for x in 0..8{
-                
+            for x in 0..8 {
                 //println!("Square: {}, coordinate: {}, Attacked: {}", x+8*y, SQUARE_TO_COORDINATES[x+8*y], is_square_attacked(x+8*y, board_position));
                 cnt = cnt * 2;
-                if is_square_attacked(x+8*y, board_position) {
+                if is_square_attacked(x + 8 * y, board_position) {
                     cnt += 1;
                 }
             }
@@ -600,55 +603,94 @@ mod tests {
         // for y in 0..8 {
         //         println!("{} {} {} {} {} {} {} {}", is_square_attacked(8*y, board_position) as usize, is_square_attacked(8*y+1, board_position) as usize, is_square_attacked(8*y+2, board_position) as usize, is_square_attacked(8*y+3, board_position) as usize, is_square_attacked(8*y+4, board_position) as usize, is_square_attacked(8*y+5, board_position) as usize, is_square_attacked(8*y+6, board_position) as usize, is_square_attacked(8*y+7, board_position) as usize)
         // }
-        
+
         print_bitboard(cnt);
         cnt
-
     }
 
     #[test]
     fn test_attacked_squares_kiwipete() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder.spawn(|| {
-            let board_pos = parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"); //Rook on e3
-            assert_eq!(run_through_attacks(&board_pos), 18437032593966828032);
-        }).unwrap();
+        let handler = builder
+            .spawn(|| {
+                let board_pos =
+                    parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"); //Rook on e3
+                assert_eq!(run_through_attacks(&board_pos), 18437032593966828032);
+            })
+            .unwrap();
         handler.join().unwrap();
     }
-    
+
     #[test]
     fn test_rook_attacks_true() {
-
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder.spawn(|| {
-            let board_pos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
-            assert_eq!(is_square_attacked(coordinates_to_squares("d3"), &board_pos), true);
-        }).unwrap();
+        let handler = builder
+            .spawn(|| {
+                let board_pos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
+                assert_eq!(
+                    is_square_attacked(coordinates_to_squares("d3"), &board_pos),
+                    true
+                );
+            })
+            .unwrap();
         handler.join().unwrap();
     }
 
     #[test]
     fn test_rook_attacks_false() {
-
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder.spawn(|| {
-            let board_pos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
-            assert_eq!(is_square_attacked(coordinates_to_squares("b1"), &board_pos), false);
-        }).unwrap();
+        let handler = builder
+            .spawn(|| {
+                let board_pos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
+                assert_eq!(
+                    is_square_attacked(coordinates_to_squares("b1"), &board_pos),
+                    false
+                );
+            })
+            .unwrap();
         handler.join().unwrap();
     }
 
     #[test]
-    fn test_double_push() {
-
+    fn test_perft_kiwipete() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder.spawn(|| {
-            let board_pos = parse_fen("rnbqkbnr/1ppppppp/p7/P7/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 2"); //Rook on e3
-            let mv = Move::create(coordinates_to_squares("b7") as u32, coordinates_to_squares("b5") as u32, Piece::P, Piece::P, 0, 0, 0, 1 );
-            println!("{:?}", mv);
-            let new_board = make_move(&board_pos, &mv).unwrap();
-            assert_eq!(new_board.enpassant, coordinates_to_squares("b6"));
-        }).unwrap();
+        let handler = builder
+            .spawn(|| {
+                let board_pos = parse_fen(KIWIPETE); //Rook on e3
+                let movecnt = perft_driver(&board_pos, 5);
+                assert_eq!(movecnt, 193690690);
+            })
+            .unwrap();
+        handler.join().unwrap();
+    }
+
+    #[test]
+    fn test_perft_endgame() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                let board_pos = parse_fen(ENDGAME_PERFT); //Rook on e3
+                let movecnt = perft_driver(&board_pos, 6);
+                assert_eq!(movecnt, 11030083);
+            })
+            .unwrap();
+        handler.join().unwrap();
+    }
+
+    #[test]
+    fn test_perft_startpos_intermediate_depths() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                // These are the expected perft results for each depth from startpos
+                let expected = [20, 400, 8902, 197281, 4865609, 119060324];
+                let board_pos = parse_fen(START_POSITION);
+                for (depth, &exp) in expected.iter().enumerate() {
+                    let movecnt = perft_driver(&board_pos, depth + 1);
+                    assert_eq!(movecnt, exp, "Perft mismatch at depth {}", depth + 1);
+                }
+            })
+            .unwrap();
         handler.join().unwrap();
     }
 }

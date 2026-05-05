@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 lazy_static = "1.4.0"
 stacker = "0.1.15"
+
+[profile.release]
+lto = "fat"
