@@ -2,7 +2,7 @@ use crate::move_gen::{generate_moves, make_move};
 use crate::perft::perft;
 use crate::search::{search};
 use crate::search_state::SearchState;
-use crate::shared::{BoardPosition, Move, START_POSITION, coordinates_to_squares, parse_fen};
+use crate::shared::{BoardPosition, KIWIPETE, Move, START_POSITION, coordinates_to_squares, parse_fen};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
@@ -61,10 +61,22 @@ pub fn parse_position(command: &str) -> SearchState {
                     pos = make_move(&pos, &x).unwrap();
                     search_state.make_move_for_state(pos);
                 }
-
             }
             search_state
         },
+        "kiwipete" => {
+            let mut pos = parse_fen(KIWIPETE);
+            let mut search_state = SearchState::new(pos);
+            for &i in words[2..].iter() {
+                let mov = parse_move(&pos, i);
+                if let Some(x) = mov {
+                    pos = make_move(&pos, &x).unwrap();
+                    search_state.make_move_for_state(pos);
+                }
+            }
+            search_state
+        }
+
         _ => SearchState::new(parse_fen(START_POSITION))
     }
 
@@ -167,7 +179,7 @@ mod tests {
             .spawn(|| {
                 let mut command = "position fen ".to_owned();
                 command.push_str(START_POSITION);
-                let mut board = parse_position(&command);
+                let mut board = parse_position(command.trim());
                 parse_go("go depth 6", &mut board);
             })
             .unwrap();

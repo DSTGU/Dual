@@ -120,25 +120,25 @@ pub fn is_square_attacked(square: usize, board: &BoardPosition) -> bool {
 
 /// Push a non-capture move into the list.
 #[inline(always)]
-fn push_quiet(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, promoted: Piece) {
+fn push_move(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, capture: u32) {
     moves.push(Move::create(
         source as u32,
         target as u32,
         piece,
-        promoted,
-        0, 0, 0, 0,
+        Piece::P,
+        capture, 0, 0, 0,
     ));
 }
 
 /// Push a capture move into the list.
 #[inline(always)]
-fn push_capture(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, promoted: Piece) {
+fn push_promotion(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, capture:u32, promoted: Piece) {
     moves.push(Move::create(
         source as u32,
         target as u32,
         piece,
         promoted,
-        1, 0, 0, 0,
+        capture, 0, 0, 0,
     ));
 }
 
@@ -207,10 +207,10 @@ fn generate_pawn_moves(
             if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
                 // Promotion
                 for promo in promotion_pieces(side) {
-                    push_quiet(moves, source, target, piece, promo);
+                    push_promotion(moves, source, target, piece, 0, promo);
                 }
             } else {
-                push_quiet(moves, source, target, piece, piece);
+                push_move(moves, source, target, piece, 0);
 
                 // Double push
                 if source >= start_rank_range.0 && source <= start_rank_range.1 {
@@ -230,10 +230,10 @@ fn generate_pawn_moves(
 
             if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
                 for promo in promotion_pieces(side) {
-                    push_capture(moves, source, cap_target, piece, promo);
+                    push_promotion(moves, source, cap_target, piece, 1, promo);
                 }
             } else {
-                push_capture(moves, source, cap_target, piece, piece);
+                push_move(moves, source, cap_target, piece, 1);
             }
         }
 
@@ -267,11 +267,8 @@ fn generate_king_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
 
-            if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, piece);
-            } else {
-                push_quiet(moves, source, target, piece, piece);
-            }
+            let capture = get_bit(board.occupancies[1 - side], target) as u32; 
+            push_move(moves, source, target, piece, capture);
         }
     }
 }
@@ -347,11 +344,8 @@ fn generate_knight_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
 
-            if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, piece);
-            } else {
-                push_quiet(moves, source, target, piece, piece);
-            }
+            let capture = get_bit(board.occupancies[1 - side], target) as u32;
+            push_move(moves, source, target, piece, capture);
         }
     }
 }
@@ -375,11 +369,8 @@ fn generate_bishop_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
 
-            if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, piece);
-            } else {
-                push_quiet(moves, source, target, piece, piece);
-            }
+            let capture = get_bit(board.occupancies[1 - side], target) as u32;
+            push_move(moves, source, target, piece, capture);
         }
     }
 }
@@ -403,11 +394,8 @@ fn generate_rook_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
 
-            if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, piece);
-            } else {
-                push_quiet(moves, source, target, piece, piece);
-            }
+            let capture = get_bit(board.occupancies[1 - side], target) as u32;
+            push_move(moves, source, target, piece, capture);
         }
     }
 }
@@ -431,11 +419,8 @@ fn generate_queen_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
 
-            if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, piece);
-            } else {
-                push_quiet(moves, source, target, piece, piece);
-            }
+            let capture = get_bit(board.occupancies[1 - side], target) as u32; 
+            push_move(moves, source, target, piece, capture);
         }
     }
 }
