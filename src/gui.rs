@@ -1,7 +1,8 @@
 use crate::move_gen::{generate_moves, make_move};
 use crate::perft::perft;
 use crate::search::{search};
-use crate::shared::{BoardPosition, Move, START_POSITION, SearchState, coordinates_to_squares, parse_fen};
+use crate::search_state::SearchState;
+use crate::shared::{BoardPosition, Move, START_POSITION, coordinates_to_squares, parse_fen};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {

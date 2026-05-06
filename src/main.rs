@@ -6,6 +6,7 @@ mod gui;
 mod search;
 mod evaluate;
 mod tt;
+mod search_state;
 
 use std::io;
 use std::thread;
@@ -38,7 +39,7 @@ use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
 use crate::attacks::get_bishop_attacks;
 use crate::gui::{parse_go, parse_position};
-use crate::shared::SearchState;
+use crate::search_state::SearchState;
 use crate::shared::{ parse_fen, Piece, print_board, START_POSITION, coordinates_to_squares};
 
 /**********************************\

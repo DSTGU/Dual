@@ -1,13 +1,12 @@
-use std::{thread, vec};
+use std::{vec};
 use std::time::SystemTime;
 use crate::evaluate::evaluate;
-use crate::move_gen::{generate_moves, is_square_attacked, make_move};
-use crate::shared::{BoardPosition, Move, SearchAnswer, SearchState, get_bit, move_to_alg};
+use crate::move_gen::{generate_moves, make_move};
+use crate::search_state::SearchState;
+use crate::shared::{Move, SearchAnswer, move_to_alg};
 
-static mut MAX_DEPTH : usize = 0;
-static mut KILLER_MOVE : [[u32; 256]; 2 ] = [[0; 256]; 2];
-static mut HISTORY_MOVE : [[usize; 64]; 12 ] = [[0; 64]; 12];
-static mut PREVITER_BESTMOVE : u32 = 0;
+//static mut KILLER_MOVE : [[u32; 256]; 2 ] = [[0; 256]; 2];
+//static mut HISTORY_MOVE : [[usize; 64]; 12 ] = [[0; 64]; 12];
 
 // pub fn get_victim(board_position: &BoardPosition, mv: &Move) -> usize {
 //     let sidevar = ((board_position.side + 1) % 2) * 6;
@@ -63,6 +62,7 @@ static mut PREVITER_BESTMOVE : u32 = 0;
 // }
 
 // (eval, nodes)
+
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
     let eval = evaluate(&search_state.get_board_position());
@@ -86,11 +86,9 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     let move_list = generate_moves(&search_state.get_board_position());
     let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.get_capture() == true).collect();
     filtered_move_list.sort_by(|a, b| {
-        unsafe {
-            let score_a = search_state.get_move_score(a, MAX_DEPTH + ply);
-            let score_b = search_state.get_move_score(b, MAX_DEPTH + ply);
-            score_b.cmp(&score_a)
-        }
+        let score_a = search_state.get_move_score(a, search_state.max_depth + ply);
+        let score_b = search_state.get_move_score(b, search_state.max_depth + ply);
+        score_b.cmp(&score_a)
     });
 
     let mut nodes = 1;
@@ -129,11 +127,9 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
 
     let mut move_list = generate_moves(&search_state.get_board_position());
     move_list.sort_by(|a, b| {
-        unsafe {
-        let score_a = search_state.get_move_score(a, MAX_DEPTH - depth);
-        let score_b = search_state.get_move_score(b, MAX_DEPTH - depth);
+        let score_a = search_state.get_move_score(a, search_state.max_depth - depth);
+        let score_b = search_state.get_move_score(b, search_state.max_depth - depth);
         score_b.cmp(&score_a)
-        }
     });
     
     // Move, eval (alpha), nodes
@@ -164,21 +160,14 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
 
             if -res.eval >= beta {                
                 if mv.get_capture() == false {
-                    unsafe {
-                        KILLER_MOVE[1][MAX_DEPTH - depth] = KILLER_MOVE[0][MAX_DEPTH - depth];
-                        KILLER_MOVE[0][MAX_DEPTH - depth] = mv.mv;
-                    }
+                    search_state.update_killer_move(mv, search_state.max_depth-depth);
                 }
                 return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
             }
 
             if -res.eval > new_alpha {
-                
                 if mv.get_capture() == false {
-                    unsafe {
-                        HISTORY_MOVE[mv.get_piece() as usize][mv.get_target_square() as usize] += depth;
-                        //println!( "{}, {} - {} -> {}", depth, mv.get_piece(), mv.get_target_square(), HISTORY_MOVE[mv.get_piece() as usize][mv.get_target_square() as usize])
-                    }
+                        search_state.update_history(mv, depth);
                 }
                 
                 new_alpha = -res.eval;
@@ -254,41 +243,25 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
 
 pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Option<usize>) {
 
-    unsafe {
-        KILLER_MOVE = [[0; 256]; 2];
-        HISTORY_MOVE = [[0; 64]; 12];
-        PREVITER_BESTMOVE = 0;
-    }
-
-
     if time.is_none() && depth.is_some() {
 
-        unsafe {
-            MAX_DEPTH = depth.unwrap();
+        search_state.reset_for_new_search(depth.unwrap());        
+        
+        let mut score = single_depth_search(&mut search_state, depth.unwrap());
+
+        let pv = collect_pv(&score.move_list);
+
+        if score.eval > 4000000 || score.eval < -4000000 {
+
+            let mate = score_to_mate( score.eval, depth.unwrap());
+            println!("info score mate {} depth {} nodes {} pv {}", mate, depth.unwrap(), score.node_count, pv);
         }
+        else {
+            println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth.unwrap(), score.node_count, pv);
+        }
+        println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
 
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-
-        //let handler = builder.spawn(move || {
-            let mut score = single_depth_search(&mut search_state, depth.unwrap());
-
-            let pv = collect_pv(&score.move_list);
-
-            if score.eval > 4000000 || score.eval < -4000000 {
-
-                let mate = score_to_mate( score.eval, depth.unwrap());
-
-                println!("info score mate {} depth {} nodes {} pv {}", mate, depth.unwrap(), score.node_count, pv);
-            }
-            else {
-                println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth.unwrap(), score.node_count, pv);
-            }
-            println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
-            
-        //}).unwrap();
-        //handler.join().unwrap();
     } else {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let now = SystemTime::now();
         let time_avail;
         if let Some(x) = time {
@@ -298,45 +271,30 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
             time_avail = 10000000;
         }
         let mut depth = 3;
-        unsafe {
-            MAX_DEPTH = depth;
-            KILLER_MOVE = [[0; 256]; 2];
-            HISTORY_MOVE = [[0; 64]; 12];
-            PREVITER_BESTMOVE = 0;
-        }
-        let bp = search_state.get_board_position().clone();
+        search_state.reset_for_new_search(depth);
+
         let mut score = single_depth_search(search_state, 3);
         depth = 4;
-        //let handler = builder.spawn(move || {
-            while now.elapsed().unwrap().as_millis() < time_avail as u128 {
-                unsafe {
-                    MAX_DEPTH = depth;
-                    KILLER_MOVE = [[0; 256]; 2];
-                    HISTORY_MOVE = [[0; 64]; 12];
-                    //previter_bestmove = score.0.pop().unwrap().unwrap().mv;
-                }
-                
-                score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
+        while now.elapsed().unwrap().as_millis() < time_avail as u128 {
+        
+            search_state.reset_for_new_search(depth);        
+            score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
 
-                let pv = collect_pv(&score.move_list);
+            let pv = collect_pv(&score.move_list);
 
-                if score.eval > 4000000 || score.eval < -4000000 {
-
-                    let mate = score_to_mate( score.eval, depth);
-
-                    println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.node_count, pv);
-                }
-                else {
-                    println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth, score.node_count, pv);
-                }
-                
-                depth = depth + 1;
+            if score.eval > 4000000 || score.eval < -4000000 {
+                let mate = score_to_mate( score.eval, depth);
+                println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.node_count, pv);
             }
+            else {
+                println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth, score.node_count, pv);
+            }
+                
+            depth = depth + 1;
+        }
 
 
-            println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
-        //}).unwrap();
-        //handler.join().unwrap();
+        println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
         
     }
     
