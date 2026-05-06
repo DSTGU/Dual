@@ -5,64 +5,6 @@ use crate::move_gen::{generate_moves, make_move};
 use crate::search_state::SearchState;
 use crate::shared::{Move, SearchAnswer, move_to_alg};
 
-//static mut KILLER_MOVE : [[u32; 256]; 2 ] = [[0; 256]; 2];
-//static mut HISTORY_MOVE : [[usize; 64]; 12 ] = [[0; 64]; 12];
-
-// pub fn get_victim(board_position: &BoardPosition, mv: &Move) -> usize {
-//     let sidevar = ((board_position.side + 1) % 2) * 6;
-
-//     for i in 0+sidevar..6+sidevar {
-//         if get_bit(board_position.bitboards[i], mv.get_target_square() as usize) {
-//             return i;
-//         }
-//     }
-
-//     0
-// }
-
-// pub fn get_move_score(board_position: &BoardPosition, mv: &Move, ply: usize) -> usize {
-
-//     unsafe {
-//         if ply == 0 && mv.mv == PREVITER_BESTMOVE {
-//             return 605000001;
-//         }
-//     }
-
-//     //println!("ply: {}", ply);
-
-//     if mv.get_capture() == true {
-//         let victim = get_victim(board_position, mv);
-//         return get_MVV_LVA(victim, mv.get_piece() as usize);
-//     }
-//     else {
-//         unsafe {
-//             if KILLER_MOVE[0][ply] == mv.mv {
-//                 return 9000000;
-//             }
-//             if KILLER_MOVE[1][ply] == mv.mv {
-//                 return 8000000;
-//             }
-//                 return HISTORY_MOVE[mv.get_piece() as usize][mv.get_target_square() as usize];
-//         }
-//     }
-// }
-
-
-// pub fn rand_search(board_position: &BoardPosition) {
-
-//     let mut moves = generate_moves(board_position);
-    
-//     let mut mv = moves.pop();
-    
-//     while mv.is_none() {
-//         mv = moves.pop();
-//     }
-    
-//     println!("bestmove {}", move_to_alg(&mv.unwrap()))
-// }
-
-// (eval, nodes)
-
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
     let eval = evaluate(&search_state.get_board_position());
@@ -167,7 +109,7 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
 
             if -res.eval > new_alpha {
                 if mv.get_capture() == false {
-                        search_state.update_history(mv, depth);
+                    search_state.update_history(mv, depth);
                 }
                 
                 new_alpha = -res.eval;

@@ -138,10 +138,10 @@ impl SearchState {
         }
     }
 
-    pub fn get_stats(&self) -> (u64, u64, f64) {
-        let fill_pct = self.tt.fill_percentage();
-        (self.nodes_searched, self.tt_hits, fill_pct)
-    }
+    // pub fn get_stats(&self) -> (u64, u64, f64) {
+    //     let fill_pct = self.tt.fill_percentage();
+    //     (self.nodes_searched, self.tt_hits, fill_pct)
+    // }
 
     pub fn get_board_position(&self) -> BoardPosition {
         self.board_position
