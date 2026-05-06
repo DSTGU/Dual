@@ -1,65 +1,53 @@
-use std::thread;
+use std::{thread, vec};
 use std::time::SystemTime;
 use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves, is_square_attacked, make_move};
-use crate::shared::{get_bit, move_to_alg, BoardPosition, Move};
-
-const MVV_LVA : [usize ; 36] = [
-105000000, 205000000, 305000000, 405000000, 505000000, 605000000,
-104000000, 204000000, 304000000, 404000000, 504000000, 604000000,
-103000000, 203000000, 303000000, 403000000, 503000000, 603000000,
-102000000, 202000000, 302000000, 402000000, 502000000, 602000000,
-101000000, 201000000, 301000000, 401000000, 501000000, 601000000,
-100000000, 200000000, 300000000, 400000000, 500000000, 600000000,
-];
+use crate::shared::{BoardPosition, Move, SearchAnswer, SearchState, get_bit, move_to_alg};
 
 static mut MAX_DEPTH : usize = 0;
 static mut KILLER_MOVE : [[u32; 256]; 2 ] = [[0; 256]; 2];
 static mut HISTORY_MOVE : [[usize; 64]; 12 ] = [[0; 64]; 12];
 static mut PREVITER_BESTMOVE : u32 = 0;
 
-#[allow(non_snake_case)]
-pub fn get_MVV_LVA(victim: usize, attacker: usize) -> usize {
-    MVV_LVA[victim % 6 + attacker % 6 * 6]
-}
+// pub fn get_victim(board_position: &BoardPosition, mv: &Move) -> usize {
+//     let sidevar = ((board_position.side + 1) % 2) * 6;
 
-pub fn get_victim(board_position: &BoardPosition, mv: &Move) -> usize {
-    let sidevar = ((board_position.side + 1) % 2) * 6;
+//     for i in 0+sidevar..6+sidevar {
+//         if get_bit(board_position.bitboards[i], mv.get_target_square() as usize) {
+//             return i;
+//         }
+//     }
 
-    for i in 0+sidevar..6+sidevar {
-        if get_bit(board_position.bitboards[i], mv.get_target_square() as usize) {
-            return i;
-        }
-    }
+//     0
+// }
 
-    0
-}
-pub fn get_move_score(board_position: &BoardPosition, mv: &Move, ply: usize) -> usize {
+// pub fn get_move_score(board_position: &BoardPosition, mv: &Move, ply: usize) -> usize {
 
-    unsafe {
-        if ply == 0 && mv.mv == PREVITER_BESTMOVE {
-            return 605000001;
-        }
-    }
+//     unsafe {
+//         if ply == 0 && mv.mv == PREVITER_BESTMOVE {
+//             return 605000001;
+//         }
+//     }
 
-    //println!("ply: {}", ply);
+//     //println!("ply: {}", ply);
 
-    if mv.get_capture() == true {
-        let victim = get_victim(board_position, mv);
-        return get_MVV_LVA(victim, mv.get_piece() as usize);
-    }
-    else {
-        unsafe {
-            if KILLER_MOVE[0][ply] == mv.mv {
-                return 9000000;
-            }
-            if KILLER_MOVE[1][ply] == mv.mv {
-                return 8000000;
-            }
-                return HISTORY_MOVE[mv.get_piece() as usize][mv.get_target_square() as usize];
-        }
-    }
-}
+//     if mv.get_capture() == true {
+//         let victim = get_victim(board_position, mv);
+//         return get_MVV_LVA(victim, mv.get_piece() as usize);
+//     }
+//     else {
+//         unsafe {
+//             if KILLER_MOVE[0][ply] == mv.mv {
+//                 return 9000000;
+//             }
+//             if KILLER_MOVE[1][ply] == mv.mv {
+//                 return 8000000;
+//             }
+//                 return HISTORY_MOVE[mv.get_piece() as usize][mv.get_target_square() as usize];
+//         }
+//     }
+// }
+
 
 // pub fn rand_search(board_position: &BoardPosition) {
 
@@ -74,14 +62,14 @@ pub fn get_move_score(board_position: &BoardPosition, mv: &Move, ply: usize) -> 
 //     println!("bestmove {}", move_to_alg(&mv.unwrap()))
 // }
 
+// (eval, nodes)
+pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
-pub fn quiescence(board_position: &BoardPosition, alpha: i32, beta: i32, ply: usize) -> (i32, i32) {
-
-    let eval = evaluate(board_position);
+    let eval = evaluate(&search_state.get_board_position());
 
     if eval >= beta
     {
-        return (beta,0);
+        return SearchAnswer { move_list: vec![], node_count: 0, eval: beta };
     }
 
     let mut new_alpha = alpha;
@@ -91,12 +79,16 @@ pub fn quiescence(board_position: &BoardPosition, alpha: i32, beta: i32, ply: us
         new_alpha = eval;
     }
 
-    let move_list = generate_moves(&board_position);
+    if search_state.is_trifold_repetition() {
+        return SearchAnswer { move_list: vec![], node_count: 0, eval: 0 };
+    }
+
+    let move_list = generate_moves(&search_state.get_board_position());
     let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.get_capture() == true).collect();
     filtered_move_list.sort_by(|a, b| {
         unsafe {
-            let score_a = get_move_score(board_position, a, MAX_DEPTH + ply);
-            let score_b = get_move_score(board_position, b, MAX_DEPTH + ply);
+            let score_a = search_state.get_move_score(a, MAX_DEPTH + ply);
+            let score_b = search_state.get_move_score(b, MAX_DEPTH + ply);
             score_b.cmp(&score_a)
         }
     });
@@ -104,40 +96,42 @@ pub fn quiescence(board_position: &BoardPosition, alpha: i32, beta: i32, ply: us
     let mut nodes = 1;
 
     for mv in filtered_move_list {
-        let nbp_option = make_move(&board_position, &mv);
+        let nbp_option = make_move(&search_state.get_board_position(), &mv);
 
         if let Some(nbp) = nbp_option {
-            let res = quiescence(&nbp, -beta, -new_alpha, ply + 1);
-            nodes += res.1;
+            let original_position = search_state.get_board_position();
+            search_state.make_move_for_state(nbp);
+            let res = quiescence(search_state, -beta, -new_alpha, ply + 1);
+            search_state.take_back_for_state(original_position);
+            nodes += res.node_count;
 
-            if -res.0 >= beta {
-                return (beta, nodes);
+            if -res.eval >= beta {
+                return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
             }
 
-            if -res.0 > new_alpha {
-                new_alpha = -res.0;
+            if -res.eval > new_alpha {
+                new_alpha = -res.eval;
             }
         }
     }
 
+    return SearchAnswer { move_list: vec![], node_count: nodes, eval: new_alpha };
 
-    (new_alpha, nodes)
 }
 
-pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usize) -> (Vec<Option<Move>>, i32, i32) {
+pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
 
     if depth == 0 {
-        let score = quiescence(board_position, alpha, beta, 1);
-        return (vec![], score.0, score.1)
+        return quiescence(search_state, alpha, beta, 1);
     }
 
     let mut new_alpha = alpha;
 
-    let mut move_list = generate_moves(&board_position);
+    let mut move_list = generate_moves(&search_state.get_board_position());
     move_list.sort_by(|a, b| {
         unsafe {
-        let score_a = get_move_score(board_position, a, MAX_DEPTH - depth);
-        let score_b = get_move_score(board_position, b, MAX_DEPTH - depth);
+        let score_a = search_state.get_move_score(a, MAX_DEPTH - depth);
+        let score_b = search_state.get_move_score(b, MAX_DEPTH - depth);
         score_b.cmp(&score_a)
         }
     });
@@ -155,50 +149,30 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
 
     for (_idx, mv) in move_list.iter().enumerate() {
 
-        let nbp_option = make_move(&board_position, mv);
+        let nbp_option = make_move(&search_state.get_board_position(), mv);
 
         if let Some(nbp) = nbp_option {
             legal_moves += 1;
             let _newdepth = depth-1;
-            let res;
-            // if idx > 3 && depth >= 4 {
-            //     newdepth = depth - 2;
-            // }
             
-             // if is_PV_node {
-             //     res = negamax(&nbp, -new_alpha - 1, -new_alpha, newdepth);
-             //     nodes += res.2;
-             //
-             //     if -res.1 > new_alpha && -res.1 < beta {
-             //         //println!("failure");
-             //         res = negamax(&nbp, -beta, -new_alpha, depth-1);
-             //         nodes += res.2;
-             //     }
-             // }
-             // else {
-                res = negamax(&nbp, -beta, -new_alpha, depth-1);
-                 nodes += res.2;
-             // }
-            
-            // unsafe {
-            //     println!("|{}|, {} - {:?}", max_depth - depth, is_PV_node, res);
-            // }
+            let original_position = search_state.get_board_position();
+            search_state.make_move_for_state(nbp);
+            let res = negamax(&mut search_state, -beta, -new_alpha, depth-1);
+            search_state.take_back_for_state(original_position);
+            nodes += res.node_count;
             
 
-
-
-            if -res.1 >= beta {
-                
+            if -res.eval >= beta {                
                 if mv.get_capture() == false {
                     unsafe {
                         KILLER_MOVE[1][MAX_DEPTH - depth] = KILLER_MOVE[0][MAX_DEPTH - depth];
                         KILLER_MOVE[0][MAX_DEPTH - depth] = mv.mv;
                     }
                 }
-                return (vec![], beta, nodes);
+                return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
             }
 
-            if -res.1 > new_alpha {
+            if -res.eval > new_alpha {
                 
                 if mv.get_capture() == false {
                     unsafe {
@@ -207,25 +181,25 @@ pub fn negamax(board_position: &BoardPosition, alpha: i32, beta: i32, depth: usi
                     }
                 }
                 
-                new_alpha = -res.1;
+                new_alpha = -res.eval;
                 best_move = Some(*mv);
-                best_move_list = res.0;
+                best_move_list = res.move_list;
                 is_PV_node = true;
             }
         }
     }
     
     if legal_moves == 0 {
-            if is_square_attacked(board_position.bitboards[6*board_position.side+5].trailing_zeros() as usize, board_position) {
-                return (vec![], -4999900 - depth as i32, 1)
+            if search_state.is_king_attacked() {
+                return SearchAnswer { move_list: vec![], node_count: 1, eval: -4999900 - depth as i32};
             }
             else {
-                return (vec![], 0, 1)
+                return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};
             }
     }
 
     best_move_list.push(best_move);
-    (best_move_list, new_alpha, nodes)
+    return SearchAnswer { move_list: best_move_list, node_count: nodes, eval: new_alpha };
 }
 
 pub fn score_to_mate( score: i32, depth: usize) -> i32 {
@@ -244,11 +218,11 @@ pub fn collect_pv(moves: &Vec<Option<Move>>) -> String {
         .unwrap_or_default()
 }
 
-pub fn single_depth_search(board_position: &BoardPosition, depth: usize) -> (Vec<Option<Move>>, i32, i32){
-    negamax(&board_position, -5000000, 5000000, depth)
+pub fn single_depth_search(search_state: &mut SearchState, depth: usize) -> SearchAnswer {
+    negamax(search_state, -5000000, 5000000, depth)
 }
 
-pub fn single_depth_search_aspirated(board_position: &BoardPosition, depth: usize, eval: i32) -> (Vec<Option<Move>>, i32, i32){
+pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: usize, eval: i32) -> SearchAnswer {
     let mut aspiration_lower = 50;
     let mut aspiration_higher = 50;
 
@@ -256,19 +230,19 @@ pub fn single_depth_search_aspirated(board_position: &BoardPosition, depth: usiz
 
     loop {
         println!("low: -{}, high: {}", aspiration_lower, aspiration_higher);
-        score = negamax(&board_position, eval-aspiration_lower, eval+aspiration_higher, depth);
+        score = negamax(&mut search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
 
         //println!("aspiration, score: {:?}", score);
 
-        if score.0.len() > 0 {
-            if score.0[0].is_some() {
+        if score.move_list.len() > 0 {
+            if score.move_list[0].is_some() {
                 //println!("returning: {:?}", score);
                 return score;
             }
         }
 
         //println!("aspiration failed, score: {:?}", score);
-        if score.1 < eval {
+        if score.eval < eval {
             aspiration_lower = aspiration_lower * 2;
         }
         else {
@@ -278,7 +252,7 @@ pub fn single_depth_search_aspirated(board_position: &BoardPosition, depth: usiz
 }
 
 
-pub fn search(board_position: &BoardPosition, depth: Option<usize>, time: Option<usize>) {
+pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Option<usize>) {
 
     unsafe {
         KILLER_MOVE = [[0; 256]; 2];
@@ -294,26 +268,25 @@ pub fn search(board_position: &BoardPosition, depth: Option<usize>, time: Option
         }
 
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let bp = board_position.clone();
-        let handler = builder.spawn(move || {
-            let mut score = single_depth_search(&bp, depth.unwrap());
 
-            let pv = collect_pv(&score.0);
+        //let handler = builder.spawn(move || {
+            let mut score = single_depth_search(&mut search_state, depth.unwrap());
 
-            if score.1 > 4000000 || score.1 < -4000000 {
+            let pv = collect_pv(&score.move_list);
 
-                let mate = score_to_mate( score.1, depth.unwrap());
+            if score.eval > 4000000 || score.eval < -4000000 {
 
-                println!("info score mate {} depth {} nodes {} pv {}", mate, depth.unwrap(), score.2, pv);
+                let mate = score_to_mate( score.eval, depth.unwrap());
+
+                println!("info score mate {} depth {} nodes {} pv {}", mate, depth.unwrap(), score.node_count, pv);
             }
             else {
-                println!("info score cp {} depth {} nodes {} pv {}", score.1, depth.unwrap(), score.2, pv);
+                println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth.unwrap(), score.node_count, pv);
             }
-           //println!("Movelist: {:?}", score.0);
-            println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()));
+            println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
             
-        }).unwrap();
-        handler.join().unwrap();
+        //}).unwrap();
+        //handler.join().unwrap();
     } else {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let now = SystemTime::now();
@@ -331,10 +304,10 @@ pub fn search(board_position: &BoardPosition, depth: Option<usize>, time: Option
             HISTORY_MOVE = [[0; 64]; 12];
             PREVITER_BESTMOVE = 0;
         }
-        let bp = board_position.clone();
-        let mut score = single_depth_search(board_position, 3);
+        let bp = search_state.get_board_position().clone();
+        let mut score = single_depth_search(search_state, 3);
         depth = 4;
-        let handler = builder.spawn(move || {
+        //let handler = builder.spawn(move || {
             while now.elapsed().unwrap().as_millis() < time_avail as u128 {
                 unsafe {
                     MAX_DEPTH = depth;
@@ -343,27 +316,27 @@ pub fn search(board_position: &BoardPosition, depth: Option<usize>, time: Option
                     //previter_bestmove = score.0.pop().unwrap().unwrap().mv;
                 }
                 
-                score = single_depth_search_aspirated(&bp, depth, score.1);
+                score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
 
-                let pv = collect_pv(&score.0);
+                let pv = collect_pv(&score.move_list);
 
-                if score.1 > 4000000 || score.1 < -4000000 {
+                if score.eval > 4000000 || score.eval < -4000000 {
 
-                    let mate = score_to_mate( score.1, depth);
+                    let mate = score_to_mate( score.eval, depth);
 
-                    println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.2, pv);
+                    println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.node_count, pv);
                 }
                 else {
-                    println!("info score cp {} depth {} nodes {} pv {}", score.1, depth, score.2, pv);
+                    println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth, score.node_count, pv);
                 }
                 
                 depth = depth + 1;
             }
 
 
-            println!("bestmove {}", move_to_alg(&score.0.pop().unwrap().unwrap()));
-        }).unwrap();
-        handler.join().unwrap();
+            println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
+        //}).unwrap();
+        //handler.join().unwrap();
         
     }
     

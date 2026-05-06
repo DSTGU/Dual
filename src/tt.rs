@@ -1,0 +1,350 @@
+//! Transposition table implementation with Zobrist hashing
+//!
+//! This module provides:
+//! - Zobrist hash key generation for board positions
+//! - Transposition table for storing search results
+//! - Threefold repetition detection
+
+use crate::shared::{BoardPosition};
+use std::sync::OnceLock;
+
+/// Size of the transposition table (number of entries)
+/// Using a power of 2 allows for fast modulo with bitwise AND
+pub const TT_SIZE: usize = 1 << 20; // ~1 million entries, ~24MB
+
+/// Zobrist hash keys for position hashing
+/// Generated once and cached using OnceLock
+pub struct ZobristKeys {
+    /// Keys for each piece on each square [piece][square]
+    pub piece_keys: [[u64; 64]; 12],
+    /// Key for side to move
+    pub side_key: u64,
+    /// Keys for castling rights [4 rights]
+    pub castling_keys: [u64; 4],
+    /// Keys for en passant file [8 files]
+    pub enpassant_keys: [u64; 8],
+}
+
+impl ZobristKeys {
+    /// Generate deterministic pseudo-random keys using xorshift
+    fn generate() -> Self {
+        let mut seed: u64 = 0xF0E1D2C3B4A59687;
+
+        fn xorshift64(state: &mut u64) -> u64 {
+            *state ^= *state << 13;
+            *state ^= *state >> 7;
+            *state ^= *state << 17;
+            *state
+        }
+
+        let mut piece_keys = [[0u64; 64]; 12];
+        for piece in 0..12 {
+            for square in 0..64 {
+                piece_keys[piece][square] = xorshift64(&mut seed);
+            }
+        }
+
+        let side_key = xorshift64(&mut seed);
+
+        let mut castling_keys = [0u64; 4];
+        for i in 0..4 {
+            castling_keys[i] = xorshift64(&mut seed);
+        }
+
+        let mut enpassant_keys = [0u64; 8];
+        for i in 0..8 {
+            enpassant_keys[i] = xorshift64(&mut seed);
+        }
+
+        Self {
+            piece_keys,
+            side_key,
+            castling_keys,
+            enpassant_keys,
+        }
+    }
+}
+
+/// Global Zobrist keys - initialized once on first access
+static ZOBRIST_KEYS: OnceLock<ZobristKeys> = OnceLock::new();
+
+/// Get the global Zobrist keys, initializing if necessary
+#[inline(always)]
+pub fn get_zobrist_keys() -> &'static ZobristKeys {
+    ZOBRIST_KEYS.get_or_init(ZobristKeys::generate)
+}
+
+/// Compute the Zobrist hash for a board position
+/// This is a full re-computation - for incremental updates during search,
+/// use update_hash functions
+pub fn compute_hash(board: &BoardPosition) -> u64 {
+    let keys = get_zobrist_keys();
+    let mut hash: u64 = 0;
+
+    // Hash pieces
+    for piece in 0..12 {
+        let mut bb = board.bitboards[piece];
+        while bb != 0 {
+            let sq = bb.trailing_zeros() as usize;
+            hash ^= keys.piece_keys[piece][sq];
+            bb &= bb - 1; // Clear LSB
+        }
+    }
+
+    // Hash side to move
+    if board.side == 1 {
+        hash ^= keys.side_key;
+    }
+
+    // Hash castling rights
+    if board.castle & 1 != 0 {
+        hash ^= keys.castling_keys[0];
+    }
+    if board.castle & 2 != 0 {
+        hash ^= keys.castling_keys[1];
+    }
+    if board.castle & 4 != 0 {
+        hash ^= keys.castling_keys[2];
+    }
+    if board.castle & 8 != 0 {
+        hash ^= keys.castling_keys[3];
+    }
+
+    // Hash en passant
+    if board.enpassant < 64 {
+        let file = board.enpassant % 8;
+        hash ^= keys.enpassant_keys[file];
+    }
+
+    hash
+}
+
+/// Transposition table entry types
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum TTFlag {
+    Exact, // Score is exact
+    Alpha, // Score is upper bound (fail low)
+    Beta,  // Score is lower bound (fail high)
+}
+
+/// Transposition table entry
+#[derive(Clone, Copy)]
+pub struct TTEntry {
+    pub hash: u64,      // Full hash for verification
+    pub depth: i32,     // Search depth
+    pub score: i32,     // Evaluated score
+    pub flag: TTFlag,   // Type of score
+    pub best_move: u32, // Best move found (if any)
+    pub age: u8,        // Search age for replacement
+}
+
+impl TTEntry {
+    pub const fn empty() -> Self {
+        Self {
+            hash: 0,
+            depth: 0,
+            score: 0,
+            flag: TTFlag::Exact,
+            best_move: 0,
+            age: 0,
+        }
+    }
+
+    /// Check if this entry is valid for the given hash
+    #[inline(always)]
+    pub fn is_valid(&self, hash: u64) -> bool {
+        self.hash == hash
+    }
+}
+
+/// Transposition table using fixed-size array
+/// Using a simple direct indexing scheme for speed
+pub struct TranspositionTable {
+    entries: Vec<TTEntry>,
+    age: u8,
+    hits: u64,
+    collisions: u64,
+    inserts: u64,
+    overwrites: u64,
+}
+
+impl TranspositionTable {
+    pub fn new() -> Self {
+        Self {
+            entries: vec![TTEntry::empty(); TT_SIZE],
+            age: 0,
+            hits: 0,
+            collisions: 0,
+            inserts: 0,
+            overwrites: 0,
+        }
+    }
+
+    /// Clear the transposition table
+    pub fn clear(&mut self) {
+        for entry in &mut self.entries {
+            *entry = TTEntry::empty();
+        }
+        self.hits = 0;
+        self.collisions = 0;
+        self.inserts = 0;
+        self.overwrites = 0;
+    }
+
+    /// Increment the search age
+    pub fn increment_age(&mut self) {
+        self.age = self.age.wrapping_add(1);
+    }
+
+    /// Get index into the table from hash
+    #[inline(always)]
+    fn index(hash: u64) -> usize {
+        (hash as usize) & (TT_SIZE - 1)
+    }
+
+    /// Probe the transposition table
+    #[inline]
+    pub fn probe(&mut self, hash: u64) -> Option<&TTEntry> {
+        let idx = Self::index(hash);
+        let entry = &self.entries[idx];
+
+        if entry.is_valid(hash) {
+            self.hits += 1;
+            Some(entry)
+        } else {
+            None
+        }
+    }
+
+    /// Store an entry in the transposition table
+    #[inline]
+    pub fn store(&mut self, hash: u64, depth: i32, score: i32, flag: TTFlag, best_move: u32) {
+        let idx = Self::index(hash);
+        let entry = &mut self.entries[idx];
+
+        // Replacement strategy:
+        // 1. Always replace if entry is empty or from different position
+        // 2. Replace if new search is deeper
+        // 3. Replace if same depth but from older search
+        let should_replace = !entry.is_valid(hash)
+            || depth > entry.depth
+            || (depth == entry.depth && self.age != entry.age);
+
+        if should_replace {
+            if entry.is_valid(hash) && entry.hash != 0 {
+                self.overwrites += 1;
+            } else {
+                self.inserts += 1;
+            }
+
+            *entry = TTEntry {
+                hash,
+                depth,
+                score,
+                flag,
+                best_move,
+                age: self.age,
+            };
+        }
+    }
+
+    /// Get statistics about table usage
+    pub fn stats(&self) -> (u64, u64, u64, u64) {
+        (self.hits, self.collisions, self.inserts, self.overwrites)
+    }
+
+    /// Calculate hash fill percentage
+    pub fn fill_percentage(&self) -> f64 {
+        let used = self.entries.iter().filter(|e| e.hash != 0).count();
+        (used as f64 / TT_SIZE as f64) * 100.0
+    }
+}
+
+impl Default for TranspositionTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
+/// Threefold repetition detector
+/// Stores a history of position hashes
+pub struct RepetitionTable {
+    hashes: Vec<u64>,
+}
+
+impl RepetitionTable {
+    pub fn new() -> Self {
+        Self {
+            hashes: Vec::with_capacity(256),
+        }
+    }
+
+    /// Clear the repetition table
+    pub fn clear(&mut self) {
+        self.hashes.clear();
+    }
+
+    /// Push a hash onto the history
+    #[inline(always)]
+    pub fn push(&mut self, hash: u64) {
+        self.hashes.push(hash);
+    }
+
+    /// Push a position onto the history (calculate hash yourself)
+    #[inline(always)]
+    pub fn push_position(&mut self, board_position: &BoardPosition) {
+        self.hashes.push(compute_hash(board_position));
+    }
+
+    /// Pop the last hash from history
+    #[inline(always)]
+    pub fn pop(&mut self) {
+        self.hashes.pop();
+    }
+
+    /// Check if the current position is a draw by repetition
+    /// (appears at least 3 times in the history including current)
+    #[inline]
+    pub fn is_draw(&self, hash: u64) -> bool {
+        let mut count = 0;
+        // Only check even plies (same side to move)
+        for (i, &h) in self.hashes.iter().enumerate().rev().step_by(2) {
+            if h == hash {
+                count += 1;
+                if count >= 3 {
+                    // Current occurrence + 2 previous = 3 total
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Check if position has occurred at least once before
+    /// (for detecting twofold repetition)
+    pub fn has_occurred(&self, hash: u64) -> bool {
+        for (i, &h) in self.hashes.iter().enumerate().rev().step_by(2) {
+            if h == hash {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Get the number of times a hash has occurred
+    pub fn count_occurrences(&self, hash: u64) -> usize {
+        self.hashes.iter().filter(|&&h| h == hash).count()
+    }
+
+    /// Get the current ply (half-move count)
+    pub fn ply(&self) -> usize {
+        self.hashes.len()
+    }
+}
+
+impl Default for RepetitionTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
