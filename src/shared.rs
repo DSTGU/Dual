@@ -27,6 +27,27 @@ pub struct BoardPosition {
     */
 }
 
+impl BoardPosition {
+    
+    pub fn find_capture_at_square(self, square: usize) -> Piece {
+        if self.side == 0 {
+            for piece in Piece::black_pieces() {
+                if get_bit(self.bitboards[piece.to_usize()], square) {
+                    return piece;
+                }
+            }
+        } else {
+            for piece in Piece::white_pieces() {
+                if get_bit(self.bitboards[piece.to_usize()], square) {
+                    return piece;
+                }
+            }
+        }
+
+        Piece::NONE
+    }
+}
+
 pub const MVV_LVA : [usize ; 36] = [
 105000000, 205000000, 305000000, 405000000, 505000000, 605000000,
 104000000, 204000000, 304000000, 404000000, 504000000, 604000000,
@@ -45,6 +66,7 @@ pub const FIRST_KILLER_BONUS: usize = 9_000_000;
 pub const SECOND_KILLER_BONUS: usize = 8_000_000;
 pub const DRAW_SCORE: i32 = 0;
 
+#[derive(Debug)]
 pub struct SearchAnswer {
     //pub search_state: SearchState,
     pub move_list: Vec<Option<Move>>,
@@ -77,7 +99,7 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn create(source_square: u32, target_square: u32, piece: Piece, promoted_piece: Piece, capture: u32, enpassant: u32, castling: u32, double_push: u32) -> Move {
+    pub fn create(source_square: u32, target_square: u32, piece: Piece, promoted_piece: Piece, capture: u32, enpassant: u32, castling: u32, double_push: u32, taken_piece: Piece) -> Move {
         let value : u32 = (source_square) +
             (target_square << 6) +
             ((piece.to_usize() as u32) << 12) +
@@ -85,7 +107,8 @@ impl Move {
             (capture << 20) +
             (enpassant << 21) +
             (castling << 22) +
-            (double_push << 23);
+            (double_push << 23) + 
+            ((taken_piece.to_usize() as u32) << 24);
         Move {mv: value}
     }
 
@@ -133,6 +156,10 @@ impl Move {
         false
     }
 
+    pub fn get_taken_piece(self: &Move) -> u32 {
+        (self.mv & 0xF000000) >> 24
+    }
+
 }
 
 pub fn move_to_alg(mv: &Move) -> String {
@@ -158,7 +185,7 @@ impl fmt::Debug for Move {
             SQUARE_TO_COORDINATES[self.get_target_square() as usize],
             self.get_piece(),
             self.get_promoted(),
-            if self.get_capture() { "+" } else { "" },
+            if self.get_capture() { &format!("+ taken:{}", self.get_taken_piece()) } else { "" },
             if self.get_enpassant() { " EP" } else { "" },
             if self.get_castling() { " O-O" } else { "" },
             if self.get_double_pawn_push() { " dblPP" } else { "" },
@@ -181,10 +208,10 @@ impl fmt::Debug for Move {
 // encode pieces
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(non_camel_case_types)]
-pub enum Piece { P = 0, N = 1, B = 2, R = 3, Q = 4, K = 5, p = 6, n = 7, b = 8, r = 9, q = 10, k = 11}
+pub enum Piece { P = 0, N = 1, B = 2, R = 3, Q = 4, K = 5, p = 6, n = 7, b = 8, r = 9, q = 10, k = 11, NONE = 12}
 
 impl Piece {
-    pub(crate) fn to_usize(&self) -> usize {
+    pub fn to_usize(&self) -> usize {
         match self {
             Piece::P => 0,
             Piece::N => 1,
@@ -197,8 +224,17 @@ impl Piece {
             Piece::b => 8,
             Piece::r => 9,
             Piece::q => 10,
-            Piece::k => 11
+            Piece::k => 11,
+            Piece::NONE => 12,
         }
+    }
+
+    pub fn white_pieces() -> [Piece; 6] {
+        [Piece::P, Piece::N, Piece::B, Piece::R, Piece::Q, Piece::K]
+    }
+
+    pub fn black_pieces() -> [Piece; 6] {
+        [Piece::p, Piece::n, Piece::b, Piece::r, Piece::q, Piece::k]
     }
 }
 

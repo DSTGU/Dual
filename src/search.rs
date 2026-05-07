@@ -160,10 +160,9 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
     let mut score ;
 
     loop {
-        println!("low: -{}, high: {}", aspiration_lower, aspiration_higher);
+        //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
         score = negamax(&mut search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
-
-        //println!("aspiration, score: {:?}", score);
+        //println!("aspiration, score: {:?}", score.eval);
 
         if score.move_list.len() > 0 {
             if score.move_list[0].is_some() {
@@ -172,7 +171,7 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
             }
         }
 
-        //println!("aspiration failed, score: {:?}", score);
+        //println!("aspiration failed, score: {:?}", score.eval);
         if score.eval < eval {
             aspiration_lower = aspiration_lower * 2;
         }
@@ -222,7 +221,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
             search_state.reset_for_new_search(depth);        
             score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
 
-            let pv = collect_pv(&score.move_list);
+            let pv: String = collect_pv(&score.move_list);
 
             if score.eval > 4000000 || score.eval < -4000000 {
                 let mate = score_to_mate( score.eval, depth);
