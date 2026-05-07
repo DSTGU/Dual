@@ -64,6 +64,10 @@ pub fn uci_loop() {
         let command = input.trim();
         let words : Vec<&str> = command.split_ascii_whitespace().collect();
 
+        if words.len() == 0 {
+            continue;
+        }
+
         // Handle the command
         match words[0] {
             "exit" => return,

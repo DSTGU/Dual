@@ -269,6 +269,7 @@ impl Default for TranspositionTable {
 
 /// Threefold repetition detector
 /// Stores a history of position hashes
+#[derive(Debug)]
 pub struct RepetitionTable {
     hashes: Vec<u64>,
 }

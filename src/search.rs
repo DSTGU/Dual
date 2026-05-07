@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves, make_move};
 use crate::search_state::SearchState;
-use crate::shared::{Move, SearchAnswer, move_to_alg};
+use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, SearchAnswer, move_to_alg};
 
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
@@ -63,6 +63,10 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
 
     if depth == 0 {
         return quiescence(search_state, alpha, beta, 1);
+    }
+
+    if search_state.is_trifold_repetition() {
+        return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_SCORE };
     }
 
     let mut new_alpha = alpha;
@@ -159,7 +163,7 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
 
     let mut score ;
 
-    loop {
+    for _ in 0..3 {
         //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
         score = negamax(&mut search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
         //println!("aspiration, score: {:?}", score.eval);
@@ -179,6 +183,9 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
             aspiration_higher = aspiration_higher * 2;
         }
     }
+
+    //fallback
+    return single_depth_search(search_state, depth);
 }
 
 
@@ -189,6 +196,8 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
         search_state.reset_for_new_search(depth.unwrap());        
         
         let mut score = single_depth_search(&mut search_state, depth.unwrap());
+
+        println!("{:?}", score);
 
         let pv = collect_pv(&score.move_list);
 
@@ -211,11 +220,11 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
         else {
             time_avail = 10000000;
         }
-        let mut depth = 3;
-        search_state.reset_for_new_search(depth);
 
-        let mut score = single_depth_search(search_state, 3);
-        depth = 4;
+        search_state.reset_for_new_search(MIN_DEPTH);
+
+        let mut score = single_depth_search(search_state, MIN_DEPTH);
+        let mut depth = MIN_DEPTH + 1;
         while now.elapsed().unwrap().as_millis() < time_avail as u128 {
         
             search_state.reset_for_new_search(depth);        
@@ -242,4 +251,32 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
 }
 
 
+#[cfg(test)]
+mod tests {
 
+    use std::thread;
+    use crate::{gui::{parse_position}, search::single_depth_search};
+
+
+    #[test]
+    fn test_go() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                let command = "position fen Q6K/8/8/8/8/8/7R/1k6 w - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
+                
+                let mut board = parse_position(command.trim());
+                board.reset_for_new_search(4);       
+                let score = single_depth_search(&mut board, 4); 
+
+                println!("{:?}", score);
+
+                assert!(score.node_count < 10);
+                assert_eq!(score.eval, 0);
+                
+            })
+            .unwrap();
+        handler.join().unwrap();
+    }
+    // 
+}

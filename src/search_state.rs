@@ -17,7 +17,7 @@ pub struct SearchState {
 
 impl SearchState {
     pub fn new(board_position: BoardPosition) -> Self {
-        Self {
+        let mut search_state = Self {
             board_position: board_position,
             max_depth: 0,
             killer_moves: [[0; 256]; 2],
@@ -27,7 +27,11 @@ impl SearchState {
             rep_table: RepetitionTable::new(),
             nodes_searched: 0,
             tt_hits: 0,
-        }
+        };
+
+        search_state.rep_table.push_position(&board_position);
+
+        search_state
     }
 
     // pub fn reset(&mut self, depth: usize) {

@@ -65,6 +65,7 @@ pub const PV_MOVE_BONUS: usize = 605000001;
 pub const FIRST_KILLER_BONUS: usize = 9_000_000;
 pub const SECOND_KILLER_BONUS: usize = 8_000_000;
 pub const DRAW_SCORE: i32 = 0;
+pub const MIN_DEPTH: usize = 3;
 
 #[derive(Debug)]
 pub struct SearchAnswer {
