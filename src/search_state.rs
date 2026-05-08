@@ -1,4 +1,4 @@
-use crate::move_gen::is_square_attacked;
+use crate::move_gen::{is_square_attacked, make_move};
 use crate::shared::{BoardPosition, FIRST_KILLER_BONUS, MVV_LVA, Move, PV_MOVE_BONUS, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
 use crate::tt::{RepetitionTable, TranspositionTable, compute_hash};
 
@@ -33,37 +33,6 @@ impl SearchState {
 
         search_state
     }
-
-    // pub fn reset(&mut self, depth: usize) {
-    //     self.board_position = None;
-    //     self.max_depth = depth;
-    //     self.killer_moves = [[0; 256]; 2];
-    //     self.history_moves = [[0; 64]; 12];
-    //     self.prev_iter_best_move = 0;
-    //     self.tt.clear();
-    //     self.rep_table.clear();
-    //     self.nodes_searched = 0;
-    //     self.tt_hits = 0;
-    // }
-
-    // pub fn reset_for_new_search(&mut self, depth: usize, board_position: BoardPosition) {
-    //     self.board_position = board_position;
-    //     self.max_depth = depth;
-    //     self.prev_iter_best_move = 0;
-    //     self.tt.increment_age();
-    //     self.rep_table.clear();
-    //     self.nodes_searched = 0;
-    //     // Don't clear TT - keep entries from previous searches
-    // }
-
-    // pub fn reset_for_new_search_with_moves(&mut self, depth: usize, board_position: BoardPosition, moves: Vec<Move>) {
-    //     self.board_position = board_position;
-    //     self.max_depth = depth;
-    //     self.prev_iter_best_move = 0;
-    //     self.tt.increment_age();
-    //     self.rep_table.clear();
-    //     self.nodes_searched = 0;
-    // }
 
     pub fn reset_for_new_search(&mut self, depth: usize) {
         self.max_depth = depth;

@@ -2,7 +2,7 @@ use crate::move_gen::{generate_moves, make_move};
 use crate::perft::perft;
 use crate::search::{search};
 use crate::search_state::SearchState;
-use crate::shared::{BoardPosition, KIWIPETE, Move, START_POSITION, coordinates_to_squares, parse_fen};
+use crate::shared::{BoardPosition, KIWIPETE, Move, MoveDirection, START_POSITION, coordinates_to_squares, parse_fen};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
@@ -33,7 +33,7 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 }
 
 pub fn parse_position(command: &str) -> SearchState {
-    let words : Vec<&str> = command.split(" ").collect();
+    let words : Vec<&str> = command.trim().split(" ").collect();
 
     if words.len() < 2 {
         return SearchState::new(parse_fen(START_POSITION));
@@ -46,7 +46,7 @@ pub fn parse_position(command: &str) -> SearchState {
             for &i in words[8..].iter() {
                 let mov = parse_move(&pos, i);
                 if let Some(x) = mov {
-                    pos = make_move(&pos, &x).unwrap();
+                    pos = make_move(&pos, &x, MoveDirection::Move).unwrap();
                     search_state.make_move_for_state(pos);
                 }
             }
@@ -58,7 +58,7 @@ pub fn parse_position(command: &str) -> SearchState {
             for &i in words[2..].iter() {
                 let mov = parse_move(&pos, i);
                 if let Some(x) = mov {
-                    pos = make_move(&pos, &x).unwrap();
+                    pos = make_move(&pos, &x, MoveDirection::Move).unwrap();
                     search_state.make_move_for_state(pos);
                 }
             }
@@ -70,7 +70,7 @@ pub fn parse_position(command: &str) -> SearchState {
             for &i in words[2..].iter() {
                 let mov = parse_move(&pos, i);
                 if let Some(x) = mov {
-                    pos = make_move(&pos, &x).unwrap();
+                    pos = make_move(&pos, &x, MoveDirection::Move).unwrap();
                     search_state.make_move_for_state(pos);
                 }
             }
@@ -96,7 +96,7 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
     for i in 0..words.len()/2 {
         match words[2 * i + 1] {
             "depth" => depth = Some(words[2*i+2].parse().unwrap_or(6)),
-            "perft" => {perft(&search_state.get_board_position(), words[2*i+2].parse().unwrap_or(4)); return;},
+            "perft" => {perft(search_state, words[2*i+2].parse().unwrap_or(4)); return;},
             "wtime" => wtime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "btime" => btime = Some(words[2*i+2].parse().unwrap_or(1000)),
             _ => ()

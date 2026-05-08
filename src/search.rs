@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves, make_move};
 use crate::search_state::SearchState;
-use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, SearchAnswer, move_to_alg};
+use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, MoveDirection, SearchAnswer, move_to_alg};
 
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
@@ -36,7 +36,7 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     let mut nodes = 1;
 
     for mv in filtered_move_list {
-        let nbp_option = make_move(&search_state.get_board_position(), &mv);
+        let nbp_option = make_move(&search_state.get_board_position(), &mv, MoveDirection::Move);
 
         if let Some(nbp) = nbp_option {
             let original_position = search_state.get_board_position();
@@ -91,7 +91,7 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
 
     for (_idx, mv) in move_list.iter().enumerate() {
 
-        let nbp_option = make_move(&search_state.get_board_position(), mv);
+        let nbp_option = make_move(&search_state.get_board_position(), mv, MoveDirection::Move);
 
         if let Some(nbp) = nbp_option {
             legal_moves += 1;

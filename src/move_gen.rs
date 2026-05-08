@@ -2,7 +2,7 @@ use crate::{
     get_bit, pop_bit, set_bit, BoardPosition, Piece, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS,
 };
 use crate::attacks::{get_bishop_attacks, get_queen_attacks, get_rook_attacks};
-use crate::shared::{KIWIPETE, Move};
+use crate::shared::{KIWIPETE, Move, MoveDirection};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -500,7 +500,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
 
 /// Apply `move_to_make` to `board` and return the resulting position, or
 /// `None` if the move leaves the king in check.
-pub fn make_move(board: &BoardPosition, move_to_make: &Move) -> Option<BoardPosition> {
+pub fn make_move(board: &BoardPosition, move_to_make: &Move, move_direction: MoveDirection) -> Option<BoardPosition> {
     let mut new = BoardPosition {
         bitboards: board.bitboards,
         occupancies: board.occupancies,
@@ -521,22 +521,39 @@ pub fn make_move(board: &BoardPosition, move_to_make: &Move) -> Option<BoardPosi
     let promoted = move_to_make.get_promoted();
     let taken_piece_idx: usize = move_to_make.get_taken_piece() as usize;
 
-    // Move the piece: clear source, set target
-    pop_bit(&mut new.bitboards[piece_idx], source);
-    set_bit(&mut new.bitboards[piece_idx], target);
+    if move_direction == MoveDirection::Move {
+        // Move the piece: clear source, set target
+        pop_bit(&mut new.bitboards[piece_idx], source);
+        set_bit(&mut new.bitboards[piece_idx], target);
+    } else {
+        // Move the piece back: clear target, set source
+        pop_bit(&mut new.bitboards[piece_idx], target);
+        set_bit(&mut new.bitboards[piece_idx], source);
+    }
 
-    // Handle captures: remove the captured piece from opponent's bitboards.
+    // Handle captures: 
     if is_capture && !is_enpassant {
         let opp_side = 1 - new.side;
 
-        pop_bit(&mut new.bitboards[taken_piece_idx], target);
-        pop_bit(&mut new.occupancies[opp_side], target);
+        if move_direction == MoveDirection::Move {
+            // Remove the captured piece from opponent's bitboards.
+            pop_bit(&mut new.bitboards[taken_piece_idx], target);
+        } else {
+            // Add the captured piece back to opponent's bitboards
+            set_bit(&mut new.bitboards[taken_piece_idx], target);
+        }
+
     }
 
     // Handle promotion: replace the pawn with the promoted piece.
     if promoted != 0 {
-        pop_bit(&mut new.bitboards[piece_idx], target);
-        set_bit(&mut new.bitboards[promoted as usize], target);
+        if move_direction == MoveDirection::Move {
+            pop_bit(&mut new.bitboards[piece_idx], target);
+            set_bit(&mut new.bitboards[promoted as usize], target);
+        } else {
+            pop_bit(&mut new.bitboards[promoted as usize], target);
+            // No need to place a pawn because pawn has already been placed previously
+        }
     }
 
     // Handle en passant: remove the captured pawn (which is on a different
@@ -623,11 +640,11 @@ pub fn make_move(board: &BoardPosition, move_to_make: &Move) -> Option<BoardPosi
 
 #[cfg(test)]
 mod tests {
-    use crate::move_gen::is_square_attacked;
+    use crate::gui::parse_position;
+use crate::move_gen::is_square_attacked;
     use crate::perft::perft_driver;
     use crate::shared::{
-        coordinates_to_squares, parse_fen, print_bitboard, BoardPosition,
-        ENDGAME_PERFT, KIWIPETE, START_POSITION,
+        BoardPosition, ENDGAME_PERFT, ENDGAME_PERFT_COMMAND, KIWIPETE, KIWIPETE_COMMAND, START_POSITION, START_POSITION_COMMAND, coordinates_to_squares, parse_fen, print_bitboard
     };
     use std::thread;
 
@@ -695,8 +712,8 @@ mod tests {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
-                let board_pos = parse_fen(KIWIPETE); //Rook on e3
-                let movecnt = perft_driver(&board_pos, 5);
+                let mut board_pos = parse_position(KIWIPETE_COMMAND); //Rook on e3
+                let movecnt = perft_driver(&mut board_pos, 5);
                 assert_eq!(movecnt, 193690690);
             })
             .unwrap();
@@ -708,8 +725,8 @@ mod tests {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
-                let board_pos = parse_fen(ENDGAME_PERFT); //Rook on e3
-                let movecnt = perft_driver(&board_pos, 6);
+                let mut board_pos = parse_position(ENDGAME_PERFT_COMMAND); //Rook on e3
+                let movecnt = perft_driver(&mut board_pos, 6);
                 assert_eq!(movecnt, 11030083);
             })
             .unwrap();
@@ -723,9 +740,9 @@ mod tests {
             .spawn(|| {
                 // These are the expected perft results for each depth from startpos
                 let expected = [20, 400, 8902, 197281, 4865609, 119060324];
-                let board_pos = parse_fen(START_POSITION);
+                let mut board_pos = parse_position(START_POSITION_COMMAND);
                 for (depth, &exp) in expected.iter().enumerate() {
-                    let movecnt = perft_driver(&board_pos, depth + 1);
+                    let movecnt = perft_driver(&mut board_pos, depth + 1);
                     assert_eq!(movecnt, exp, "Perft mismatch at depth {}", depth + 1);
                 }
             })
