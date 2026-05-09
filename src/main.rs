@@ -7,10 +7,10 @@ mod search;
 mod evaluate;
 mod tt;
 mod search_state;
+mod board;
 
 use std::io;
 use std::thread;
-use shared::BoardPosition;
 
 /**********************************\
  ==================================
@@ -20,7 +20,6 @@ use shared::BoardPosition;
  ==================================
 \**********************************/
 
-use shared::set_bit;
 use shared::get_bit;
 use shared::pop_bit;
 
@@ -40,7 +39,7 @@ use attacks::KING_ATTACKS;
 use crate::attacks::get_bishop_attacks;
 use crate::gui::{parse_go, parse_position};
 use crate::search_state::SearchState;
-use crate::shared::{ parse_fen, Piece, print_board, START_POSITION, coordinates_to_squares};
+use crate::shared::{ parse_fen, Piece, START_POSITION, coordinates_to_squares};
 
 /**********************************\
  ==================================
@@ -75,7 +74,7 @@ pub fn uci_loop() {
             "position" => search_state = parse_position(command),
             "ucinewgame" => search_state = parse_position("position startpos"),
             "uci" => println!("id name Dual v0.2.7\nid author Tomasz Stawowy\nuciok"),
-            "printboard" => print_board(&search_state.get_board_position()),
+            "printboard" => search_state.board_position.print_board(),
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
             "rw" => print_bitboard(get_bishop_attacks(coordinates_to_squares("b3"),0)),

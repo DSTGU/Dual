@@ -1,13 +1,13 @@
 use std::{vec};
 use std::time::SystemTime;
 use crate::evaluate::evaluate;
-use crate::move_gen::{generate_moves, make_move};
+use crate::move_gen::{generate_moves};
 use crate::search_state::SearchState;
-use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, MoveDirection, SearchAnswer, move_to_alg};
+use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, SearchAnswer, move_to_alg};
 
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
-    let eval = evaluate(&search_state.get_board_position());
+    let eval = evaluate(&search_state.board_position);
 
     if eval >= beta
     {
@@ -25,7 +25,7 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
         return SearchAnswer { move_list: vec![], node_count: 0, eval: 0 };
     }
 
-    let move_list = generate_moves(&search_state.get_board_position());
+    let move_list = generate_moves(&search_state.board_position);
     let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.get_capture() == true).collect();
     filtered_move_list.sort_by(|a, b| {
         let score_a = search_state.get_move_score(a, search_state.max_depth + ply);
@@ -36,7 +36,7 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     let mut nodes = 1;
 
     for mv in filtered_move_list {
-        let nbp_option = make_move(&mut search_state.get_board_position(), &mv);
+        let nbp_option = search_state.board_position.make_move(mv);
 
         // if let Some(nbp) = nbp_option {
         //     let original_position = search_state.get_board_position();
@@ -71,7 +71,7 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
 
     let mut new_alpha = alpha;
 
-    let mut move_list = generate_moves(&search_state.get_board_position());
+    let mut move_list = generate_moves(&search_state.board_position);
     move_list.sort_by(|a, b| {
         let score_a = search_state.get_move_score(a, search_state.max_depth - depth);
         let score_b = search_state.get_move_score(b, search_state.max_depth - depth);
@@ -91,7 +91,7 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
 
     for (_idx, mv) in move_list.iter().enumerate() {
 
-        let nbp_option = make_move(&mut search_state.get_board_position(), mv);
+        let nbp_option = search_state.board_position.make_move( *mv);
 
         // if let Some(nbp) = nbp_option {
         //     legal_moves += 1;

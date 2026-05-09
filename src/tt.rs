@@ -5,8 +5,9 @@
 //! - Transposition table for storing search results
 //! - Threefold repetition detection
 
-use crate::shared::{BoardPosition};
 use std::sync::OnceLock;
+
+use crate::board::BoardPosition;
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND

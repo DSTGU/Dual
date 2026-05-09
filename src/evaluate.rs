@@ -1,4 +1,4 @@
-use crate::shared::{pop_bit, BoardPosition};
+use crate::{board::BoardPosition, shared::pop_bit};
 
 const MG_PAWN_TABLE: [i32; 64] = [
 82,  82,  82,  82,  82,  82,  82,  82,

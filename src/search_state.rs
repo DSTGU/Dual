@@ -1,10 +1,11 @@
-use crate::move_gen::{is_square_attacked, make_move, take_back};
-use crate::shared::{BoardPosition, FIRST_KILLER_BONUS, MVV_LVA, Move, MoveDirection, MoveSuccess, PV_MOVE_BONUS, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
+use crate::board::BoardPosition;
+use crate::move_gen::{is_square_attacked};
+use crate::shared::{FIRST_KILLER_BONUS, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
 use crate::tt::{RepetitionTable, TranspositionTable, compute_hash};
 
 /// Search state structure - encapsulates all search-related state
 pub struct SearchState {
-    board_position: BoardPosition,
+    pub board_position: BoardPosition,
     pub max_depth: usize,
     killer_moves: [[u64; 256]; 2],
     history_moves: [[usize; 64]; 12],
@@ -43,41 +44,21 @@ impl SearchState {
         self.nodes_searched = 0;
     }
 
-    pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {
-        //println!("side ex1: {}", self.board_position.side);
-        
-        let result = make_move(&mut self.board_position, &move_to_make);
+    pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {      
+        let result = self.board_position.make_move(move_to_make);
         if result == MoveSuccess::Success {
-            //println!("side ex2: {}", self.board_position.side);
             self.rep_table.push_position(&self.board_position);
-        } else {
-            //println!("side ex3: {}", self.board_position.side);
-            take_back(&mut self.board_position, &move_to_make);
-            //self.board_position.side = 1 - self.board_position.side;
-            //println!("side ex4: {}", self.board_position.side);
         }
 
         result
     }
 
-    pub fn make_move_for_state(&mut self, board_position: BoardPosition) {
-        self.board_position = board_position;
-        self.rep_table.push_position(&board_position);
-        // TODO: Implement TT
-    }
-
     pub fn take_back(&mut self, move_to_take_back: Move) {
-        let state = take_back(&mut self.board_position, &move_to_take_back);
+        self.board_position.take_back(move_to_take_back);
         // if state == MoveSuccess::Attacked {
         //     panic!("TakeBack shouldn't result in illegal positions");
         // } 
         self.rep_table.pop();
-    }
-
-    pub fn take_back_for_state(&mut self, board_position: BoardPosition) {
-        self.board_position = board_position;
-        self.rep_table.pop();
-        // TODO: Implement TT
     }
 
     #[inline(always)]
@@ -141,16 +122,12 @@ impl SearchState {
     //     (self.nodes_searched, self.tt_hits, fill_pct)
     // }
 
-    pub fn get_board_position(&self) -> BoardPosition {
-        self.board_position
-    }
-
     pub fn is_trifold_repetition(&self) -> bool {
-        self.rep_table.is_draw(compute_hash(&self.get_board_position()))
+        self.rep_table.is_draw(compute_hash(&self.board_position))
     }
 
     pub fn is_king_attacked(&self) -> bool {
-        is_square_attacked(self.get_board_position().bitboards[6*self.get_board_position().side+5].trailing_zeros() as usize, &self.get_board_position())
+        is_square_attacked(self.board_position.bitboards[6*self.board_position.side+5].trailing_zeros() as usize, &self.board_position)
     }
 
 }

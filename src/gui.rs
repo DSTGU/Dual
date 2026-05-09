@@ -1,8 +1,9 @@
+use crate::board::BoardPosition;
 use crate::move_gen::{generate_moves};
 use crate::perft::perft;
 use crate::search::{search};
 use crate::search_state::SearchState;
-use crate::shared::{BoardPosition, KIWIPETE, Move, START_POSITION, coordinates_to_squares, parse_fen};
+use crate::shared::{KIWIPETE, Move, START_POSITION, coordinates_to_squares, parse_fen};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
@@ -24,10 +25,10 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
     let ch = char.as_str();
 
     match ch {
-        "q" => legal_moves.into_iter().filter(|x| x.get_promoted() == Q.to_usize() as u64 || x.get_promoted() == q.to_usize() as u64).collect::<Vec<Move>>().pop(),
-        "n" => legal_moves.into_iter().filter(|x| x.get_promoted() == N.to_usize() as u64 || x.get_promoted() == n.to_usize() as u64).collect::<Vec<Move>>().pop(),
-        "b" => legal_moves.into_iter().filter(|x| x.get_promoted() == b.to_usize() as u64 || x.get_promoted() == B.to_usize() as u64).collect::<Vec<Move>>().pop(),
-        "r" => legal_moves.into_iter().filter(|x| x.get_promoted() == R.to_usize() as u64 || x.get_promoted() == r.to_usize() as u64).collect::<Vec<Move>>().pop(),
+        "q" => legal_moves.into_iter().filter(|x| x.get_promoted_piece() == Q || x.get_promoted_piece() == q).collect::<Vec<Move>>().pop(),
+        "n" => legal_moves.into_iter().filter(|x| x.get_promoted_piece() == N || x.get_promoted_piece() == n).collect::<Vec<Move>>().pop(),
+        "b" => legal_moves.into_iter().filter(|x| x.get_promoted_piece() == b || x.get_promoted_piece() == B).collect::<Vec<Move>>().pop(),
+        "r" => legal_moves.into_iter().filter(|x| x.get_promoted_piece() == R || x.get_promoted_piece() == r).collect::<Vec<Move>>().pop(),
         _ => legal_moves.pop()
     }
 }
@@ -43,10 +44,12 @@ pub fn parse_position(command: &str) -> SearchState {
         "fen" => {
             let pos = parse_fen(&command[13..]);
             let mut search_state = SearchState::new(pos);
-            for &i in words[8..].iter() {
-                let mov = parse_move(&pos, i);
-                if let Some(x) = mov {
-                    search_state.make_move(x);
+            if words.len() > 8 {
+                for &i in words[9..].iter() {
+                    let mov = parse_move(&search_state.board_position, i);
+                    if let Some(x) = mov {
+                        search_state.make_move(x);
+                    }
                 }
             }
             search_state
@@ -55,7 +58,7 @@ pub fn parse_position(command: &str) -> SearchState {
             let pos = parse_fen(START_POSITION);
             let mut search_state = SearchState::new(pos);
             for &i in words[2..].iter() {
-                let mov = parse_move(&pos, i);
+                let mov = parse_move(&search_state.board_position, i);
                 if let Some(x) = mov {
                     search_state.make_move(x);
                 }
@@ -102,7 +105,7 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
 
     let time : Option<usize>;
     
-    if search_state.get_board_position().side == 1 {
+    if search_state.board_position.side == 1 {
         time = btime;
     }
     else {
@@ -127,7 +130,7 @@ mod tests {
                 let board_pos =
                     parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 xdddddd");
                 let cmd_result = parse_position("position startpos");
-                assert_eq!(board_pos, cmd_result.get_board_position());
+                assert_eq!(board_pos, cmd_result.board_position);
             })
             .unwrap();
         handler.join().unwrap();
@@ -139,7 +142,7 @@ mod tests {
         let handler = builder.spawn(|| {
             let board_pos = parse_fen("r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
             let cmd_result = parse_position("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
-            assert_eq!(board_pos, cmd_result.get_board_position());
+            assert_eq!(board_pos, cmd_result.board_position);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -149,8 +152,8 @@ mod tests {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
             let board_pos = parse_fen("r1bqkbnr/1p1ppppp/8/p1p5/3nP2P/5N2/PPPPQPP1/RNB1KB1R w KQkq - 2 5");
-            let cmd_result = parse_position("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4 d1e2 c6d4");
-            assert_eq!(board_pos, cmd_result.get_board_position());
+            let cmd_result = parse_position("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4 moves d1e2 c6d4");
+            assert_eq!(board_pos, cmd_result.board_position);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -163,7 +166,7 @@ mod tests {
                 let board_pos =
                     parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
                 let cmd_result = parse_position("position startpos e2e4 d7d5");
-                assert_eq!(board_pos, cmd_result.get_board_position());
+                assert_eq!(board_pos, cmd_result.board_position);
             })
             .unwrap();
         handler.join().unwrap();
