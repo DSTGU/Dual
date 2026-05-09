@@ -76,6 +76,7 @@ pub fn uci_loop() {
             "ucinewgame" => search_state = parse_position("position startpos"),
             "uci" => println!("id name Dual v0.2.7\nid author Tomasz Stawowy\nuciok"),
             "printboard" => print_board(&search_state.get_board_position()),
+            "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
             "rw" => print_bitboard(get_bishop_attacks(coordinates_to_squares("b3"),0)),
             // Add more commands here as needed

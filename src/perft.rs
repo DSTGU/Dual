@@ -14,8 +14,8 @@ pub fn perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
     let mut movecount = 0;
 
     for i in movelist {
-
         let result = search_state.make_move(i);
+        
         if result == MoveSuccess::Success {
             movecount += perft_driver(search_state, depth - 1);
             search_state.take_back(i);

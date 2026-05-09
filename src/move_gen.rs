@@ -2,7 +2,7 @@ use crate::{
     get_bit, pop_bit, set_bit, BoardPosition, Piece, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS,
 };
 use crate::attacks::{get_bishop_attacks, get_queen_attacks, get_rook_attacks};
-use crate::shared::{KIWIPETE, Move, MoveDirection, MoveSuccess};
+use crate::shared::{Move, MoveSuccess};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -505,6 +505,8 @@ pub fn make_move(board: &mut BoardPosition, move_to_make: &Move) -> MoveSuccess 
     // println!("{:?}, direction {:?}", move_to_make, move_direction);
 
     let piece_idx = move_to_make.get_piece() as usize;
+    let our_side = board.side;
+    let opp_side = 1-board.side;
     let source = move_to_make.get_source_square() as usize;
     let target = move_to_make.get_target_square() as usize;
     let is_capture = move_to_make.get_capture();
@@ -514,69 +516,73 @@ pub fn make_move(board: &mut BoardPosition, move_to_make: &Move) -> MoveSuccess 
     let promoted = move_to_make.get_promoted();
     let taken_piece_idx: usize = move_to_make.get_taken_piece() as usize;
 
+    let from_bb = 1u64 << source;
+    let to_bb = 1u64 << target;
+    let move_bb = from_bb | to_bb;
+
     // Move the piece: clear source, set target
-    pop_bit(&mut board.bitboards[piece_idx], source);
-    set_bit(&mut board.bitboards[piece_idx], target);
+    board.bitboards[piece_idx] ^= move_bb;
+    board.occupancies[our_side] ^= move_bb;
+
 
     // Handle captures: 
     if is_capture && !is_enpassant {
-            // Remove the captured piece from opponent's bitboards.
-        pop_bit(&mut board.bitboards[taken_piece_idx], target);
+        board.bitboards[taken_piece_idx] ^= to_bb;
+        board.occupancies[opp_side] ^= to_bb;
     }
 
     // Handle promotion: replace the pawn with the promoted piece.
     if promoted != 0 {
-        pop_bit(&mut board.bitboards[piece_idx], target);
-        set_bit(&mut board.bitboards[promoted as usize], target);
+        board.bitboards[piece_idx] ^= to_bb;
+        board.bitboards[promoted as usize] ^= to_bb;
     }
 
     // Handle en passant: remove the captured pawn (which is on a different
     // square from the target).
     if is_enpassant {
-        if piece_idx < 6 {
-            // White pawn captured a black pawn on the rank below target.
-            pop_bit(&mut board.bitboards[Piece::p as usize], target + 8);
+        let ep_sq = if our_side == 0 {
+            target + 8
         } else {
-            // Black pawn captured a white pawn on the rank above target.
-            pop_bit(&mut board.bitboards[Piece::P as usize], target - 8);
-        }
+            target - 8
+        };
+
+        let ep_bb = 1u64 << ep_sq;
+
+        let pawn = if our_side == 0 {
+            Piece::p as usize
+        } else {
+            Piece::P as usize
+        };
+
+        board.bitboards[pawn] ^= ep_bb;
+        board.occupancies[opp_side] ^= ep_bb;
     }
 
     // Reset en passant square; set it again if this was a double pawn push.
     board.enpassant = 64;
+
     if is_double_push {
-        if piece_idx < 6 {
-            board.enpassant = target + 8;
+        board.enpassant = if our_side == 0 {
+            target + 8
         } else {
-            board.enpassant = target - 8;
-        }
-    }  
+            target - 8
+        };
+    }
 
     // Handle castling: move the rook.
     if is_castling {
-        match target {
-            // White kingside
-            62 => {
-                pop_bit(&mut board.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].0);
-                set_bit(&mut board.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].1);
-            }
-            // White queenside
-            58 => {
-                pop_bit(&mut board.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].0);
-                set_bit(&mut board.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].1);
-            }
-            // Black kingside
-            6 => {
-                pop_bit(&mut board.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].0);
-                set_bit(&mut board.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].1);
-            }
-            // Black queenside
-            2 => {
-                pop_bit(&mut board.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].0);
-                set_bit(&mut board.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].1);
-            }
-            _ => {}
-        }   
+        let (rook_piece, rook_from, rook_to) = match target {
+            62 => (Piece::R as usize, 63, 61),
+            58 => (Piece::R as usize, 56, 59),
+            6  => (Piece::r as usize, 7, 5),
+            2  => (Piece::r as usize, 0, 3),
+            _ => unsafe { std::hint::unreachable_unchecked() }
+        };
+
+        let rook_bb = (1u64 << rook_from) | (1u64 << rook_to);
+
+        board.bitboards[rook_piece] ^= rook_bb;
+        board.occupancies[our_side] ^= rook_bb;
     }
 
     // Update castling rights.
@@ -586,19 +592,12 @@ pub fn make_move(board: &mut BoardPosition, move_to_make: &Move) -> MoveSuccess 
 
 
     // Recompute occupancies.
-    board.occupancies[0] = board.bitboards[0..6].iter().fold(0, |acc, &b| acc | b);
-    board.occupancies[1] = board.bitboards[6..12].iter().fold(0, |acc, &b| acc | b);
     board.occupancies[2] = board.occupancies[0] | board.occupancies[1];
 
-    // Find the king of the side that just moved to check for legality.
-    // is_square_attacked checks if the opponent of board.side attacks,
-    // so we need board.side to be the mover's side.
-    let king_idx = KING_INDEX[board.side];
-    let king_sq = board.bitboards[king_idx].trailing_zeros() as usize;
 
-    // Temporarily set side to the mover's side for the attack check
-    // (new.side is already board.side from initialization).
-    // is_square_attacked will check if the opponent (1 - new.side) attacks king_sq.
+    // Find the king of the side that just moved to check for legality.
+    let king_sq =
+        board.bitboards[KING_INDEX[our_side]].trailing_zeros() as usize;
 
     if is_square_attacked(king_sq, &board) {
         board.side = 1 - board.side;    
@@ -618,7 +617,16 @@ pub fn make_move(board: &mut BoardPosition, move_to_make: &Move) -> MoveSuccess 
 /// `None` if the move leaves the king in check.
 pub fn take_back(board: &mut BoardPosition, move_to_make: &Move) -> MoveSuccess {
     // println!("{:?}, direction {:?}", move_to_make, move_direction);
+    // Flip side for the returned position.
 
+    // if move_to_make.get_source_square() == 45 && move_to_make.get_target_square() == 47 {
+    //     print!("marker");
+    // }
+
+    board.side = 1 - board.side;
+
+    let our_side = board.side;
+    let opp_side = 1-board.side;
     let piece_idx = move_to_make.get_piece() as usize;
     let source = move_to_make.get_source_square() as usize;
     let target = move_to_make.get_target_square() as usize;
@@ -628,15 +636,18 @@ pub fn take_back(board: &mut BoardPosition, move_to_make: &Move) -> MoveSuccess 
     let promoted = move_to_make.get_promoted();
     let taken_piece_idx: usize = move_to_make.get_taken_piece() as usize;
 
-
     // Move the piece back: clear target, set source
     pop_bit(&mut board.bitboards[piece_idx], target);
+    pop_bit(&mut board.occupancies[our_side], target);
+
     set_bit(&mut board.bitboards[piece_idx], source);
+    set_bit(&mut board.occupancies[our_side], source);
 
     // Handle captures: 
     if is_capture && !is_enpassant {
         // Add the captured piece back to opponent's bitboards
         set_bit(&mut board.bitboards[taken_piece_idx], target);
+        set_bit(&mut board.occupancies[opp_side], target);
     }
 
     // Handle promotion: replace the pawn with the promoted piece.
@@ -651,9 +662,12 @@ pub fn take_back(board: &mut BoardPosition, move_to_make: &Move) -> MoveSuccess 
         if piece_idx < 6 {
             // White pawn captured a black pawn on the rank below target.
             set_bit(&mut board.bitboards[Piece::p as usize], target + 8);
+            set_bit(&mut board.occupancies[opp_side], target + 8);
+
         } else {
             // Black pawn captured a white pawn on the rank above target.
             set_bit(&mut board.bitboards[Piece::P as usize], target - 8);
+            set_bit(&mut board.occupancies[opp_side], target - 8);
         }
     }
 
@@ -662,40 +676,28 @@ pub fn take_back(board: &mut BoardPosition, move_to_make: &Move) -> MoveSuccess 
 
     // Handle castling: move the rook.
     if is_castling {
-        match target {
-            // White kingside
-            62 => {
-                set_bit(&mut board.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].0);
-                pop_bit(&mut board.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].1);
-            }
-            // White queenside
-            58 => {
-                set_bit(&mut board.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].0);
-                pop_bit(&mut board.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].1);
-            }
-            // Black kingside
-            6 => {
-                set_bit(&mut board.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].0);
-                pop_bit(&mut board.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].1);
-            }
-            // Black queenside
-            2 => {
-                set_bit(&mut board.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].0);
-                pop_bit(&mut board.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].1);
-            }
-            _ => {}
-        }   
+        let (rook_piece, rook_from, rook_to) = match target {
+            62 => (Piece::R as usize, 63, 61),
+            58 => (Piece::R as usize, 56, 59),
+            6  => (Piece::r as usize, 7, 5),
+            2  => (Piece::r as usize, 0, 3),
+            _ => unsafe { std::hint::unreachable_unchecked() }
+        };
+
+        let rook_bb = (1u64 << rook_from) | (1u64 << rook_to);
+
+        board.bitboards[rook_piece] ^= rook_bb;
+        board.occupancies[our_side] ^= rook_bb;
     }
           // Update castling rights.
     board.castle = move_to_make.get_old_castle();
 
     // Recompute occupancies.
-    board.occupancies[0] = board.bitboards[0..6].iter().fold(0, |acc, &b| acc | b);
-    board.occupancies[1] = board.bitboards[6..12].iter().fold(0, |acc, &b| acc | b);
+    //board.occupancies[0] = board.bitboards[0..6].iter().fold(0, |acc, &b| acc | b);
+    //board.occupancies[1] = board.bitboards[6..12].iter().fold(0, |acc, &b| acc | b);
     board.occupancies[2] = board.occupancies[0] | board.occupancies[1];
 
-    // Flip side for the returned position.
-    board.side = 1 - board.side;
+
 
     MoveSuccess::Success
 }
@@ -708,10 +710,11 @@ pub fn take_back(board: &mut BoardPosition, move_to_make: &Move) -> MoveSuccess 
 #[cfg(test)]
 mod tests {
     use crate::gui::parse_position;
-use crate::move_gen::is_square_attacked;
+use crate::move_gen::{generate_moves, is_square_attacked};
     use crate::perft::perft_driver;
-    use crate::shared::{
-        BoardPosition, ENDGAME_PERFT_COMMAND, KIWIPETE_COMMAND, START_POSITION_COMMAND, coordinates_to_squares, parse_fen, print_bitboard
+    use crate::search_state::SearchState;
+use crate::shared::{
+        BoardPosition, ENDGAME_PERFT_COMMAND, KIWIPETE_COMMAND, MoveSuccess, START_POSITION_COMMAND, coordinates_to_squares, format_board, parse_fen, print_bitboard, print_board
     };
     use std::thread;
 
@@ -812,6 +815,46 @@ use crate::move_gen::is_square_attacked;
                     let movecnt = perft_driver(&mut board_pos, depth + 1);
                     assert_eq!(movecnt, exp, "Perft mismatch at depth {}", depth + 1);
                 }
+            })
+            .unwrap();
+        handler.join().unwrap();
+    }
+
+    pub fn test_perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
+
+    if depth == 0 {
+        return 1;
+    }
+    
+    let movelist = generate_moves(&search_state.get_board_position());
+    
+    let mut movecount = 0;
+
+    for i in movelist {
+        let result = search_state.make_move(i);
+        assert_eq!(search_state.get_board_position().occupancies[0], search_state.get_board_position().bitboards[0..6].iter().fold(0, |acc, &b| acc | b), "Board\n{:?}", format_board(&search_state.get_board_position()));
+        assert_eq!(search_state.get_board_position().occupancies[1], search_state.get_board_position().bitboards[6..12].iter().fold(0, |acc, &b| acc | b), "Board\n{:?}", format_board(&search_state.get_board_position()));
+        
+        if result == MoveSuccess::Success {
+            movecount += test_perft_driver(search_state, depth - 1);
+            search_state.take_back(i);
+            assert_eq!(search_state.get_board_position().occupancies[0], search_state.get_board_position().bitboards[0..6].iter().fold(0, |acc, &b| acc | b), "Board\n{:?}", format_board(&search_state.get_board_position()));
+            assert_eq!(search_state.get_board_position().occupancies[1], search_state.get_board_position().bitboards[6..12].iter().fold(0, |acc, &b| acc | b), "Board\n{:?}", format_board(&search_state.get_board_position()));
+        }
+    }
+    movecount
+
+}
+
+
+    #[test]
+    fn test_occupancy_calculation() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                // These are the expected perft results for each depth from startpos
+                let mut board_pos = parse_position(KIWIPETE_COMMAND);
+                test_perft_driver(&mut board_pos, 5);
             })
             .unwrap();
         handler.join().unwrap();

@@ -195,17 +195,6 @@ impl fmt::Debug for Move {
     }
 }
 
-// board squares
-// pub enum Sq {
-//     a8, b8, c8, d8, e8, f8, g8, h8,
-//     a7, b7, c7, d7, e7, f7, g7, h7,
-//     a6, b6, c6, d6, e6, f6, g6, h6,
-//     a5, b5, c5, d5, e5, f5, g5, h5,
-//     a4, b4, c4, d4, e4, f4, g4, h4,
-//     a3, b3, c3, d3, e3, f3, g3, h3,
-//     a2, b2, c2, d2, e2, f2, g2, h2,
-//     a1, b1, c1, d1, e1, f1, g1, h1, no_sq = 64
-// }
 
 // encode pieces
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -368,10 +357,9 @@ pub fn print_bitboard(bitboard: u64) {
 }
 
 // print board
-pub fn print_board(board: &BoardPosition)
+pub fn format_board(board: &BoardPosition) -> String
 {
-    // print offset
-    println!();
+    let mut output = "\n".to_owned();
 
     // loop over board ranks
     for rank in 0..8
@@ -384,7 +372,7 @@ pub fn print_board(board: &BoardPosition)
 
             // print ranks
             if file == 0 {
-                print!("  {} ", 8 - rank);
+                output = output + &format!("  {} ", 8 - rank);
             }
 
             // define piece variable
@@ -400,30 +388,30 @@ pub fn print_board(board: &BoardPosition)
 
             if piece == 12
             {
-                print!(" .");
+                output = output + " .";
             }
             else {
-                print!(" {}", char::from(ASCII_PIECES[piece]));
+                output = output + &format!(" {}", char::from(ASCII_PIECES[piece]));
             }
         }
 
     // print new line every rank
-    println!();
+        output = output + "\n";
     }
 
     // print board files
-    println!("\n     a b c d e f g h\n\n");
+    output = output + "\n     a b c d e f g h\n\n";
 
     match board.side {
-        0 => println!("White"),
-        1 => println!("Black"),
-        _ => println!("No side"),
+        0 => output = output + "White\n",
+        1 => output = output + "Black\n",
+        _ => output = output + "No side\n",
     }
 
     match board.enpassant {
-        64 => println!("Enpassant not available"),
-        65 => println!("Enpassant not available"),
-        _ => println!("Enpassant: {}", SQUARE_TO_COORDINATES[board.enpassant]),
+        64 => output = output + "Enpassant not available\n",
+        65 => output = output + "Enpassant not available\n",
+        _ =>  output = output + &format!("Enpassant: {}\n", SQUARE_TO_COORDINATES[board.enpassant]),
     }
 
 
@@ -431,21 +419,27 @@ pub fn print_board(board: &BoardPosition)
 
     if board.castle & Castle::Wk != 0
     {
-        print!("K");
+        output = output + "K";
     }
     if board.castle & Castle::Wq != 0
     {
-        print!("Q");
+        output = output + "Q";
     }
     if board.castle & Castle::Bk != 0
     {
-        print!("k");
+        output = output + "k";
     }
     if board.castle & Castle::Bq != 0
     {
-        print!("q");
+        output = output + "q";
     }
-    println!();
+    output = output + "\n";
+
+    output
+}
+
+pub fn print_board(board: &BoardPosition) {
+    println!("{}", format_board(board));
 }
 //Count bits - x.countones()
 //LS1b - trailing zeros !! - invalid = 64, not -1
