@@ -1,13 +1,20 @@
 use std::time::SystemTime;
 use crate::move_gen::{generate_moves, make_move};
 use crate::search_state::{self, SearchState};
-use crate::shared::{BoardPosition, MoveDirection, print_board};
+use crate::shared::{BoardPosition, MoveDirection, MoveSuccess, print_board};
 
 pub fn perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
-    
+
     if depth == 0 {
         return 1;
     }
+    
+    //println!("Depth: {}", depth);
+    //print_board(&search_state.get_board_position());
+    // if depth + search_state.get_board_position().side % 2 == 1 {
+    //     panic!("Side switch");
+    // }
+
     
     let movelist = generate_moves(&search_state.get_board_position());
     
@@ -15,8 +22,8 @@ pub fn perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
 
     for i in movelist {
 
-        let board = search_state.make_move(i);
-        if let Some(_) = board {
+        let result = search_state.make_move(i);
+        if result == MoveSuccess::Success {
             movecount += perft_driver(search_state, depth - 1);
             search_state.take_back(i);
         }
@@ -40,9 +47,9 @@ pub fn perft(search_state: &mut SearchState, depth: usize) {
 
     for i in movelist {
         
-        let board = search_state.make_move(i);
+        let result = search_state.make_move(i);
 
-        if let Some(_) = board {
+        if result == MoveSuccess::Success {
             let cnt= perft_driver(search_state, depth - 1);
             search_state.take_back(i);
             println!("{:?}, Moves: {}", i, cnt);

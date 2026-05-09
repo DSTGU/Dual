@@ -253,8 +253,11 @@ impl Piece {
 
 pub enum Castle { Wk = 1, Wq = 2, Bk = 4, Bq = 8 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum MoveDirection { Move, TakeBack }
+
+#[derive(PartialEq)]
+pub enum MoveSuccess { Success, Attacked }
 
 impl BitAnd<Castle> for usize {
     type Output = usize;

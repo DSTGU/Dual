@@ -1,8 +1,8 @@
-use crate::move_gen::{generate_moves, make_move};
+use crate::move_gen::{generate_moves};
 use crate::perft::perft;
 use crate::search::{search};
 use crate::search_state::SearchState;
-use crate::shared::{BoardPosition, KIWIPETE, Move, MoveDirection, START_POSITION, coordinates_to_squares, parse_fen};
+use crate::shared::{BoardPosition, KIWIPETE, Move, START_POSITION, coordinates_to_squares, parse_fen};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
@@ -41,37 +41,34 @@ pub fn parse_position(command: &str) -> SearchState {
 
     match words[1] {
         "fen" => {
-            let mut pos = parse_fen(&command[13..]);
+            let pos = parse_fen(&command[13..]);
             let mut search_state = SearchState::new(pos);
             for &i in words[8..].iter() {
                 let mov = parse_move(&pos, i);
                 if let Some(x) = mov {
-                    pos = make_move(&pos, &x, MoveDirection::Move).unwrap();
-                    search_state.make_move_for_state(pos);
+                    search_state.make_move(x);
                 }
             }
             search_state
         },
         "startpos" => {
-            let mut pos = parse_fen(START_POSITION);
+            let pos = parse_fen(START_POSITION);
             let mut search_state = SearchState::new(pos);
             for &i in words[2..].iter() {
                 let mov = parse_move(&pos, i);
                 if let Some(x) = mov {
-                    pos = make_move(&pos, &x, MoveDirection::Move).unwrap();
-                    search_state.make_move_for_state(pos);
+                    search_state.make_move(x);
                 }
             }
             search_state
         },
         "kiwipete" => {
-            let mut pos = parse_fen(KIWIPETE);
+            let pos = parse_fen(KIWIPETE);
             let mut search_state = SearchState::new(pos);
             for &i in words[2..].iter() {
                 let mov = parse_move(&pos, i);
                 if let Some(x) = mov {
-                    pos = make_move(&pos, &x, MoveDirection::Move).unwrap();
-                    search_state.make_move_for_state(pos);
+                    search_state.make_move(x);
                 }
             }
             search_state

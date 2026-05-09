@@ -1,5 +1,5 @@
 use crate::move_gen::{is_square_attacked, make_move};
-use crate::shared::{BoardPosition, FIRST_KILLER_BONUS, MVV_LVA, Move, MoveDirection, PV_MOVE_BONUS, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
+use crate::shared::{BoardPosition, FIRST_KILLER_BONUS, MVV_LVA, Move, MoveDirection, MoveSuccess, PV_MOVE_BONUS, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
 use crate::tt::{RepetitionTable, TranspositionTable, compute_hash};
 
 /// Search state structure - encapsulates all search-related state
@@ -43,14 +43,21 @@ impl SearchState {
         self.nodes_searched = 0;
     }
 
-    pub fn make_move(&mut self, move_to_make: Move) -> Option<BoardPosition> {
-        let board = make_move(&self.board_position, &move_to_make, MoveDirection::Move);
-        if let Some(board_unwrapped) = board {
-            self.board_position = board_unwrapped;
-            self.rep_table.push_position(&board_unwrapped);
+    pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {
+        //println!("side ex1: {}", self.board_position.side);
+        
+        let result = make_move(&mut self.board_position, &move_to_make, MoveDirection::Move);
+        if result == MoveSuccess::Success {
+            //println!("side ex2: {}", self.board_position.side);
+            self.rep_table.push_position(&self.board_position);
+        } else {
+            //println!("side ex3: {}", self.board_position.side);
+            make_move(&mut self.board_position, &move_to_make, MoveDirection::TakeBack);
+            //self.board_position.side = 1 - self.board_position.side;
+            //println!("side ex4: {}", self.board_position.side);
         }
 
-        board
+        result
     }
 
     pub fn make_move_for_state(&mut self, board_position: BoardPosition) {
@@ -60,8 +67,10 @@ impl SearchState {
     }
 
     pub fn take_back(&mut self, move_to_take_back: Move) {
-        let board = make_move(&self.board_position, &move_to_take_back, MoveDirection::TakeBack).expect("Move taken back should result in a legal position!");
-        self.board_position = board;
+        let state = make_move(&mut self.board_position, &move_to_take_back, MoveDirection::TakeBack);
+        if state == MoveSuccess::Attacked {
+            panic!("TakeBack shouldn't result in illegal positions");
+        } 
         self.rep_table.pop();
     }
 
