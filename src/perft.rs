@@ -15,13 +15,10 @@ pub fn perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
 
     for i in movelist {
 
-        let og_board = search_state.get_board_position();
-        let board = make_move(&search_state.get_board_position(),&i, MoveDirection::Move);
-
-        if let Some(board) = board {
-            search_state.make_move_for_state(board);
+        let board = search_state.make_move(i);
+        if let Some(_) = board {
             movecount += perft_driver(search_state, depth - 1);
-            search_state.take_back_for_state(og_board);
+            search_state.take_back(i);
         }
     }
     movecount
@@ -43,18 +40,15 @@ pub fn perft(search_state: &mut SearchState, depth: usize) {
 
     for i in movelist {
         
-        let og_board = search_state.get_board_position();
-        let board = make_move(&search_state.get_board_position(),&i, MoveDirection::Move);
+        let board = search_state.make_move(i);
 
-        let mut cnt = 0;
-        if let Some(board) = board {
-            search_state.make_move_for_state(board);
-            cnt = perft_driver(search_state, depth - 1);
-            search_state.take_back_for_state(og_board);
+        if let Some(_) = board {
+            let cnt= perft_driver(search_state, depth - 1);
+            search_state.take_back(i);
             println!("{:?}, Moves: {}", i, cnt);
 
+            movecount += cnt;
         }
-        movecount += cnt;
 
     }
 

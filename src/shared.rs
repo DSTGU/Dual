@@ -96,36 +96,38 @@ pub struct Move {
     // pub enpassant: bool,
     // pub castling: bool,
     // pub double_push: bool
-    pub mv: u32
+    pub mv: u64
 }
 
 impl Move {
-    pub fn create(source_square: u32, target_square: u32, piece: Piece, promoted_piece: Piece, capture: u32, enpassant: u32, castling: u32, double_push: u32, taken_piece: Piece) -> Move {
-        let value : u32 = (source_square) +
+    pub fn create(source_square: u64, target_square: u64, piece: Piece, promoted_piece: Piece, capture: u64, enpassant: u64, castling: u64, double_push: u64, taken_piece: Piece, old_ep_square: u64, old_castle: usize) -> Move {
+        let value : u64 = (source_square) +
             (target_square << 6) +
-            ((piece.to_usize() as u32) << 12) +
-            ((promoted_piece.to_usize() as u32) << 16) +
+            ((piece.to_usize() as u64) << 12) +
+            ((promoted_piece.to_usize() as u64) << 16) +
             (capture << 20) +
             (enpassant << 21) +
             (castling << 22) +
             (double_push << 23) + 
-            ((taken_piece.to_usize() as u32) << 24);
+            ((taken_piece.to_usize() as u64) << 24) +
+            ((old_ep_square << 28 )) + 
+            ((old_castle as u64) << 35);
         Move {mv: value}
     }
 
-    pub fn get_source_square(self: &Move) -> u32 {
+    pub fn get_source_square(self: &Move) -> u64 {
         self.mv & 0x3f
     }
 
-    pub fn get_target_square(self: &Move) -> u32 {
+    pub fn get_target_square(self: &Move) -> u64 {
         (self.mv & 0xfc0) >> 6
     }
 
-    pub fn get_piece(self: &Move) -> u32 {
+    pub fn get_piece(self: &Move) -> u64 {
         (self.mv & 0xf000) >> 12
     }
 
-    pub fn get_promoted(self: &Move) -> u32 {
+    pub fn get_promoted(self: &Move) -> u64 {
         (self.mv & 0xf0000) >> 16
     }
 
@@ -157,10 +159,18 @@ impl Move {
         false
     }
 
-    pub fn get_taken_piece(self: &Move) -> u32 {
+    pub fn get_taken_piece(self: &Move) -> u64 {
         (self.mv & 0xF000000) >> 24
     }
 
+    pub fn get_old_ep_square(self: &Move) -> u64 {
+        (self.mv >> 28) & 0x7F
+    }
+
+    pub fn get_old_castle(self: &Move) -> usize {
+        ((self.mv >> 35) & 0xF) as usize
+    }
+ 
 }
 
 pub fn move_to_alg(mv: &Move) -> String {
@@ -181,7 +191,7 @@ impl fmt::Debug for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Move {{ {}-{}: {:?}, P={:?}{}{}{}{} }}",
+            "Move {{ {}-{}: {:?}, P={:?}{}{}{}{} oep: {}, oc:{} }}",
             SQUARE_TO_COORDINATES[self.get_source_square() as usize],
             SQUARE_TO_COORDINATES[self.get_target_square() as usize],
             self.get_piece(),
@@ -190,6 +200,8 @@ impl fmt::Debug for Move {
             if self.get_enpassant() { " EP" } else { "" },
             if self.get_castling() { " O-O" } else { "" },
             if self.get_double_pawn_push() { " dblPP" } else { "" },
+            self.get_old_ep_square(),
+            self.get_old_castle(),
         )
     }
 }
@@ -560,4 +572,38 @@ pub fn parse_fen(fen: &str) -> BoardPosition {
     board_position.occupancies[2] = board_position.occupancies[0] | board_position.occupancies[1];
 
     board_position
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::shared::{Move, Piece};
+
+    #[test]
+    fn move_constructor_test() {
+        let source = 11;
+        let target = 27;
+        let piece = Piece::R;
+        let promoted = Piece::q;
+        let capture = 0;
+        let enpassant = 1;
+        let castling = 1;
+        let double_push = 1;
+        let taken_piece = Piece::k;
+        let old_ep_square = 37;
+        let old_castle = 11;
+
+        let move_to_test = Move::create(source, target, piece, promoted, capture, enpassant, castling, double_push, taken_piece, old_ep_square, old_castle);
+        assert_eq!(move_to_test.get_source_square(), source);
+        assert_eq!(move_to_test.get_target_square(), target);
+        assert_eq!(move_to_test.get_piece(), piece.to_usize() as u64);
+        assert_eq!(move_to_test.get_promoted(), promoted.to_usize() as u64);
+        assert_eq!(move_to_test.get_capture(), capture != 0);
+        assert_eq!(move_to_test.get_enpassant(), enpassant != 0);
+        assert_eq!(move_to_test.get_castling(), castling != 0);
+        assert_eq!(move_to_test.get_double_pawn_push(), castling != 0);
+        assert_eq!(move_to_test.get_taken_piece(), taken_piece.to_usize() as u64);
+        assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
+        assert_eq!(move_to_test.get_old_castle(), old_castle);
+
+    }
 }

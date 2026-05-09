@@ -1,14 +1,14 @@
 use crate::move_gen::{is_square_attacked, make_move};
-use crate::shared::{BoardPosition, FIRST_KILLER_BONUS, MVV_LVA, Move, PV_MOVE_BONUS, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
+use crate::shared::{BoardPosition, FIRST_KILLER_BONUS, MVV_LVA, Move, MoveDirection, PV_MOVE_BONUS, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
 use crate::tt::{RepetitionTable, TranspositionTable, compute_hash};
 
 /// Search state structure - encapsulates all search-related state
 pub struct SearchState {
     board_position: BoardPosition,
     pub max_depth: usize,
-    killer_moves: [[u32; 256]; 2],
+    killer_moves: [[u64; 256]; 2],
     history_moves: [[usize; 64]; 12],
-    prev_iter_best_move: u32,
+    prev_iter_best_move: u64,
     tt: TranspositionTable,
     rep_table: RepetitionTable,
     nodes_searched: u64,
@@ -43,10 +43,26 @@ impl SearchState {
         self.nodes_searched = 0;
     }
 
+    pub fn make_move(&mut self, move_to_make: Move) -> Option<BoardPosition> {
+        let board = make_move(&self.board_position, &move_to_make, MoveDirection::Move);
+        if let Some(board_unwrapped) = board {
+            self.board_position = board_unwrapped;
+            self.rep_table.push_position(&board_unwrapped);
+        }
+
+        board
+    }
+
     pub fn make_move_for_state(&mut self, board_position: BoardPosition) {
         self.board_position = board_position;
         self.rep_table.push_position(&board_position);
         // TODO: Implement TT
+    }
+
+    pub fn take_back(&mut self, move_to_take_back: Move) {
+        let board = make_move(&self.board_position, &move_to_take_back, MoveDirection::TakeBack).expect("Move taken back should result in a legal position!");
+        self.board_position = board;
+        self.rep_table.pop();
     }
 
     pub fn take_back_for_state(&mut self, board_position: BoardPosition) {

@@ -11,7 +11,7 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 
     let src = coordinates_to_squares(&move_to_parse[0..2]);
     let target = coordinates_to_squares(&move_to_parse[2..4]);
-    let mut legal_moves : Vec<Move> = legal_moves.into_iter().filter(|x| x.get_source_square() == src as u32 && x.get_target_square() == target as u32).collect();
+    let mut legal_moves : Vec<Move> = legal_moves.into_iter().filter(|x| x.get_source_square() == src as u64 && x.get_target_square() == target as u64).collect();
 
     if legal_moves.len() < 2 {
         if legal_moves.len() == 0 {
@@ -24,10 +24,10 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
     let ch = char.as_str();
 
     match ch {
-        "q" => legal_moves.into_iter().filter(|x| x.get_promoted() == Q.to_usize() as u32 || x.get_promoted() == q.to_usize() as u32).collect::<Vec<Move>>().pop(),
-        "n" => legal_moves.into_iter().filter(|x| x.get_promoted() == N.to_usize() as u32 || x.get_promoted() == n.to_usize() as u32).collect::<Vec<Move>>().pop(),
-        "b" => legal_moves.into_iter().filter(|x| x.get_promoted() == b.to_usize() as u32 || x.get_promoted() == B.to_usize() as u32).collect::<Vec<Move>>().pop(),
-        "r" => legal_moves.into_iter().filter(|x| x.get_promoted() == R.to_usize() as u32 || x.get_promoted() == r.to_usize() as u32).collect::<Vec<Move>>().pop(),
+        "q" => legal_moves.into_iter().filter(|x| x.get_promoted() == Q.to_usize() as u64 || x.get_promoted() == q.to_usize() as u64).collect::<Vec<Move>>().pop(),
+        "n" => legal_moves.into_iter().filter(|x| x.get_promoted() == N.to_usize() as u64 || x.get_promoted() == n.to_usize() as u64).collect::<Vec<Move>>().pop(),
+        "b" => legal_moves.into_iter().filter(|x| x.get_promoted() == b.to_usize() as u64 || x.get_promoted() == B.to_usize() as u64).collect::<Vec<Move>>().pop(),
+        "r" => legal_moves.into_iter().filter(|x| x.get_promoted() == R.to_usize() as u64 || x.get_promoted() == r.to_usize() as u64).collect::<Vec<Move>>().pop(),
         _ => legal_moves.pop()
     }
 }

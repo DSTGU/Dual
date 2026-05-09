@@ -120,84 +120,85 @@ pub fn is_square_attacked(square: usize, board: &BoardPosition) -> bool {
 
 /// Push a non-capture move into the list.
 #[inline(always)]
-fn push_quiet_move(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece) {
-    moves.push(Move::create(
-        source as u32,
-        target as u32,
+fn push_quiet_move(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, current_enpassant: u64, current_castle: usize) {
+    let new_move = Move::create(
+        source as u64,
+        target as u64,
         piece,
         Piece::P,
-        0, 0, 0, 0, Piece::NONE
-    ));
+        0, 0, 0, 0, Piece::NONE, current_enpassant, current_castle
+    );
+    moves.push(new_move);
 }
 
 #[inline(always)]
-fn push_capture(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, captured_piece: Piece) {
+fn push_capture(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, captured_piece: Piece, current_enpassant: u64, current_castle: usize) {
     moves.push(Move::create(
-        source as u32,
-        target as u32,
+        source as u64,
+        target as u64,
         piece,
         Piece::P,
-        1, 0, 0, 0, captured_piece
+        1, 0, 0, 0, captured_piece, current_enpassant, current_castle
     ));
 }
 
 /// Push a capture move into the list.
 #[inline(always)]
-fn push_promotion_quiet(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, promoted: Piece) {
+fn push_promotion_quiet(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, promoted: Piece, current_enpassant: u64, current_castle: usize) {
     moves.push(Move::create(
-        source as u32,
-        target as u32,
+        source as u64,
+        target as u64,
         piece,
         promoted,
-        0, 0, 0, 0, Piece::NONE
+        0, 0, 0, 0, Piece::NONE, current_enpassant, current_castle
     ));
 }
 
 /// Push a capture move into the list.
 #[inline(always)]
-fn push_promotion_capture(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, promoted: Piece, taken_piece: Piece) {
+fn push_promotion_capture(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, promoted: Piece, taken_piece: Piece, current_enpassant: u64, current_castle: usize) {
     moves.push(Move::create(
-        source as u32,
-        target as u32,
+        source as u64,
+        target as u64,
         piece,
         promoted,
-        1, 0, 0, 0, taken_piece
+        1, 0, 0, 0, taken_piece, current_enpassant, current_castle
     ));
 }
 
 /// Push a double-pawn-push move into the list.
 #[inline(always)]
-fn push_double_push(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece) {
+fn push_double_push(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, current_enpassant: u64, current_castle: usize) {
     moves.push(Move::create(
-        source as u32,
-        target as u32,
+        source as u64,
+        target as u64,
         piece,
         Piece::P, // placeholder, not a real promotion
-        0, 0, 0, 1, Piece::NONE
+        0, 0, 0, 1, Piece::NONE, current_enpassant, current_castle
     ));
 }
 
 /// Push an en-passant capture into the list.
 #[inline(always)]
-fn push_enpassant(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece) {
+fn push_enpassant(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, current_enpassant: u64, current_castle: usize) {
     moves.push(Move::create(
-        source as u32,
-        target as u32,
+        source as u64,
+        target as u64,
         piece,
         Piece::P, // placeholder
-        1, 1, 0, 0, Piece::NONE
+        1, 1, 0, 0, Piece::NONE, current_enpassant, current_castle
     ));
 }
 
 /// Push a castling move into the list.
 #[inline(always)]
-fn push_castle(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece) {
+fn push_castle(moves: &mut Vec<Move>, source: usize, target: usize, piece: Piece, current_enpassant: u64, current_castle: usize) {
     moves.push(Move::create(
-        source as u32,
-        target as u32,
+        source as u64,
+        target as u64,
         piece,
         Piece::P, // placeholder
-        0, 0, 1, 0, Piece::NONE
+        0, 0, 1, 0, Piece::NONE, current_enpassant, current_castle
     ));
 }
 
@@ -230,16 +231,16 @@ fn generate_pawn_moves(
             if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
                 // Promotion
                 for promo in promotion_pieces(side) {
-                    push_promotion_quiet(moves, source, target, piece, promo);
+                    push_promotion_quiet(moves, source, target, piece, promo, board.enpassant as u64, board.castle);
                 }
             } else {
-                push_quiet_move(moves, source, target, piece);
+                push_quiet_move(moves, source, target, piece, board.enpassant as u64, board.castle);
 
                 // Double push
                 if source >= start_rank_range.0 && source <= start_rank_range.1 {
                     let target2 = (target as isize + direction) as usize;
                     if target2 < 64 && !get_bit(all_occ, target2) {
-                        push_double_push(moves, source, target2, piece);
+                        push_double_push(moves, source, target2, piece, board.enpassant as u64, board.castle);
                     }
                 }
             }
@@ -253,10 +254,10 @@ fn generate_pawn_moves(
 
             if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
                 for promo in promotion_pieces(side) {
-                    push_promotion_capture(moves, source, cap_target, piece, promo, board.find_capture_at_square(cap_target));
+                    push_promotion_capture(moves, source, cap_target, piece, promo, board.find_capture_at_square(cap_target), board.enpassant as u64, board.castle);
                 }
             } else {
-                push_capture(moves, source, cap_target, piece, board.find_capture_at_square(cap_target));
+                push_capture(moves, source, cap_target, piece, board.find_capture_at_square(cap_target), board.enpassant as u64, board.castle);
             }
         }
 
@@ -265,7 +266,7 @@ fn generate_pawn_moves(
             let ep_bit = PAWN_ATTACKS[side][source] & (1u64 << board.enpassant);
             if ep_bit != 0 {
                 let ep_target = ep_bit.trailing_zeros() as usize;
-                push_enpassant(moves, source, ep_target, piece);
+                push_enpassant(moves, source, ep_target, piece, board.enpassant as u64, board.castle);
             }
         }
     }
@@ -291,9 +292,9 @@ fn generate_king_moves(
             pop_bit(&mut attacks, target);
 
             if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, board.find_capture_at_square(target));
+                push_capture(moves, source, target, piece, board.find_capture_at_square(target), board.enpassant as u64, board.castle);
             } else {
-                push_quiet_move(moves, source, target, piece);
+                push_quiet_move(moves, source, target, piece, board.enpassant as u64, board.castle);
             }
         }
     }
@@ -316,7 +317,7 @@ fn generate_castling_moves(
             && !is_square_attacked(60, board)
             && !is_square_attacked(61, board)
         {
-            push_castle(moves, 60, 62, piece);
+            push_castle(moves, 60, 62, piece, board.enpassant as u64, board.castle);
         }
         // White queenside (O-O-O): king e1->c1, rook a1->d1
         if board.castle & 2 != 0
@@ -326,7 +327,7 @@ fn generate_castling_moves(
             && !is_square_attacked(60, board)
             && !is_square_attacked(59, board)
         {
-            push_castle(moves, 60, 58, piece);
+            push_castle(moves, 60, 58, piece, board.enpassant as u64, board.castle);
         }
     } else {
         // Black kingside (O-O): king e8->g8, rook h8->f8
@@ -336,7 +337,7 @@ fn generate_castling_moves(
             && !is_square_attacked(4, board)
             && !is_square_attacked(5, board)
         {
-            push_castle(moves, 4, 6, piece);
+            push_castle(moves, 4, 6, piece, board.enpassant as u64, board.castle);
         }
         // Black queenside (O-O-O): king e8->c8, rook a8->d8
         if board.castle & 8 != 0
@@ -346,7 +347,7 @@ fn generate_castling_moves(
             && !is_square_attacked(4, board)
             && !is_square_attacked(3, board)
         {
-            push_castle(moves, 4, 2, piece);
+            push_castle(moves, 4, 2, piece, board.enpassant as u64, board.castle);
         }
     }
 }
@@ -371,9 +372,9 @@ fn generate_knight_moves(
             pop_bit(&mut attacks, target);
             
             if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, board.find_capture_at_square(target));
+                push_capture(moves, source, target, piece, board.find_capture_at_square(target), board.enpassant as u64, board.castle);
             } else {
-                push_quiet_move(moves, source, target, piece);
+                push_quiet_move(moves, source, target, piece, board.enpassant as u64, board.castle);
             }
         }
     }
@@ -399,9 +400,9 @@ fn generate_bishop_moves(
             pop_bit(&mut attacks, target);
 
             if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, board.find_capture_at_square(target));
+                push_capture(moves, source, target, piece, board.find_capture_at_square(target), board.enpassant as u64, board.castle);
             } else {
-                push_quiet_move(moves, source, target, piece);
+                push_quiet_move(moves, source, target, piece, board.enpassant as u64, board.castle);
             }
         }
     }
@@ -427,9 +428,9 @@ fn generate_rook_moves(
             pop_bit(&mut attacks, target);
 
             if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, board.find_capture_at_square(target));
+                push_capture(moves, source, target, piece, board.find_capture_at_square(target), board.enpassant as u64, board.castle);
             } else {
-                push_quiet_move(moves, source, target, piece);
+                push_quiet_move(moves, source, target, piece, board.enpassant as u64, board.castle);
             }
         }
     }
@@ -455,9 +456,9 @@ fn generate_queen_moves(
             pop_bit(&mut attacks, target);
 
             if get_bit(board.occupancies[1 - side], target) {
-                push_capture(moves, source, target, piece, board.find_capture_at_square(target));
+                push_capture(moves, source, target, piece, board.find_capture_at_square(target), board.enpassant as u64, board.castle);
             } else {
-                push_quiet_move(moves, source, target, piece);
+                push_quiet_move(moves, source, target, piece, board.enpassant as u64, board.castle);
             }
         }
     }
@@ -533,7 +534,6 @@ pub fn make_move(board: &BoardPosition, move_to_make: &Move, move_direction: Mov
 
     // Handle captures: 
     if is_capture && !is_enpassant {
-        let opp_side = 1 - new.side;
 
         if move_direction == MoveDirection::Move {
             // Remove the captured piece from opponent's bitboards.
@@ -559,55 +559,104 @@ pub fn make_move(board: &BoardPosition, move_to_make: &Move, move_direction: Mov
     // Handle en passant: remove the captured pawn (which is on a different
     // square from the target).
     if is_enpassant {
-        if piece_idx < 6 {
-            // White pawn captured a black pawn on the rank below target.
-            pop_bit(&mut new.bitboards[Piece::p as usize], target + 8);
+        if move_direction == MoveDirection::Move {
+            if piece_idx < 6 {
+                // White pawn captured a black pawn on the rank below target.
+                pop_bit(&mut new.bitboards[Piece::p as usize], target + 8);
+            } else {
+                // Black pawn captured a white pawn on the rank above target.
+                pop_bit(&mut new.bitboards[Piece::P as usize], target - 8);
+            }
         } else {
-            // Black pawn captured a white pawn on the rank above target.
-            pop_bit(&mut new.bitboards[Piece::P as usize], target - 8);
+            if piece_idx < 6 {
+                // White pawn captured a black pawn on the rank below target.
+                set_bit(&mut new.bitboards[Piece::p as usize], target + 8);
+            } else {
+                // Black pawn captured a white pawn on the rank above target.
+                set_bit(&mut new.bitboards[Piece::P as usize], target - 8);
+            }
         }
     }
 
     // Reset en passant square; set it again if this was a double pawn push.
-    new.enpassant = 64;
-    if is_double_push {
-        if piece_idx < 6 {
-            new.enpassant = target + 8;
-        } else {
-            new.enpassant = target - 8;
-        }
+    if move_direction == MoveDirection::Move {
+        new.enpassant = 64;
+        if is_double_push {
+            if piece_idx < 6 {
+                new.enpassant = target + 8;
+            } else {
+                new.enpassant = target - 8;
+            }
+        }  
+    } 
+    else {
+        new.enpassant = move_to_make.get_old_ep_square() as usize;
     }
 
     // Handle castling: move the rook.
     if is_castling {
-        match target {
-            // White kingside
-            62 => {
-                pop_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].0);
-                set_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].1);
-            }
-            // White queenside
-            58 => {
-                pop_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].0);
-                set_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].1);
-            }
-            // Black kingside
-            6 => {
-                pop_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].0);
-                set_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].1);
-            }
-            // Black queenside
-            2 => {
-                pop_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].0);
-                set_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].1);
-            }
-            _ => {}
+        if move_direction == MoveDirection::Move {
+            match target {
+                // White kingside
+                62 => {
+                    pop_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].0);
+                    set_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].1);
+                }
+                // White queenside
+                58 => {
+                    pop_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].0);
+                    set_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].1);
+                }
+                // Black kingside
+                6 => {
+                    pop_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].0);
+                    set_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].1);
+                }
+                // Black queenside
+                2 => {
+                    pop_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].0);
+                    set_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].1);
+                }
+                _ => {}
+            }   
+
+        } else {
+            match target {
+                // White kingside
+                62 => {
+                    set_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].0);
+                    pop_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[0].1);
+                }
+                // White queenside
+                58 => {
+                    set_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].0);
+                    pop_bit(&mut new.bitboards[Piece::R as usize], CASTLING_ROOK_MOVES[1].1);
+                }
+                // Black kingside
+                6 => {
+                    set_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].0);
+                    pop_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[2].1);
+                }
+                // Black queenside
+                2 => {
+                    set_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].0);
+                    pop_bit(&mut new.bitboards[Piece::r as usize], CASTLING_ROOK_MOVES[3].1);
+                }
+                _ => {}
+            }   
         }
     }
 
-    // Update castling rights.
-    new.castle &= CASTLING_RIGHTS[source] as usize;
-    new.castle &= CASTLING_RIGHTS[target] as usize;
+    if move_direction == MoveDirection::Move {
+        // Update castling rights.
+        new.castle &= CASTLING_RIGHTS[source] as usize;
+        new.castle &= CASTLING_RIGHTS[target] as usize;
+        //println!("Making {:?}, old castle: {}, new castle: {}, move castle: {}, mv:{}", move_to_make, board.castle, new.castle, move_to_make.get_old_castle(), move_to_make.mv);
+    }
+    else {            // Update castling rights.
+        new.castle = move_to_make.get_old_castle();
+        //println!("Taking back {:?}, old castle: {}, new castle: {}, move castle: {}, mv:{}", move_to_make, board.castle, new.castle, move_to_make.get_old_castle(), move_to_make.mv);
+    }
 
     // Recompute occupancies.
     new.occupancies[0] = new.bitboards[0..6].iter().fold(0, |acc, &b| acc | b);
@@ -644,7 +693,7 @@ mod tests {
 use crate::move_gen::is_square_attacked;
     use crate::perft::perft_driver;
     use crate::shared::{
-        BoardPosition, ENDGAME_PERFT, ENDGAME_PERFT_COMMAND, KIWIPETE, KIWIPETE_COMMAND, START_POSITION, START_POSITION_COMMAND, coordinates_to_squares, parse_fen, print_bitboard
+        BoardPosition, ENDGAME_PERFT_COMMAND, KIWIPETE_COMMAND, START_POSITION_COMMAND, coordinates_to_squares, parse_fen, print_bitboard
     };
     use std::thread;
 
