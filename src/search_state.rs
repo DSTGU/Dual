@@ -1,4 +1,4 @@
-use crate::move_gen::{is_square_attacked, make_move};
+use crate::move_gen::{is_square_attacked, make_move, take_back};
 use crate::shared::{BoardPosition, FIRST_KILLER_BONUS, MVV_LVA, Move, MoveDirection, MoveSuccess, PV_MOVE_BONUS, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
 use crate::tt::{RepetitionTable, TranspositionTable, compute_hash};
 
@@ -46,13 +46,13 @@ impl SearchState {
     pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {
         //println!("side ex1: {}", self.board_position.side);
         
-        let result = make_move(&mut self.board_position, &move_to_make, MoveDirection::Move);
+        let result = make_move(&mut self.board_position, &move_to_make);
         if result == MoveSuccess::Success {
             //println!("side ex2: {}", self.board_position.side);
             self.rep_table.push_position(&self.board_position);
         } else {
             //println!("side ex3: {}", self.board_position.side);
-            make_move(&mut self.board_position, &move_to_make, MoveDirection::TakeBack);
+            take_back(&mut self.board_position, &move_to_make);
             //self.board_position.side = 1 - self.board_position.side;
             //println!("side ex4: {}", self.board_position.side);
         }
@@ -67,10 +67,10 @@ impl SearchState {
     }
 
     pub fn take_back(&mut self, move_to_take_back: Move) {
-        let state = make_move(&mut self.board_position, &move_to_take_back, MoveDirection::TakeBack);
-        if state == MoveSuccess::Attacked {
-            panic!("TakeBack shouldn't result in illegal positions");
-        } 
+        let state = take_back(&mut self.board_position, &move_to_take_back);
+        // if state == MoveSuccess::Attacked {
+        //     panic!("TakeBack shouldn't result in illegal positions");
+        // } 
         self.rep_table.pop();
     }
 

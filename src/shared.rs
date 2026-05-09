@@ -75,17 +75,6 @@ pub struct SearchAnswer {
     pub eval: i32
 }
 
-// impl SearchAnswer {
-//     pub fn new() -> Self {
-//         Self {
-//             search_state: SearchState::new(),
-//             move_list: vec![],
-//             node_count: 0,
-//             eval: 0,
-//         }
-//     }
-// }
-
 #[derive(Clone, Copy)]
 pub struct Move {
     // pub source_square: u8,
@@ -329,14 +318,17 @@ const ASCII_PIECES: [u8; 12] = [80, 78, 66, 82, 81, 75, 112, 110, 98, 114, 113, 
           Bit manipulations
 \**********************************/
 
+#[inline(always)]
 pub fn set_bit(bitboard: &mut u64, square: usize) {
     *bitboard |= 1u64 << square;
 }
 
+#[inline(always)]
 pub fn get_bit(bitboard: u64, square: usize) -> bool {
     (bitboard & (1u64 << square)) != 0
 }
 
+#[inline(always)]
 pub fn pop_bit(bitboard: &mut u64, square: usize) { *bitboard &= !(1u64 << square); }
 
 
