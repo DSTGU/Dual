@@ -1,7 +1,7 @@
-use crate::board::BoardPosition;
+use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
 use crate::shared::{FIRST_KILLER_BONUS, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
-use crate::tt::{RepetitionTable, TranspositionTable, compute_hash};
+use crate::types::tt::{RepetitionTable, TranspositionTable, compute_hash};
 
 /// Search state structure - encapsulates all search-related state
 pub struct SearchState {
@@ -30,7 +30,7 @@ impl SearchState {
             tt_hits: 0,
         };
 
-        search_state.rep_table.push_position(&board_position);
+        search_state.rep_table.push_position(&search_state.board_position);
 
         search_state
     }

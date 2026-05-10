@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::BitAnd;
 
-use crate::board::BoardPosition;
+use crate::types::board::BoardPosition;
 
 
 pub const MVV_LVA : [usize ; 36] = [
@@ -48,13 +48,13 @@ impl Move {
     pub fn create(source_square: u64, target_square: u64, piece: Piece, promoted_piece: Piece, capture: u64, enpassant: u64, castling: u64, double_push: u64, taken_piece: Piece, old_ep_square: u64, old_castle: usize) -> Move {
         let value : u64 = (source_square) +
             (target_square << 6) +
-            ((piece.to_usize() as u64) << 12) +
-            ((promoted_piece.to_usize() as u64) << 16) +
+            ((piece as u64) << 12) +
+            ((promoted_piece as u64) << 16) +
             (capture << 20) +
             (enpassant << 21) +
             (castling << 22) +
             (double_push << 23) + 
-            ((taken_piece.to_usize() as u64) << 24) +
+            ((taken_piece as u64) << 24) +
             ((old_ep_square << 28 )) + 
             ((old_castle as u64) << 35);
         Move {mv: value}
@@ -159,6 +159,7 @@ impl fmt::Debug for Move {
 // encode pieces
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(non_camel_case_types)]
+#[repr(u8)]
 pub enum Piece { P = 0, N = 1, B = 2, R = 3, Q = 4, K = 5, p = 6, n = 7, b = 8, r = 9, q = 10, k = 11, NONE = 12}
 
 impl Piece {
@@ -180,55 +181,13 @@ impl Piece {
         }
     }
 
-    pub fn to_usize(&self) -> usize {
-        match self {
-            Piece::P => 0,
-            Piece::N => 1,
-            Piece::B => 2,
-            Piece::R => 3,
-            Piece::Q => 4,
-            Piece::K => 5,
-            Piece::p => 6,
-            Piece::n => 7,
-            Piece::b => 8,
-            Piece::r => 9,
-            Piece::q => 10,
-            Piece::k => 11,
-            Piece::NONE => 12,
-        }
-    }
-
-    pub fn white_pieces() -> [Piece; 6] {
-        [Piece::P, Piece::N, Piece::B, Piece::R, Piece::Q, Piece::K]
-    }
-
-    pub fn black_pieces() -> [Piece; 6] {
-        [Piece::p, Piece::n, Piece::b, Piece::r, Piece::q, Piece::k]
-    }
-
-    pub fn get_side(&self) -> usize {
-        match self {
-            Piece::P => 0,
-            Piece::N => 0,
-            Piece::B => 0,
-            Piece::R => 0,
-            Piece::Q => 0,
-            Piece::K => 0,
-            Piece::p => 1,
-            Piece::n => 1,
-            Piece::b => 1,
-            Piece::r => 1,
-            Piece::q => 1,
-            Piece::k => 1,
-            Piece::NONE => 2,
-        }
+    pub const fn get_side(self) -> usize {
+        self as usize / 6
     }
 }
 
 pub enum Castle { Wk = 1, Wq = 2, Bk = 4, Bq = 8 }
 
-#[derive(PartialEq, Debug)]
-pub enum MoveDirection { Move, TakeBack }
 
 #[derive(PartialEq)]
 pub enum MoveSuccess { Success, Attacked }

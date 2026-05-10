@@ -1,4 +1,4 @@
-use crate::board::BoardPosition;
+use crate::types::board::BoardPosition;
 use crate::{
     get_bit, pop_bit, Piece, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS,
 };
@@ -26,12 +26,6 @@ pub const CASTLING_RIGHTS: [u8; 64] = [
 // Pre-computed target squares for castling rook moves (source, target).
 // Index: 0 = white kingside, 1 = white queenside, 2 = black kingside, 3 = black queenside.
 // h1=63, f1=61, a1=56, d1=59, h8=7, f8=5, a8=0, d8=3
-const CASTLING_ROOK_MOVES: [(usize, usize); 4] = [
-    (63, 61), // White O-O:   h1 -> f1
-    (56, 59), // White O-O-O: a1 -> d1
-    (7, 5),   // Black O-O:   h8 -> f8
-    (0, 3),   // Black O-O-O: a8 -> d8
-];
 
 // ---------------------------------------------------------------------------
 // is_square_attacked
@@ -497,13 +491,12 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
 
 #[cfg(test)]
 mod tests {
-    use crate::board::BoardPosition;
-use crate::gui::parse_position;
-use crate::move_gen::{generate_moves, is_square_attacked};
+    use crate::types::board::BoardPosition;
+    use crate::gui::parse_position;
+    use crate::move_gen::{generate_moves, is_square_attacked};
     use crate::perft::perft_driver;
-    use crate::search_state::SearchState;
-use crate::shared::{ENDGAME_PERFT_COMMAND, KIWIPETE_COMMAND, MoveSuccess, START_POSITION_COMMAND, coordinates_to_squares, parse_fen, print_bitboard
-    };
+    use crate::types::search_state::SearchState;
+    use crate::shared::{ENDGAME_PERFT_COMMAND, KIWIPETE_COMMAND, MoveSuccess, START_POSITION_COMMAND, coordinates_to_squares, parse_fen, print_bitboard};
     use std::thread;
 
     pub fn run_through_attacks(board_position: &BoardPosition) -> u64 {

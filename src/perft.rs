@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 use crate::move_gen::{generate_moves};
-use crate::search_state::{SearchState};
+use crate::types::search_state::{SearchState};
 use crate::shared::{MoveSuccess};
 
 pub fn perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
@@ -37,6 +37,7 @@ pub fn perft(search_state: &mut SearchState, depth: usize) {
     if depth == 0 {
         return;
     }
+
     let now = SystemTime::now();
     let movelist = generate_moves(&search_state.board_position);
 

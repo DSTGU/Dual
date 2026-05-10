@@ -4,7 +4,7 @@ use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, 
 #[allow(non_camel_case_types)]
 #[allow(unused_variables)]
 #[allow(non_upper_case_globals)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BoardPosition {
     pub bitboards: [u64; 12],
     pub occupancies: [u64; 3],
@@ -32,16 +32,17 @@ impl BoardPosition {
     pub fn remove_piece(&mut self, square: usize, piece: Piece) {
         self.mailbox[square] = Piece::NONE;
         pop_bit(&mut self.occupancies[piece.get_side()], square);
-        pop_bit(&mut self.bitboards[piece.to_usize()], square);
+        pop_bit(&mut self.bitboards[piece as usize], square);
     }
 
     pub fn add_piece(&mut self, square: usize, piece: Piece) {
         self.mailbox[square] = piece;
         set_bit(&mut self.occupancies[piece.get_side()], square);
-        set_bit(&mut self.bitboards[piece.to_usize()], square);
+        set_bit(&mut self.bitboards[piece as usize], square);
     }
 
-    pub fn find_capture_at_square(self, square: usize) -> Piece {
+    #[inline(always)]
+    pub fn find_capture_at_square(&self, square: usize) -> Piece {
         self.mailbox[square]
     }
 
@@ -50,8 +51,6 @@ impl BoardPosition {
     pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {
         // println!("{:?}, direction {:?}", move_to_make, move_direction);
 
-        let our_side = self.side;
-        let opp_side = 1-self.side;
         let source = move_to_make.get_source_square() as usize;
         let target = move_to_make.get_target_square() as usize;
         
@@ -85,15 +84,13 @@ impl BoardPosition {
         // Handle en passant: remove the captured pawn (which is on a different
         // square from the target).
         if is_enpassant {
-            let ep_sq = if our_side == 0 {
+            let ep_sq = if self.side == 0 {
                 target + 8
             } else {
                 target - 8
             };
 
-            let ep_bb = 1u64 << ep_sq;
-
-            let pawn = if our_side == 0 {
+            let pawn = if self.side == 0 {
                 Piece::p
             } else {
                 Piece::P
@@ -106,7 +103,7 @@ impl BoardPosition {
         self.enpassant = 64;
 
         if is_double_push {
-            self.enpassant = if our_side == 0 {
+            self.enpassant = if self.side == 0 {
                 target + 8
             } else {
                 target - 8
@@ -136,7 +133,7 @@ impl BoardPosition {
 
         // Find the king of the side that just moved to check for legality.
         let king_sq =
-            self.bitboards[KING_INDEX[our_side]].trailing_zeros() as usize;
+            self.bitboards[KING_INDEX[self.side]].trailing_zeros() as usize;
 
         if is_square_attacked(king_sq, &self) {
             self.side = 1 - self.side;
@@ -180,7 +177,7 @@ impl BoardPosition {
         // Handle en passant: remove the captured pawn (which is on a different
         // square from the target).
         if is_enpassant {
-            if piece.to_usize() < 6 {
+            if (piece as usize) < 6 {
                 // White pawn captured a black pawn on the rank below target.
                 self.add_piece(target+8, Piece::p);
 
@@ -221,7 +218,7 @@ impl BoardPosition {
 
 
     // print board
-    pub fn format_board(self) -> String
+    pub fn format_board(&self) -> String
     {
         let mut output = "\n".to_owned();
 
@@ -302,7 +299,7 @@ impl BoardPosition {
         output
     }
 
-    pub fn print_board(self) {
+    pub fn print_board(&self) {
         println!("{}", self.format_board());
     }
 

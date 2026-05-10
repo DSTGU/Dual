@@ -1,8 +1,8 @@
-use crate::board::BoardPosition;
+use crate::types::board::BoardPosition;
 use crate::move_gen::{generate_moves};
 use crate::perft::perft;
 use crate::search::{search};
-use crate::search_state::SearchState;
+use crate::types::search_state::SearchState;
 use crate::shared::{KIWIPETE, Move, START_POSITION, coordinates_to_squares, parse_fen};
 use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
 
@@ -69,7 +69,7 @@ pub fn parse_position(command: &str) -> SearchState {
             let pos = parse_fen(KIWIPETE);
             let mut search_state = SearchState::new(pos);
             for &i in words[2..].iter() {
-                let mov = parse_move(&pos, i);
+                let mov = parse_move(&search_state.board_position, i);
                 if let Some(x) = mov {
                     search_state.make_move(x);
                 }

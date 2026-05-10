@@ -2,7 +2,7 @@ use std::{vec};
 use std::time::SystemTime;
 use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves};
-use crate::search_state::SearchState;
+use crate::types::search_state::SearchState;
 use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, SearchAnswer, move_to_alg};
 
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
