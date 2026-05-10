@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves};
 use crate::types::search_state::SearchState;
-use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, SearchAnswer, move_to_alg};
+use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
 
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
@@ -36,23 +36,21 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     let mut nodes = 1;
 
     for mv in filtered_move_list {
-        let nbp_option = search_state.board_position.make_move(mv);
+        let move_result = search_state.make_move(mv);
+        
+        if move_result == MoveSuccess::Success {
+            let res = quiescence(search_state, -beta, -new_alpha, ply + 1);
+            search_state.take_back(mv);
+            nodes += res.node_count;
 
-        // if let Some(nbp) = nbp_option {
-        //     let original_position = search_state.get_board_position();
-        //     search_state.make_move_for_state(nbp);
-        //     let res = quiescence(search_state, -beta, -new_alpha, ply + 1);
-        //     search_state.take_back_for_state(original_position);
-        //     nodes += res.node_count;
+            if -res.eval >= beta {
+                return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
+            }
 
-        //     if -res.eval >= beta {
-        //         return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
-        //     }
-
-        //     if -res.eval > new_alpha {
-        //         new_alpha = -res.eval;
-        //     }
-        // }
+            if -res.eval > new_alpha {
+                new_alpha = -res.eval;
+            }
+        }
     }
 
     return SearchAnswer { move_list: vec![], node_count: nodes, eval: new_alpha };
@@ -89,39 +87,37 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
     #[allow(non_snake_case, unused_variables)]
     let mut is_PV_node = false;
 
-    for (_idx, mv) in move_list.iter().enumerate() {
+    for &mv in move_list.iter() {
 
-        let nbp_option = search_state.board_position.make_move( *mv);
+        let move_result = search_state.make_move( mv);
 
-        // if let Some(nbp) = nbp_option {
-        //     legal_moves += 1;
-        //     let _newdepth = depth-1;
+        if move_result == MoveSuccess::Success {
+            legal_moves += 1;
+            let _newdepth = depth-1;
             
-        //     let original_position = search_state.get_board_position();
-        //     search_state.make_move_for_state(nbp);
-        //     let res = negamax(&mut search_state, -beta, -new_alpha, depth-1);
-        //     search_state.take_back_for_state(original_position);
-        //     nodes += res.node_count;
+            let res = negamax(&mut search_state, -beta, -new_alpha, depth-1);
+            search_state.take_back(mv);
+            nodes += res.node_count;
             
 
-        //     if -res.eval >= beta {                
-        //         if mv.get_capture() == false {
-        //             search_state.update_killer_move(mv, search_state.max_depth-depth);
-        //         }
-        //         return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
-        //     }
+            if -res.eval >= beta {                
+                if mv.is_capture() == false {
+                    search_state.update_killer_move(mv, search_state.max_depth-depth);
+                }
+                return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
+            }
 
-        //     if -res.eval > new_alpha {
-        //         if mv.get_capture() == false {
-        //             search_state.update_history(mv, depth);
-        //         }
+            if -res.eval > new_alpha {
+                if mv.is_capture() == false {
+                    search_state.update_history(mv, depth);
+                }
                 
-        //         new_alpha = -res.eval;
-        //         best_move = Some(*mv);
-        //         best_move_list = res.move_list;
-        //         is_PV_node = true;
-        //     }
-        // }
+                new_alpha = -res.eval;
+                best_move = Some(mv);
+                best_move_list = res.move_list;
+                is_PV_node = true;
+            }
+        }
     }
     
     if legal_moves == 0 {
