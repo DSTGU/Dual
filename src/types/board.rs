@@ -14,7 +14,7 @@ pub struct BoardPosition {
     pub side: usize, // 0 - W, 1 - B, 2 - Default - none
 
     // en passant square
-    pub enpassant: usize, // Number of square
+    pub enpassant: u8, // Number of square
 
     // castling rights
     pub castle: usize
@@ -30,6 +30,9 @@ pub struct BoardPosition {
 impl BoardPosition {
 
     pub fn remove_piece(&mut self, square: usize, piece: Piece) {
+        debug_assert!(self.mailbox[square] == piece);
+        debug_assert!(get_bit(self.bitboards[piece as usize], square));
+
         self.mailbox[square] = Piece::NONE;
         pop_bit(&mut self.occupancies[piece.get_side()], square);
         pop_bit(&mut self.bitboards[piece as usize], square);
@@ -55,30 +58,24 @@ impl BoardPosition {
         let target = move_to_make.get_target_square() as usize;
         
         let piece = self.mailbox[source];
-        let is_capture = move_to_make.get_capture();
-        let is_enpassant = move_to_make.get_enpassant();
+        let is_capture = move_to_make.is_capture();
+        let is_enpassant = move_to_make.is_enpassant();
         let is_castling = move_to_make.get_castling();
         let is_double_push = move_to_make.get_double_pawn_push();
-        let promoted = move_to_make.get_promoted_piece();
-
-        if piece == Piece::NONE || (move_to_make.get_taken_piece() == Piece::NONE && is_capture && !is_enpassant) {
-            self.print_board();
-            println!("Will oob eventually");
-        }
+        let promoted = move_to_make.is_promotion();
 
         // Handle captures: 
         if is_capture && !is_enpassant {
             self.remove_piece(target, self.mailbox[target]);
         }
 
-        // Move the piece: clear source, set target
         self.remove_piece(source, piece);
         self.add_piece(target, piece);
 
         // Handle promotion: replace the pawn with the promoted piece.
-        if promoted != Piece::NONE {
+        if promoted {
             self.remove_piece(target, piece);
-            self.add_piece(target, promoted);
+            self.add_piece(target, move_to_make.get_promoted_piece(self.side != 0));
         }
 
         // Handle en passant: remove the captured pawn (which is on a different
@@ -100,13 +97,13 @@ impl BoardPosition {
         }
 
         // Reset en passant square; set it again if this was a double pawn push.
-        self.enpassant = 64;
+        self.enpassant = 0;
 
         if is_double_push {
             self.enpassant = if self.side == 0 {
-                target + 8
+                target as u8 + 8
             } else {
-                target - 8
+                target as u8 - 8
             };
         }
 
@@ -133,7 +130,7 @@ impl BoardPosition {
 
         // Find the king of the side that just moved to check for legality.
         let king_sq =
-            self.bitboards[KING_INDEX[self.side]].trailing_zeros() as usize;
+            self.bitboards[KING_INDEX[self.side]].trailing_zeros() as u8;
 
         if is_square_attacked(king_sq, &self) {
             self.side = 1 - self.side;
@@ -152,18 +149,25 @@ impl BoardPosition {
     pub fn take_back(&mut self, move_to_make: Move) -> MoveSuccess {
 
         self.side = 1 - self.side;
-        let piece = move_to_make.get_piece();
         let source = move_to_make.get_source_square() as usize;
         let target = move_to_make.get_target_square() as usize;
-        let is_capture = move_to_make.get_capture();
-        let is_enpassant = move_to_make.get_enpassant();
-        let is_castling = move_to_make.get_castling();
-        let promoted = move_to_make.get_promoted_piece();
+        let piece = self.mailbox[target];
+        let is_capture = move_to_make.is_capture();
+        let is_enpassant = move_to_make.is_enpassant();
+        let is_castling: bool = move_to_make.get_castling();
+        let promoted = move_to_make.get_promoted_piece(self.side != 0);
         let taken_piece = move_to_make.get_taken_piece();
 
-        if promoted != Piece::NONE {
+        // if source == 27 && target == 19 || self.mailbox[59] == Piece::K {
+        //     println!("Move to take back:");
+        //     println!("{:?}", move_to_make);
+        //     self.print_board();
+        // }
+
+        if move_to_make.is_promotion() {
             self.remove_piece(target, promoted);
-            self.add_piece(source, piece);
+            let pawn = if self.side == 0 {Piece::P} else {Piece::p};
+            self.add_piece(source,  pawn);
         } else {
             // Normal move
             self.remove_piece(target, piece);
@@ -188,7 +192,7 @@ impl BoardPosition {
         }
 
         // Reset en passant square
-        self.enpassant = move_to_make.get_old_ep_square() as usize;
+        self.enpassant = move_to_make.get_old_ep_square();
 
         // Handle castling: move the rook.
         if is_castling {
@@ -207,11 +211,7 @@ impl BoardPosition {
         self.castle = move_to_make.get_old_castle();
 
         // Recompute occupancies.
-        //board.occupancies[0] = board.bitboards[0..6].iter().fold(0, |acc, &b| acc | b);
-        //board.occupancies[1] = board.bitboards[6..12].iter().fold(0, |acc, &b| acc | b);
         self.occupancies[2] = self.occupancies[0] | self.occupancies[1];
-
-
 
         MoveSuccess::Success
     }
@@ -270,9 +270,8 @@ impl BoardPosition {
         }
 
         match self.enpassant {
-            64 => output = output + "Enpassant not available\n",
-            65 => output = output + "Enpassant not available\n",
-            _ =>  output = output + &format!("Enpassant: {}\n", SQUARE_TO_COORDINATES[self.enpassant]),
+            0 => output = output + "Enpassant not available\n",
+            _ =>  output = output + &format!("Enpassant: {}\n", SQUARE_TO_COORDINATES[self.enpassant as usize]),
         }
 
 

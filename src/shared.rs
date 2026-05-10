@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, mem};
 use std::ops::BitAnd;
 
 use crate::types::board::BoardPosition;
@@ -31,107 +31,135 @@ pub struct SearchAnswer {
     pub eval: i32
 }
 
-#[derive(Clone, Copy)]
-pub struct Move {
-    // pub source_square: u8,
-    // pub target_square: u8,
-    // pub piece: Piece,
-    // pub promoted_piece: Piece,
-    // pub capture: bool,
-    // pub enpassant: bool,
-    // pub castling: bool,
-    // pub double_push: bool
-    pub mv: u64
+#[derive(Clone, Copy, PartialEq)]
+pub enum MoveCode {
+    QuietMove = 0,
+    DoublePush = 1,
+    KingCastle = 2,
+    QueenCastle = 3,
+    Capture = 4,
+    EnPassant = 5,
+    KnightPromotion = 8,
+    BishopPromotion = 9,
+    RookPromotion = 10,
+    QueenPromotion = 11,
+    KnightPromotionCapture = 12,
+    BishopPromotionCapture = 13,
+    RookPromotionCapture = 14,
+    QueenPromotionCapture = 15,
 }
 
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct Move(u32);
+
 impl Move {
-    pub fn create(source_square: u64, target_square: u64, piece: Piece, promoted_piece: Piece, capture: u64, enpassant: u64, castling: u64, double_push: u64, taken_piece: Piece, old_ep_square: u64, old_castle: usize) -> Move {
-        let value : u64 = (source_square) +
-            (target_square << 6) +
-            ((piece as u64) << 12) +
-            ((promoted_piece as u64) << 16) +
-            (capture << 20) +
-            (enpassant << 21) +
-            (castling << 22) +
-            (double_push << 23) + 
-            ((taken_piece as u64) << 24) +
-            ((old_ep_square << 28 )) + 
-            ((old_castle as u64) << 35);
-        Move {mv: value}
+    pub fn create(
+        source_square: u8,
+        target_square: u8,
+        move_code : MoveCode,
+        old_ep_square: u8,
+        old_castle: usize,
+        taken_piece: Piece,
+    ) -> Move {
+        let value: u32 =
+            (source_square as u32) // 6 bits
+            | ((target_square as u32) << 6) // 6 bits
+            | ((move_code as u32) << 12) // 4 bits
+            | ((old_ep_square as u32) << 16) // 6 bits
+            | ((old_castle as u32) << 22) // 4 bits
+            | ((taken_piece as u32) << 26); // 4 bits
+        Move(value)
     }
 
-    pub fn get_source_square(self: &Move) -> u64 {
-        self.mv & 0x3f
+    pub fn create_null() -> Move {
+        Move(0)
     }
 
-    pub fn get_target_square(self: &Move) -> u64 {
-        (self.mv & 0xfc0) >> 6
+    pub fn get_source_square(self) -> u8 {
+        (self.0 & 0x3f) as u8
     }
 
-    pub fn get_piece(self: &Move) -> Piece {
-        Piece::new((self.mv as usize & 0xf000) >> 12)
+    pub fn get_target_square(self) -> u8 {
+        (self.0 >> 6) as u8 & 0x3f
     }
 
-    pub fn get_promoted_piece_idx(self: &Move) -> u64 {
-        (self.mv & 0xf0000) >> 16
+    pub fn get_move_code(self) -> MoveCode {
+        unsafe { mem::transmute(((self.0 >> 12) & 0xf) as u8 ) }
     }
 
-    pub fn get_promoted_piece(self: &Move) -> Piece {
-        Piece::new((self.mv as usize & 0xf0000) >> 16)
+    // pub fn get_promoted_piece_idx(self, side: bool) -> u8 {
+    //     if !self.is_promotion() {
+    //         return 12; // Piece::None index
+    //     }        
+        
+    //     6*(side as u8) + (self.0 >> 12) as u8 & 0x3 + 1 as u8
+    // }
+
+    pub fn get_promoted_piece_idx(self, side:bool) -> u8 {
+        if !self.is_promotion() {
+            return 12; // Piece::None index
+        }        
+
+        let promo_idx = ((self.0 >> 12) & 0x3) as u8;
+        6 * (side as u8) + promo_idx + 1   
     }
 
-    pub fn get_capture(self: &Move) -> bool {
-        if self.mv & 0x100000 > 0 {
-            return true;
-        }
-        false
+    pub fn get_promoted_piece(self, side: bool) -> Piece {
+        Piece::new(self.get_promoted_piece_idx(side) as usize)
     }
 
-    pub fn get_enpassant(self: &Move) -> bool {
-        if self.mv & 0x200000 > 0 {
-            return true;
-        }
-        false
+    pub fn is_capture(self) -> bool {
+        (self.0 >> 14) & 1 != 0
     }
 
-    pub fn get_castling(self: &Move) -> bool {
-        if self.mv & 0x400000 > 0 {
-            return true;
-        }
-        false
+    pub fn is_promotion(self) -> bool {
+        (self.0 >> 15) & 1 != 0
     }
 
-    pub fn get_double_pawn_push(self: &Move) -> bool {
-        if self.mv & 0x800000 > 0 {
-            return true;
-        }
-        false
+    pub fn is_enpassant(self) -> bool {
+        MoveCode::EnPassant == self.get_move_code()
     }
 
-    pub fn get_taken_piece(self: &Move) -> Piece {
-        Piece::new((self.mv as usize & 0xF000000) >> 24)
+    // pub fn get_castling(self) -> bool {
+    //     (self.0 >> 13) & 5 == 1
+    // }
+ 
+    pub fn get_castling(self) -> bool {
+        matches!(
+            self.get_move_code(),
+            MoveCode::KingCastle | MoveCode::QueenCastle
+        )
     }
 
-    pub fn get_old_ep_square(self: &Move) -> u64 {
-        (self.mv >> 28) & 0x7F
+    pub fn get_double_pawn_push(self) -> bool {
+        MoveCode::DoublePush == self.get_move_code()
     }
 
-    pub fn get_old_castle(self: &Move) -> usize {
-        ((self.mv >> 35) & 0xF) as usize
+    pub fn get_old_ep_square(self) -> u8 {
+        ((self.0 >> 16) & 0x3F) as u8
+    }
+
+    pub fn get_old_castle(self) -> usize {
+        ((self.0 >> 22) & 0xF) as usize
+    }
+
+    pub fn get_taken_piece(self) -> Piece {
+        Piece::new((self.0 >> 26) as usize & 0xF)
     }
  
 }
 
 pub fn move_to_alg(mv: &Move) -> String {
-    match mv.get_promoted_piece_idx() {
+    match mv.get_promoted_piece_idx(false) { // white
         4 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
-        10 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        //10 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         1 => format!("{}{}n", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
-        7 => format!("{}{}n", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        //7 => format!("{}{}n", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         3 => format!("{}{}r", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
-        9 => format!("{}{}r", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        //9 => format!("{}{}r", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         2 => format!("{}{}b", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
-        8 => format!("{}{}b", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        //8 => format!("{}{}b", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         _ => format!("{}{}", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize])
     }
 }
@@ -140,13 +168,13 @@ impl fmt::Debug for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Move {{ {}-{}: {:?}, P={:?}{}{}{}{} oep: {}, oc:{} }}",
+            "Move {{ {}({})-{}({}): P={:?}{}{}{} oep: {}, oc:{} }}",
             SQUARE_TO_COORDINATES[self.get_source_square() as usize],
+            self.get_source_square(),
             SQUARE_TO_COORDINATES[self.get_target_square() as usize],
-            self.get_piece(),
-            self.get_promoted_piece(),
-            if self.get_capture() { &format!("+ taken:{:?}", self.get_taken_piece()) } else { "" },
-            if self.get_enpassant() { " EP" } else { "" },
+            self.get_target_square(),
+            self.get_promoted_piece(false),
+            if self.is_enpassant() { " EP" } else { "" },
             if self.get_castling() { " O-O" } else { "" },
             if self.get_double_pawn_push() { " dblPP" } else { "" },
             self.get_old_ep_square(),
@@ -214,8 +242,8 @@ pub const SQUARE_TO_COORDINATES: [&str; 64] = [
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 ];
 
-pub fn coordinates_to_squares(coordinatestr: &str) -> usize {
-    let mut val: usize  = 0;
+pub fn coordinates_to_squares(coordinatestr: &str) -> u8 {
+    let mut val  = 0;
     let mut chars = coordinatestr.chars();
     let first = chars.next().unwrap();
     let second = chars.next().unwrap();
@@ -232,11 +260,11 @@ pub fn coordinates_to_squares(coordinatestr: &str) -> usize {
             'h' => val += 7,
             _ => return 65
         }
-        val = val + 56 - ((second.to_digit(10).unwrap() as i32 - 1) * 8) as usize;
+        val = val + 56 - ((second.to_digit(10).unwrap() as i32 - 1) * 8);
 
     }
     
-    val
+    val as u8
 }
 
 pub const ASCII_PIECES: [u8; 12] = [80, 78, 66, 82, 81, 75, 112, 110, 98, 114, 113, 107];
@@ -340,7 +368,7 @@ pub fn parse_fen(fen: &str) -> BoardPosition {
         occupancies: [0; 3],
         mailbox: [Piece::NONE; 64],
         side: 2,
-        enpassant: 64,
+        enpassant: 0,
         castle: 0,
     };
 
@@ -422,7 +450,7 @@ pub fn parse_fen(fen: &str) -> BoardPosition {
                 }
             };
 
-            board_position.enpassant = rank * 8 + file;
+            board_position.enpassant = (rank * 8 + file) as u8;
         }
     }
 
@@ -442,34 +470,83 @@ pub fn parse_fen(fen: &str) -> BoardPosition {
 
 #[cfg(test)]
 mod tests {
-    use crate::shared::{Move, Piece};
+    use crate::shared::{Move, MoveCode, Piece};
 
     #[test]
-    fn move_constructor_test() {
+    fn move_constructor_test_promotion() {
         let source = 11;
         let target = 27;
-        let piece = Piece::R;
-        let promoted = Piece::q;
-        let capture = 0;
-        let enpassant = 1;
-        let castling = 1;
-        let double_push = 1;
-        let taken_piece = Piece::k;
+        let promoted = Piece::Q;
+        let capture = 1;
+        let enpassant = 0;
+        let castling = 0;
+        let double_pawn_push = 0;
         let old_ep_square = 37;
         let old_castle = 11;
+        let taken = Piece::r;
 
-        let move_to_test = Move::create(source, target, piece, promoted, capture, enpassant, castling, double_push, taken_piece, old_ep_square, old_castle);
+
+        let move_to_test = Move::create(source, target, MoveCode::QueenPromotionCapture, old_ep_square, old_castle, taken);
         assert_eq!(move_to_test.get_source_square(), source);
         assert_eq!(move_to_test.get_target_square(), target);
-        assert_eq!(move_to_test.get_piece(), piece);
-        assert_eq!(move_to_test.get_promoted_piece(), promoted);
-        assert_eq!(move_to_test.get_capture(), capture != 0);
-        assert_eq!(move_to_test.get_enpassant(), enpassant != 0);
+        assert_eq!(move_to_test.get_promoted_piece(false), promoted);
+        assert_eq!(move_to_test.is_capture(), capture != 0);
+        assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
         assert_eq!(move_to_test.get_castling(), castling != 0);
-        assert_eq!(move_to_test.get_double_pawn_push(), castling != 0);
-        assert_eq!(move_to_test.get_taken_piece(), taken_piece);
+        assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
         assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
         assert_eq!(move_to_test.get_old_castle(), old_castle);
+    }
 
+    #[test]
+    fn move_constructor_test_castling() {
+        let source = 4;
+        let target = 6;
+        let promoted = Piece::NONE;
+        let capture = 0;
+        let enpassant = 0;
+        let castling = 1;
+        let double_pawn_push = 0;
+        let old_ep_square = 37;
+        let old_castle = 15;
+        let taken = Piece::NONE;
+
+
+        let move_to_test = Move::create(source, target, MoveCode::KingCastle, old_ep_square, old_castle, taken);
+        assert_eq!(move_to_test.get_source_square(), source);
+        assert_eq!(move_to_test.get_target_square(), target);
+        assert_eq!(move_to_test.get_promoted_piece(false), promoted);
+        assert_eq!(move_to_test.is_capture(), capture != 0);
+        assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
+        assert_eq!(move_to_test.get_castling(), castling != 0);
+        assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
+        assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
+        assert_eq!(move_to_test.get_old_castle(), old_castle);
+    }
+
+    #[test]
+    fn move_constructor_test_enpassant() {
+        let source = 24;
+        let target = 16;
+        let promoted = Piece::NONE;
+        let capture = 1;
+        let enpassant = 1;
+        let castling = 0;
+        let double_pawn_push = 0;
+        let old_ep_square = 37;
+        let old_castle = 15;
+        let taken = Piece::NONE;
+
+
+        let move_to_test = Move::create(source, target, MoveCode::EnPassant, old_ep_square, old_castle, taken);
+        assert_eq!(move_to_test.get_source_square(), source);
+        assert_eq!(move_to_test.get_target_square(), target);
+        assert_eq!(move_to_test.get_promoted_piece(false), promoted);
+        assert_eq!(move_to_test.is_capture(), capture != 0);
+        assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
+        assert_eq!(move_to_test.get_castling(), castling != 0);
+        assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
+        assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
+        assert_eq!(move_to_test.get_old_castle(), old_castle);
     }
 }

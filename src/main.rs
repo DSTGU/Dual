@@ -75,7 +75,6 @@ pub fn uci_loop() {
             "printboard" => search_state.board_position.print_board(),
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
-            "rw" => print_bitboard(get_bishop_attacks(coordinates_to_squares("b3"),0)),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
         }

@@ -12,7 +12,7 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 
     let src = coordinates_to_squares(&move_to_parse[0..2]);
     let target = coordinates_to_squares(&move_to_parse[2..4]);
-    let mut legal_moves : Vec<Move> = legal_moves.into_iter().filter(|x| x.get_source_square() == src as u64 && x.get_target_square() == target as u64).collect();
+    let mut legal_moves : Vec<Move> = legal_moves.into_iter().filter(|x| x.get_source_square() == src && x.get_target_square() == target).collect();
 
     if legal_moves.len() < 2 {
         if legal_moves.len() == 0 {
@@ -25,10 +25,10 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
     let ch = char.as_str();
 
     match ch {
-        "q" => legal_moves.into_iter().filter(|x| x.get_promoted_piece() == Q || x.get_promoted_piece() == q).collect::<Vec<Move>>().pop(),
-        "n" => legal_moves.into_iter().filter(|x| x.get_promoted_piece() == N || x.get_promoted_piece() == n).collect::<Vec<Move>>().pop(),
-        "b" => legal_moves.into_iter().filter(|x| x.get_promoted_piece() == b || x.get_promoted_piece() == B).collect::<Vec<Move>>().pop(),
-        "r" => legal_moves.into_iter().filter(|x| x.get_promoted_piece() == R || x.get_promoted_piece() == r).collect::<Vec<Move>>().pop(),
+        "q" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(false) == Q).collect::<Vec<Move>>().pop(),
+        "n" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(false) == N).collect::<Vec<Move>>().pop(),
+        "b" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(false) == B).collect::<Vec<Move>>().pop(),
+        "r" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(false) == R).collect::<Vec<Move>>().pop(),
         _ => legal_moves.pop()
     }
 }

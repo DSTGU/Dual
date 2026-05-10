@@ -26,10 +26,10 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     }
 
     let move_list = generate_moves(&search_state.board_position);
-    let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.get_capture() == true).collect();
+    let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.is_capture() == true).collect();
     filtered_move_list.sort_by(|a, b| {
-        let score_a = search_state.get_move_score(a, search_state.max_depth + ply);
-        let score_b = search_state.get_move_score(b, search_state.max_depth + ply);
+        let score_a = search_state.get_move_score(*a, search_state.max_depth + ply);
+        let score_b = search_state.get_move_score(*b, search_state.max_depth + ply);
         score_b.cmp(&score_a)
     });
 
@@ -73,8 +73,8 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
 
     let mut move_list = generate_moves(&search_state.board_position);
     move_list.sort_by(|a, b| {
-        let score_a = search_state.get_move_score(a, search_state.max_depth - depth);
-        let score_b = search_state.get_move_score(b, search_state.max_depth - depth);
+        let score_a = search_state.get_move_score(*a, search_state.max_depth - depth);
+        let score_b = search_state.get_move_score(*b, search_state.max_depth - depth);
         score_b.cmp(&score_a)
     });
     

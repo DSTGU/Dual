@@ -112,9 +112,9 @@ pub fn compute_hash(board: &BoardPosition) -> u64 {
     }
 
     // Hash en passant
-    if board.enpassant < 64 {
+    if board.enpassant != 0 {
         let file = board.enpassant % 8;
-        hash ^= keys.enpassant_keys[file];
+        hash ^= keys.enpassant_keys[file as usize];
     }
 
     hash
