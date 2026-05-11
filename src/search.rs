@@ -191,21 +191,9 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
 
         search_state.reset_for_new_search(depth.unwrap(), Move::create_null());        
         
-        let mut score = single_depth_search(&mut search_state, depth.unwrap());
+        let score = single_depth_search(&mut search_state, depth.unwrap());
 
-        println!("{:?}", score);
-
-        let pv = collect_pv(&score.move_list);
-
-        if score.eval > 4000000 || score.eval < -4000000 {
-
-            let mate = score_to_mate( score.eval, depth.unwrap());
-            println!("info score mate {} depth {} nodes {} pv {}", mate, depth.unwrap(), score.node_count, pv);
-        }
-        else {
-            println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth.unwrap(), score.node_count, pv);
-        }
-        println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
+        print_info_string(&score, depth.unwrap());
 
     } else {
         let now = SystemTime::now();
@@ -220,23 +208,17 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
         search_state.reset_for_new_search(MIN_DEPTH, Move::create_null());
 
         let mut score = single_depth_search(search_state, MIN_DEPTH);
+        
+        print_info_string(&score, MIN_DEPTH);
+        
         let mut depth = MIN_DEPTH + 1;
-        search_state.reset_for_new_search(depth, score.move_list.pop().unwrap().unwrap());        
+        search_state.reset_for_new_search(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
 
         while now.elapsed().unwrap().as_millis() < time_avail as u128 {
         
             score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
             
-
-            let pv: String = collect_pv(&score.move_list);
-
-            if score.eval > 4000000 || score.eval < -4000000 {
-                let mate = score_to_mate( score.eval, depth);
-                println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.node_count, pv);
-            }
-            else {
-                println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth, score.node_count, pv);
-            }
+            print_info_string(&score, depth);
             
             depth = depth + 1;
             
@@ -248,6 +230,18 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
         
     }
     
+}
+
+pub fn print_info_string(score: &SearchAnswer, depth: usize) {
+    let pv: String = collect_pv(&score.move_list);
+
+    if score.eval > 4000000 || score.eval < -4000000 {
+        let mate = score_to_mate( score.eval, depth);
+        println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.node_count, pv);
+    }
+    else {
+        println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth, score.node_count, pv);
+    }
 }
 
 
