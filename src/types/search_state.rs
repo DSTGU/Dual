@@ -1,6 +1,6 @@
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
-use crate::shared::{FIRST_KILLER_BONUS, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION, get_bit, parse_fen};
+use crate::shared::{FIRST_KILLER_BONUS, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION, parse_fen};
 use crate::types::tt::{RepetitionTable, TranspositionTable, compute_hash};
 
 /// Search state structure - encapsulates all search-related state

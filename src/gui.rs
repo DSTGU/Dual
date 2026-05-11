@@ -4,7 +4,7 @@ use crate::perft::perft;
 use crate::search::{search};
 use crate::types::search_state::SearchState;
 use crate::shared::{KIWIPETE, Move, START_POSITION, coordinates_to_squares, parse_fen};
-use crate::shared::Piece::{b, n, q, r, B, N, Q, R};
+use crate::shared::Piece::{B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 

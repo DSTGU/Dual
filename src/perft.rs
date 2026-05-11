@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 use crate::move_gen::{generate_moves};
 use crate::types::search_state::{SearchState};
-use crate::shared::{MoveSuccess, Piece};
+use crate::shared::{MoveSuccess};
 
 pub fn perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
 
@@ -192,7 +192,7 @@ use crate::{gui::parse_position, move_gen::generate_moves, perft::perft_driver, 
             .spawn(|| {
                 // These are the expected perft results for each depth from startpos
                 let mut board_pos = parse_position(KIWIPETE_COMMAND);
-                let mut clone_board = board_pos.board_position.clone();
+                let clone_board = board_pos.board_position.clone();
                 test_perft_driver_copy_make(&mut board_pos, 4);
                 assert_eq!(board_pos.board_position, clone_board);
             })
