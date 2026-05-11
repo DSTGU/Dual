@@ -3,7 +3,7 @@ use crate::move_gen::{generate_moves};
 use crate::perft::perft;
 use crate::search::{search};
 use crate::types::search_state::SearchState;
-use crate::shared::{KIWIPETE, Move, START_POSITION, coordinates_to_squares, parse_fen};
+use crate::shared::{KIWIPETE, Move, START_POSITION, coordinates_to_squares};
 use crate::shared::Piece::{B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
@@ -37,12 +37,12 @@ pub fn parse_position(command: &str) -> SearchState {
     let words : Vec<&str> = command.trim().split(" ").collect();
 
     if words.len() < 2 {
-        return SearchState::new(parse_fen(START_POSITION));
+        return SearchState::new(BoardPosition::new(START_POSITION));
     }
 
     match words[1] {
         "fen" => {
-            let pos = parse_fen(&command[13..]);
+            let pos = BoardPosition::new(&command[13..]);
             let mut search_state = SearchState::new(pos);
             if words.len() > 8 {
                 for &i in words[9..].iter() {
@@ -55,7 +55,7 @@ pub fn parse_position(command: &str) -> SearchState {
             search_state
         },
         "startpos" => {
-            let pos = parse_fen(START_POSITION);
+            let pos = BoardPosition::new(START_POSITION);
             let mut search_state = SearchState::new(pos);
             for &i in words[2..].iter() {
                 let mov = parse_move(&search_state.board_position, i);
@@ -66,7 +66,7 @@ pub fn parse_position(command: &str) -> SearchState {
             search_state
         },
         "kiwipete" => {
-            let pos = parse_fen(KIWIPETE);
+            let pos = BoardPosition::new(KIWIPETE);
             let mut search_state = SearchState::new(pos);
             for &i in words[2..].iter() {
                 let mov = parse_move(&search_state.board_position, i);
@@ -77,7 +77,7 @@ pub fn parse_position(command: &str) -> SearchState {
             search_state
         }
 
-        _ => SearchState::new(parse_fen(START_POSITION))
+        _ => SearchState::new(BoardPosition::new(START_POSITION))
     }
 
 }
@@ -119,7 +119,8 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
 #[cfg(test)]
 mod tests {
     use crate::gui::{parse_go, parse_position};
-    use crate::shared::{parse_fen, START_POSITION};
+    use crate::shared::{START_POSITION};
+use crate::types::board::BoardPosition;
     use std::thread;
 
     #[test]
@@ -127,8 +128,7 @@ mod tests {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
-                let board_pos =
-                    parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 xdddddd");
+                let board_pos = BoardPosition::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 xdddddd");
                 let cmd_result = parse_position("position startpos");
                 assert_eq!(board_pos, cmd_result.board_position);
             })
@@ -140,7 +140,7 @@ mod tests {
     fn test_position_fen() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let board_pos = parse_fen("r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
+            let board_pos = BoardPosition::new("r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
             let cmd_result = parse_position("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
             assert_eq!(board_pos, cmd_result.board_position);
         }).unwrap();
@@ -151,7 +151,7 @@ mod tests {
     fn test_position_fen_moves() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
-            let board_pos = parse_fen("r1bqkbnr/1p1ppppp/8/p1p5/3nP2P/5N2/PPPPQPP1/RNB1KB1R w KQkq - 2 5");
+            let board_pos = BoardPosition::new("r1bqkbnr/1p1ppppp/8/p1p5/3nP2P/5N2/PPPPQPP1/RNB1KB1R w KQkq - 2 5");
             let cmd_result = parse_position("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4 moves d1e2 c6d4");
             assert_eq!(board_pos, cmd_result.board_position);
         }).unwrap();
@@ -164,7 +164,7 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let board_pos =
-                    parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
+                    BoardPosition::new("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
                 let cmd_result = parse_position("position startpos e2e4 d7d5");
                 assert_eq!(board_pos, cmd_result.board_position);
             })

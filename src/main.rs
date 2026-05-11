@@ -35,8 +35,9 @@ use attacks::PAWN_ATTACKS;
 use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
 use crate::gui::{parse_go, parse_position};
+use crate::types::board::BoardPosition;
 use crate::types::search_state::SearchState;
-use crate::shared::{ parse_fen, Piece, START_POSITION};
+use crate::shared::{ Piece, START_POSITION};
 
 /**********************************\
  ==================================
@@ -50,7 +51,7 @@ pub fn uci_loop() {
     println!("id name Dual v0.2.7");
     println!("id author Tomasz Stawowy");
     println!("uciok");
-    let mut search_state: SearchState = SearchState::new(parse_fen(START_POSITION));
+    let mut search_state: SearchState = SearchState::new(BoardPosition::new(START_POSITION));
     loop {  
         // Read user input
         let mut input = String::new();

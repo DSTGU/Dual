@@ -1,5 +1,6 @@
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
 use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
+use crate::types::tt::compute_hash;
 
 #[allow(non_camel_case_types)]
 #[allow(unused_variables)]
@@ -17,7 +18,9 @@ pub struct BoardPosition {
     pub enpassant: u8, // Number of square
 
     // castling rights
-    pub castle: usize
+    pub castle: usize,
+
+    pub hash: u64
 }
     /*
     binary encoding
@@ -28,6 +31,127 @@ pub struct BoardPosition {
     */
 
 impl BoardPosition {
+
+    pub fn new(fen: &str) -> BoardPosition {
+        let mut board_position = BoardPosition {
+            bitboards: [0; 12],
+            occupancies: [0; 3],
+            mailbox: [Piece::NONE; 64],
+            side: 2,
+            enpassant: 0,
+            castle: 0,
+            hash: 0
+        };
+
+        board_position.parse_fen(fen);
+        board_position.hash = compute_hash(&board_position);
+
+        board_position
+    }
+
+    pub fn parse_fen(&mut self, fen: &str) {
+
+        self.bitboards = [0; 12];
+        self.occupancies = [0; 3];
+        self.mailbox = [Piece::NONE; 64];
+        self.side = 2;
+        self.enpassant = 0;
+        self.castle = 0;
+
+        let mut fen_chars = fen.chars();
+        let mut rank = 0;
+        let mut file = 0;
+
+        while let Some(ch) = fen_chars.next() {
+            if ch.is_ascii_alphabetic() {
+                let piece = match ch {
+                    'P' => Piece::P,
+                    'N' => Piece::N,
+                    'B' => Piece::B,
+                    'R' => Piece::R,
+                    'Q' => Piece::Q,
+                    'K' => Piece::K,
+                    'p' => Piece::p,
+                    'n' => Piece::n,
+                    'b' => Piece::b,
+                    'r' => Piece::r,
+                    'q' => Piece::q,
+                    'k' => Piece::k,
+                    _ => continue,
+                };
+                let square = rank * 8 + file;
+                    self.add_piece(square, piece);
+                    file += 1;
+            } else if ch.is_digit(10) {
+                let offset = ch.to_digit(10).unwrap() as usize;
+                file += offset;
+            } else if ch == '/' {
+                rank += 1;
+                file = 0;
+            } else if ch == ' ' {
+                break;
+            }
+        }
+
+        if let Some(ch) = fen_chars.next() {
+            self.side = match ch {
+                'w' => 0,
+                'b' => 1,
+                _ => 2,
+            };
+            fen_chars.next();
+        }
+
+        while let Some(ch) = fen_chars.next() {
+            if ch == ' ' {
+                break;
+            }
+            match ch {
+                'K' => self.castle |= 1,
+                'Q' => self.castle |= 2,
+                'k' => self.castle |= 4,
+                'q' => self.castle |= 8,
+                _ => continue,
+            }
+        }
+
+        if let Some(ch) = fen_chars.next() {
+            if ch != '-' {
+                let file = match ch {
+                    'a'..='h' => (ch as u8 - b'a') as usize,
+                    _ => {
+                        // Handle the case when the file is invalid
+                        // You can choose to return an error, set a default value, or handle it in another way
+                        // For now, let's set it to 0
+                        0
+                    }
+                };
+                let rank = match fen_chars.next() {
+                    Some(rank_ch @ '1'..='8') => 8 - (rank_ch as u8 - b'0') as usize,
+                    _ => {
+                        // Handle the case when the rank is invalid
+                        // You can choose to return an error, set a default value, or handle it in another way
+                        // For now, let's set it to 0
+                        0
+                    }
+                };
+
+                self.enpassant = (rank * 8 + file) as u8;
+            }
+        }
+
+
+        for piece in 0..=5 {
+            self.occupancies[0] |= self.bitboards[piece];
+        }
+
+        for piece in 6..=11 {
+            self.occupancies[1] |= self.bitboards[piece];
+        }
+
+        self.occupancies[2] = self.occupancies[0] | self.occupancies[1];
+    }
+
 
     pub fn remove_piece(&mut self, square: usize, piece: Piece) {
         debug_assert!(self.mailbox[square] == piece);
