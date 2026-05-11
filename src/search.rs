@@ -3,9 +3,11 @@ use std::time::SystemTime;
 use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves};
 use crate::types::search_state::SearchState;
-use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
+use crate::shared::{DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
 
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
+
+    search_state.seldepth = search_state.seldepth.max(search_state.max_depth+ply-1);
 
     let eval = evaluate(&search_state.board_position);
 
@@ -57,9 +59,8 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
 
 }
 
-pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
-
-    if depth == 0 {
+pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
+   if depth == 0 {
         return quiescence(search_state, alpha, beta, 1);
     }
 
@@ -87,8 +88,6 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
     #[allow(non_snake_case, unused_variables)]
     let mut is_PV_node = false;
 
-    let mut first_move = true;
-
     for &mv in move_list.iter() {
 
         let move_result = search_state.make_move( mv);
@@ -97,74 +96,61 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
             legal_moves += 1;
             let _newdepth = depth-1;
             
-            // if first_move {
-            //     let score: SearchAnswer = negamax(&mut search_state, -beta, -alpha, depth-1);
-            //     search_state.take_back(mv);
-            //     nodes += score.node_count;
+            if !is_PV_node {
+                let score: SearchAnswer = pvs(&mut search_state, -beta, -new_alpha, depth-1);
+                search_state.take_back(mv);
+                nodes += score.node_count;
 
-            //     if -score.eval >= alpha {
-            //         if -score.eval >= beta {
-            //             if !mv.is_quiet() {
-            //                 search_state.update_killer_move(mv, search_state.max_depth-depth);
-            //             }
-            //             return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
-            //         }
+                if -score.eval > new_alpha {
+                    if -score.eval >= beta {
+                        if mv.is_quiet() {
+                            search_state.update_killer_move(mv, search_state.max_depth-depth);
+                        }
+                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
+                    }
 
-            //         if !mv.is_capture() {
-            //             search_state.update_history(mv, depth);
-            //         }
+                    if mv.is_quiet() {
+                        search_state.update_history(mv, depth);
+                    }
 
-            //         new_alpha = -score.eval;
-            //         best_move = Some(mv);
-            //         best_move_list = score.move_list;
-            //         is_PV_node = true;
-            //     }
-            //     first_move = false;
-
-            // } else {
-
-            //     let mut score = negamax(&mut search_state, -new_alpha-1, -new_alpha, depth-1); // alphaBeta or zwSearch
-                
-            //     if -score.eval > new_alpha && -score.eval < beta  {
-            //         // research with window [alfa;beta]
-            //         score = negamax(&mut search_state, -beta, -alpha, depth-1);
-            //         if score > new_alpha {
-            //             alfa = score;
-            //         } 
-            //     }
-
-
-            //     if score > bestscore {
-            //         if score >= beta {
-            //             return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
-            //         }
-            //         bestscore = score;
-            //     }
-
-            // }
-
-
-            let res = negamax(&mut search_state, -beta, -new_alpha, depth-1);
-            search_state.take_back(mv);
-            nodes += res.node_count;
-            
-
-            if -res.eval >= beta {                
-                if mv.is_quiet() {
-                    search_state.update_killer_move(mv, search_state.max_depth-depth);
+                    new_alpha = -score.eval;
+                    best_move = Some(mv);
+                    best_move_list = score.move_list;
+                    is_PV_node = true;
                 }
-                return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
-            }
 
-            if -res.eval > new_alpha {
-                if mv.is_quiet() {
-                    search_state.update_history(mv, depth);
+            } else {
+
+                let mut score = pvs(&mut search_state, -new_alpha-1, -new_alpha, depth-1); // alphaBeta or zwSearch
+                nodes += score.node_count;
+
+                if -score.eval > new_alpha && -score.eval < beta  {
+                    // research with window [alfa;beta]
+                    score = pvs(&mut search_state, -beta, -alpha, depth-1);
+                    nodes += score.node_count;
+
                 }
-                
-                new_alpha = -res.eval;
-                best_move = Some(mv);
-                best_move_list = res.move_list;
-                is_PV_node = true;
+
+                search_state.take_back(mv);
+
+                if -score.eval > new_alpha {
+                    if -score.eval >= beta {
+                        if mv.is_quiet() {
+                            search_state.update_killer_move(mv, search_state.max_depth-depth);
+                        }
+                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
+                    }
+
+                    if mv.is_quiet() {
+                        search_state.update_history(mv, depth);
+                    }
+
+                    new_alpha = -score.eval;
+                    best_move = Some(mv);
+                    best_move_list = score.move_list;
+                    is_PV_node = true;
+                }
+
             }
         }
     }
@@ -199,7 +185,7 @@ pub fn collect_pv(moves: &Vec<Option<Move>>) -> String {
 }
 
 pub fn single_depth_search(search_state: &mut SearchState, depth: usize) -> SearchAnswer {
-    negamax(search_state, -5000000, 5000000, depth)
+    pvs(search_state, -5000000, 5000000, depth)
 }
 
 pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: usize, eval: i32) -> SearchAnswer {
@@ -210,7 +196,7 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
 
     for _ in 0..3 {
         //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
-        score = negamax(&mut search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
+        score = pvs(&mut search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
         //println!("aspiration, score: {:?}", score.eval);
 
         if score.move_list.len() > 0 {
@@ -242,7 +228,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
         
         let score = single_depth_search(&mut search_state, depth.unwrap());
 
-        print_info_string(&score, depth.unwrap());
+        print_info_string(&score, search_state, depth.unwrap());
 
     } else {
         let now = SystemTime::now();
@@ -258,7 +244,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
 
         let mut score = single_depth_search(search_state, MIN_DEPTH);
         
-        print_info_string(&score, MIN_DEPTH);
+        print_info_string(&score, search_state, MIN_DEPTH);
         
         let mut depth = MIN_DEPTH + 1;
         search_state.reset_for_new_search(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
@@ -267,7 +253,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
         
             score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
             
-            print_info_string(&score, depth);
+            print_info_string(&score, search_state, depth);
             
             depth = depth + 1;
             
@@ -281,15 +267,15 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
     
 }
 
-pub fn print_info_string(score: &SearchAnswer, depth: usize) {
+pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState, depth: usize) {
     let pv: String = collect_pv(&score.move_list);
 
     if score.eval > 4000000 || score.eval < -4000000 {
         let mate = score_to_mate( score.eval, depth);
-        println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.node_count, pv);
+        println!("info score mate {} depth {} seldepth {} nodes {} pv {}", mate, depth, search_state.seldepth, score.node_count, pv);
     }
     else {
-        println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth, score.node_count, pv);
+        println!("info score cp {} depth {} seldepth {} nodes {} pv {}", score.eval, depth, search_state.seldepth, score.node_count, pv);
     }
 }
 

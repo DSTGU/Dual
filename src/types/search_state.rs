@@ -7,6 +7,7 @@ use crate::types::tt::{RepetitionTable, TranspositionTable, compute_hash};
 pub struct SearchState {
     pub board_position: BoardPosition,
     pub max_depth: usize,
+    pub seldepth: usize,
     killer_moves: [[Move; 256]; 2],
     history_moves: [[usize; 64]; 12],
     prev_iter_best_move: Move,
@@ -21,6 +22,7 @@ impl SearchState {
         let mut search_state = Self {
             board_position: board_position,
             max_depth: 0,
+            seldepth: 0,
             killer_moves: [[Move::create_null(); 256]; 2],
             history_moves: [[0; 64]; 12],
             prev_iter_best_move: Move::create_null(),
@@ -37,6 +39,7 @@ impl SearchState {
 
     pub fn reset_for_new_search(&mut self, depth: usize, previter_bestmove: Move) {
         self.max_depth = depth;
+        self.seldepth = depth;
         self.prev_iter_best_move = previter_bestmove;
         self.tt.increment_age();
         self.killer_moves = [[Move::create_null(); 256]; 2];
