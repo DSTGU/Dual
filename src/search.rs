@@ -87,6 +87,8 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
     #[allow(non_snake_case, unused_variables)]
     let mut is_PV_node = false;
 
+    let mut first_move = true;
+
     for &mv in move_list.iter() {
 
         let move_result = search_state.make_move( mv);
@@ -95,20 +97,67 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
             legal_moves += 1;
             let _newdepth = depth-1;
             
+            // if first_move {
+            //     let score: SearchAnswer = negamax(&mut search_state, -beta, -alpha, depth-1);
+            //     search_state.take_back(mv);
+            //     nodes += score.node_count;
+
+            //     if -score.eval >= alpha {
+            //         if -score.eval >= beta {
+            //             if !mv.is_quiet() {
+            //                 search_state.update_killer_move(mv, search_state.max_depth-depth);
+            //             }
+            //             return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
+            //         }
+
+            //         if !mv.is_capture() {
+            //             search_state.update_history(mv, depth);
+            //         }
+
+            //         new_alpha = -score.eval;
+            //         best_move = Some(mv);
+            //         best_move_list = score.move_list;
+            //         is_PV_node = true;
+            //     }
+            //     first_move = false;
+
+            // } else {
+
+            //     let mut score = negamax(&mut search_state, -new_alpha-1, -new_alpha, depth-1); // alphaBeta or zwSearch
+                
+            //     if -score.eval > new_alpha && -score.eval < beta  {
+            //         // research with window [alfa;beta]
+            //         score = negamax(&mut search_state, -beta, -alpha, depth-1);
+            //         if score > new_alpha {
+            //             alfa = score;
+            //         } 
+            //     }
+
+
+            //     if score > bestscore {
+            //         if score >= beta {
+            //             return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
+            //         }
+            //         bestscore = score;
+            //     }
+
+            // }
+
+
             let res = negamax(&mut search_state, -beta, -new_alpha, depth-1);
             search_state.take_back(mv);
             nodes += res.node_count;
             
 
             if -res.eval >= beta {                
-                if mv.is_capture() {
+                if mv.is_quiet() {
                     search_state.update_killer_move(mv, search_state.max_depth-depth);
                 }
                 return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
             }
 
             if -res.eval > new_alpha {
-                if !mv.is_capture() {
+                if mv.is_quiet() {
                     search_state.update_history(mv, depth);
                 }
                 

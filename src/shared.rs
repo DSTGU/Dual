@@ -112,6 +112,10 @@ impl Move {
     pub fn is_enpassant(self) -> bool {
         MoveCode::EnPassant == self.get_move_code()
     }
+
+    pub fn is_quiet(self) -> bool {
+        MoveCode::QuietMove == self.get_move_code()
+    }
  
     pub fn get_castling(self) -> bool {
         matches!(
