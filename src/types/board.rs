@@ -1,6 +1,6 @@
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
 use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
-use crate::types::tt::compute_hash;
+use crate::types::tt::{compute_hash, get_zobrist_keys};
 
 #[allow(non_camel_case_types)]
 #[allow(unused_variables)]
@@ -80,7 +80,7 @@ impl BoardPosition {
                     _ => continue,
                 };
                 let square = rank * 8 + file;
-                    self.add_piece(square, piece);
+                    self.add_piece(square, piece, false);
                     file += 1;
             } else if ch.is_digit(10) {
                 let offset = ch.to_digit(10).unwrap() as usize;
@@ -153,16 +153,26 @@ impl BoardPosition {
     }
 
 
-    pub fn remove_piece(&mut self, square: usize, piece: Piece) {
+    #[inline(always)]
+    pub fn remove_piece(&mut self, square: usize, piece: Piece, update_hash: bool) {
         debug_assert!(self.mailbox[square] == piece);
         debug_assert!(get_bit(self.bitboards[piece as usize], square));
+
+        if update_hash {
+            self.hash ^= get_zobrist_keys().piece_keys[piece as usize][square];
+        }
 
         self.mailbox[square] = Piece::NONE;
         pop_bit(&mut self.occupancies[piece.get_side()], square);
         pop_bit(&mut self.bitboards[piece as usize], square);
     }
 
-    pub fn add_piece(&mut self, square: usize, piece: Piece) {
+    #[inline(always)]
+    pub fn add_piece(&mut self, square: usize, piece: Piece, update_hash: bool) {
+        if update_hash {
+            self.hash ^= get_zobrist_keys().piece_keys[piece as usize][square];
+        }
+
         self.mailbox[square] = piece;
         set_bit(&mut self.occupancies[piece.get_side()], square);
         set_bit(&mut self.bitboards[piece as usize], square);
@@ -176,7 +186,9 @@ impl BoardPosition {
     /// Apply `move_to_make` to `board` and return the resulting position, or
     /// `None` if the move leaves the king in check.
     pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {
-        // println!("{:?}, direction {:?}", move_to_make, move_direction);
+
+        let keys = get_zobrist_keys();
+        let old_hash = self.hash;
 
         let source = move_to_make.get_source_square() as usize;
         let target = move_to_make.get_target_square() as usize;
@@ -188,19 +200,35 @@ impl BoardPosition {
         let is_double_push = move_to_make.get_double_pawn_push();
         let promoted = move_to_make.is_promotion();
 
+        // if compute_hash(self) != self.hash {
+        //     println!("Oops");
+        // };
+
         // Handle captures: 
         if is_capture && !is_enpassant {
-            self.remove_piece(target, self.mailbox[target]);
+            self.remove_piece(target, self.mailbox[target], true);
         }
 
-        self.remove_piece(source, piece);
-        self.add_piece(target, piece);
+        // if compute_hash(self) != self.hash {
+        //     println!("Oops");
+        // };
+
+        self.remove_piece(source, piece, true);
+        self.add_piece(target, piece, true);
+
+        // if compute_hash(self) != self.hash {
+        //     println!("Oops");
+        // };
 
         // Handle promotion: replace the pawn with the promoted piece.
         if promoted {
-            self.remove_piece(target, piece);
-            self.add_piece(target, move_to_make.get_promoted_piece(self.side != 0));
+            self.remove_piece(target, piece, true);
+            self.add_piece(target, move_to_make.get_promoted_piece(self.side != 0), true);
         }
+
+        // if compute_hash(self) != self.hash {
+        //     println!("Oops");
+        // };
 
         // Handle en passant: remove the captured pawn (which is on a different
         // square from the target).
@@ -217,7 +245,11 @@ impl BoardPosition {
                 Piece::P
             };
 
-            self.remove_piece(ep_sq, pawn);
+            self.remove_piece(ep_sq, pawn, true);
+        }
+
+        if self.enpassant != 0 {
+            self.hash ^= keys.enpassant_keys[(self.enpassant % 8) as usize];
         }
 
         // Reset en passant square; set it again if this was a double pawn push.
@@ -231,6 +263,14 @@ impl BoardPosition {
             };
         }
 
+        if self.enpassant != 0 {
+            self.hash ^= keys.enpassant_keys[(self.enpassant % 8) as usize];
+        }
+
+        // if compute_hash(self) != self.hash {
+        //     println!("Oops");
+        // };
+
         // Handle castling: move the rook.
         if is_castling {
             let (rook_piece, rook_from, rook_to) = match target {
@@ -241,13 +281,33 @@ impl BoardPosition {
                 _ => unsafe { std::hint::unreachable_unchecked() }
             };
 
-            self.remove_piece(rook_from, rook_piece);
-            self.add_piece(rook_to, rook_piece);
+            self.remove_piece(rook_from, rook_piece, true);
+            self.add_piece(rook_to, rook_piece, true);
+        }
+
+        // if compute_hash(self) != self.hash {
+        //     println!("Oops");
+        // };
+
+        for i in 0..4 {
+            if self.castle & (1 << i) != 0 {
+                self.hash ^= keys.castling_keys[i];
+            }
         }
 
         // Update castling rights.
         self.castle &= CASTLING_RIGHTS[source] as usize;
         self.castle &= CASTLING_RIGHTS[target] as usize;
+
+        for i in 0..4 {
+            if self.castle & (1 << i) != 0 {
+                self.hash ^= keys.castling_keys[i];
+            }
+        }
+
+        // if compute_hash(self) != self.hash {
+        //     println!("Oops");
+        // };
 
         // Recompute occupancies.
         self.occupancies[2] = self.occupancies[0] | self.occupancies[1];
@@ -258,19 +318,26 @@ impl BoardPosition {
 
         if is_square_attacked(king_sq, &self) {
             self.side = 1 - self.side;
-            self.take_back(move_to_make);    
+            self.take_back(move_to_make, old_hash);    
             return MoveSuccess::Attacked;
         }
 
         // Flip side for the returned position.
         self.side = 1 - self.side;
+        self.hash ^= keys.side_key;
+        
+
+        // if compute_hash(self) != self.hash {
+        //     println!("Oops");
+        // };
+
         MoveSuccess::Success
     }
 
 
     /// Apply `move_to_make` to `board` and return the resulting position, or
     /// `None` if the move leaves the king in check.
-    pub fn take_back(&mut self, move_to_make: Move) -> MoveSuccess {
+    pub fn take_back(&mut self, move_to_make: Move, old_hash: u64) -> MoveSuccess {
 
         self.side = 1 - self.side;
         let source = move_to_make.get_source_square() as usize;
@@ -282,24 +349,18 @@ impl BoardPosition {
         let promoted = move_to_make.get_promoted_piece(self.side != 0);
         let taken_piece = move_to_make.get_taken_piece();
 
-        // if source == 27 && target == 19 || self.mailbox[59] == Piece::K {
-        //     println!("Move to take back:");
-        //     println!("{:?}", move_to_make);
-        //     self.print_board();
-        // }
-
         if move_to_make.is_promotion() {
-            self.remove_piece(target, promoted);
+            self.remove_piece(target, promoted, false);
             let pawn = if self.side == 0 {Piece::P} else {Piece::p};
-            self.add_piece(source,  pawn);
+            self.add_piece(source,  pawn, false);
         } else {
             // Normal move
-            self.remove_piece(target, piece);
-            self.add_piece(source, piece);
+            self.remove_piece(target, piece, false);
+            self.add_piece(source, piece, false);
         }
 
         if is_capture && !is_enpassant {
-            self.add_piece(target, taken_piece);
+            self.add_piece(target, taken_piece, false);
         }
 
         // Handle en passant: remove the captured pawn (which is on a different
@@ -307,15 +368,14 @@ impl BoardPosition {
         if is_enpassant {
             if (piece as usize) < 6 {
                 // White pawn captured a black pawn on the rank below target.
-                self.add_piece(target+8, Piece::p);
+                self.add_piece(target+8, Piece::p, false);
 
             } else {
                 // Black pawn captured a white pawn on the rank above target.
-                self.add_piece(target-8, Piece::P);
+                self.add_piece(target-8, Piece::P, false);
             }
         }
 
-        // Reset en passant square
         self.enpassant = move_to_make.get_old_ep_square();
 
         // Handle castling: move the rook.
@@ -328,14 +388,16 @@ impl BoardPosition {
                 _ => unsafe { std::hint::unreachable_unchecked() }
             };
 
-            self.add_piece(rook_from, rook_piece);
-            self.remove_piece(rook_to, rook_piece);            
+            self.add_piece(rook_from, rook_piece, false);
+            self.remove_piece(rook_to, rook_piece, false);            
         }
             // Update castling rights.
         self.castle = move_to_make.get_old_castle();
 
         // Recompute occupancies.
         self.occupancies[2] = self.occupancies[0] | self.occupancies[1];
+
+        self.hash = old_hash;
 
         MoveSuccess::Success
     }

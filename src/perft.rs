@@ -19,8 +19,9 @@ pub fn perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
         let result = search_state.board_position.make_move(i);
 
         if result == MoveSuccess::Success {
+            let old_hash = search_state.board_position.hash;
             movecount += perft_driver(search_state, depth - 1);
-            search_state.board_position.take_back(i);
+            search_state.board_position.take_back(i, old_hash);
         }
     }
 
@@ -44,10 +45,11 @@ pub fn perft(search_state: &mut SearchState, depth: usize) {
 
     for i in movelist {
         let result = search_state.board_position.make_move(i);
-
+        
         if result == MoveSuccess::Success {
+            let old_hash = search_state.board_position.hash;
             let cnt= perft_driver(search_state, depth - 1);
-            search_state.board_position.take_back(i);
+            search_state.board_position.take_back(i, old_hash);
             println!("{:?}, Moves: {}", i, cnt);
 
             movecount += cnt;
@@ -73,7 +75,7 @@ pub fn perft(search_state: &mut SearchState, depth: usize) {
 mod tests{
     use std::thread;
 
-use crate::{gui::parse_position, move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERFT_COMMAND, KIWIPETE_COMMAND, MoveSuccess, START_POSITION_COMMAND}, types::search_state::SearchState};
+use crate::{gui::parse_position, move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERFT_COMMAND, KIWIPETE_COMMAND, MoveSuccess, START_POSITION_COMMAND}, types::{search_state::SearchState, tt::compute_hash}};
 
     #[test]
     fn test_perft_kiwipete() {
@@ -173,12 +175,13 @@ use crate::{gui::parse_position, move_gen::generate_moves, perft::perft_driver, 
 
         for i in movelist {
             let result = search_state.make_move(i);
-                    
+            
             if result == MoveSuccess::Success {
                 movecount += test_perft_driver_copy_make(search_state, depth - 1);
                 search_state.take_back(i);
             }
-
+            
+            assert_eq!(compute_hash(&search_state.board_position), search_state.board_position.hash);
             assert_eq!(board_clone, search_state.board_position);
         }
         movecount

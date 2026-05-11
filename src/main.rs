@@ -6,6 +6,7 @@ mod gui;
 mod search;
 mod evaluate;
 mod types;
+mod bench;
 
 use std::io;
 use std::thread;
@@ -34,6 +35,7 @@ use shared::print_bitboard;
 use attacks::PAWN_ATTACKS;
 use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
+use crate::bench::bench_engine;
 use crate::gui::{parse_go, parse_position};
 use crate::types::board::BoardPosition;
 use crate::types::search_state::SearchState;
@@ -75,6 +77,7 @@ pub fn uci_loop() {
             "printboard" => search_state.board_position.print_board(),
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
+            "bench" => bench_engine(),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
         }

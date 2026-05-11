@@ -32,8 +32,6 @@ impl SearchState {
             tt_hits: 0,
         };
 
-        search_state.rep_table.push_position(&search_state.board_position);
-
         search_state
     }
 
@@ -47,18 +45,21 @@ impl SearchState {
         self.nodes_searched = 0;
     }
 
-    pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {      
+    pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {
+        self.rep_table.push(self.board_position.hash); 
         let result = self.board_position.make_move(move_to_make);
-        if result == MoveSuccess::Success {
-            self.rep_table.push_position(&self.board_position);
+        if result == MoveSuccess::Attacked {
+            self.rep_table.pop();
         }
 
         result
     }
 
     pub fn take_back(&mut self, move_to_take_back: Move) {
-        self.board_position.take_back(move_to_take_back);
-        self.rep_table.pop();
+        //take back manages the hash        
+        self.board_position.take_back(move_to_take_back, self.rep_table.pop());
+        
+        debug_assert!(compute_hash(&self.board_position) == self.board_position.hash)
     }
 
     #[inline(always)]
@@ -121,7 +122,7 @@ impl SearchState {
     // }
 
     pub fn is_trifold_repetition(&self) -> bool {
-        self.rep_table.is_draw(compute_hash(&self.board_position))
+        self.rep_table.is_draw(self.board_position.hash)
     }
 
     pub fn is_king_attacked(&self) -> bool {

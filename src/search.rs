@@ -242,7 +242,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
 
         search_state.reset_for_new_search(MIN_DEPTH, Move::create_null());
 
-        let mut score = single_depth_search(search_state, MIN_DEPTH);
+        let mut score: SearchAnswer = single_depth_search(search_state, MIN_DEPTH);
         
         print_info_string(&score, search_state, MIN_DEPTH);
         
@@ -288,7 +288,7 @@ mod tests {
 
 
     #[test]
-    fn test_go() {
+    fn test_forced_trifold_repetition() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
