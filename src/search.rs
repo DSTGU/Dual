@@ -75,7 +75,7 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
         let score_b = search_state.get_move_score(*b, search_state.max_depth - depth);
         score_b.cmp(&score_a)
     });
-    
+
     // Move, eval (alpha), nodes
     let mut nodes = 1;
 
@@ -101,14 +101,14 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
             
 
             if -res.eval >= beta {                
-                if mv.is_capture() == false {
+                if mv.is_capture() {
                     search_state.update_killer_move(mv, search_state.max_depth-depth);
                 }
                 return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
             }
 
             if -res.eval > new_alpha {
-                if mv.is_capture() == false {
+                if !mv.is_capture() {
                     search_state.update_history(mv, depth);
                 }
                 
@@ -189,7 +189,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
 
     if time.is_none() && depth.is_some() {
 
-        search_state.reset_for_new_search(depth.unwrap());        
+        search_state.reset_for_new_search(depth.unwrap(), Move::create_null());        
         
         let mut score = single_depth_search(&mut search_state, depth.unwrap());
 
@@ -217,14 +217,16 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
             time_avail = 10000000;
         }
 
-        search_state.reset_for_new_search(MIN_DEPTH);
+        search_state.reset_for_new_search(MIN_DEPTH, Move::create_null());
 
         let mut score = single_depth_search(search_state, MIN_DEPTH);
         let mut depth = MIN_DEPTH + 1;
+        search_state.reset_for_new_search(depth, score.move_list.pop().unwrap().unwrap());        
+
         while now.elapsed().unwrap().as_millis() < time_avail as u128 {
         
-            search_state.reset_for_new_search(depth);        
             score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
+            
 
             let pv: String = collect_pv(&score.move_list);
 
@@ -235,8 +237,10 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
             else {
                 println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth, score.node_count, pv);
             }
-                
+            
             depth = depth + 1;
+            
+            search_state.reset_for_new_search(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
         }
 
 
@@ -251,7 +255,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
 mod tests {
 
     use std::thread;
-    use crate::{gui::{parse_position}, search::single_depth_search};
+    use crate::{gui::parse_position, search::single_depth_search, shared::Move};
 
 
     #[test]
@@ -261,8 +265,8 @@ mod tests {
             .spawn(|| {
                 let command = "position fen Q6K/8/8/8/8/8/7R/1k6 w - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
                 
-                let mut board = parse_position(command.trim());
-                board.reset_for_new_search(4);       
+                let mut board: crate::types::search_state::SearchState = parse_position(command.trim());
+                board.reset_for_new_search(4, Move::create_null());       
                 let score = single_depth_search(&mut board, 4); 
 
                 println!("{:?}", score);

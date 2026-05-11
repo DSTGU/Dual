@@ -35,16 +35,16 @@ impl SearchState {
         search_state
     }
 
-    pub fn reset_for_new_search(&mut self, depth: usize) {
+    pub fn reset_for_new_search(&mut self, depth: usize, previter_bestmove: Move) {
         self.max_depth = depth;
-        self.prev_iter_best_move = Move::create_null();
+        self.prev_iter_best_move = previter_bestmove;
         self.tt.increment_age();
         self.killer_moves = [[Move::create_null(); 256]; 2];
         self.history_moves = [[0; 64]; 12];
         self.nodes_searched = 0;
     }
 
-    pub fn  make_move(&mut self, move_to_make: Move) -> MoveSuccess {      
+    pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {      
         let result = self.board_position.make_move(move_to_make);
         if result == MoveSuccess::Success {
             self.rep_table.push_position(&self.board_position);
@@ -64,9 +64,10 @@ impl SearchState {
     }
 
     fn get_victim(&self, mv: Move) -> Piece {
-        self.board_position.mailbox[mv.get_target_square() as usize]
+        mv.get_taken_piece()
     }
 
+    //Only works before move
     fn get_piece(&self, mv: Move) -> Piece {
         self.board_position.mailbox[mv.get_source_square() as usize]
     }

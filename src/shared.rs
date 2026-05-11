@@ -88,14 +88,6 @@ impl Move {
         unsafe { mem::transmute(((self.0 >> 12) & 0xf) as u8 ) }
     }
 
-    // pub fn get_promoted_piece_idx(self, side: bool) -> u8 {
-    //     if !self.is_promotion() {
-    //         return 12; // Piece::None index
-    //     }        
-        
-    //     6*(side as u8) + (self.0 >> 12) as u8 & 0x3 + 1 as u8
-    // }
-
     pub fn get_promoted_piece_idx(self, side:bool) -> u8 {
         if !self.is_promotion() {
             return 12; // Piece::None index
@@ -120,10 +112,6 @@ impl Move {
     pub fn is_enpassant(self) -> bool {
         MoveCode::EnPassant == self.get_move_code()
     }
-
-    // pub fn get_castling(self) -> bool {
-    //     (self.0 >> 13) & 5 == 1
-    // }
  
     pub fn get_castling(self) -> bool {
         matches!(
