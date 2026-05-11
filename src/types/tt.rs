@@ -5,8 +5,9 @@
 //! - Transposition table for storing search results
 //! - Threefold repetition detection
 
-use crate::shared::{BoardPosition};
 use std::sync::OnceLock;
+
+use crate::types::board::BoardPosition;
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND
@@ -111,9 +112,9 @@ pub fn compute_hash(board: &BoardPosition) -> u64 {
     }
 
     // Hash en passant
-    if board.enpassant < 64 {
+    if board.enpassant != 0 {
         let file = board.enpassant % 8;
-        hash ^= keys.enpassant_keys[file];
+        hash ^= keys.enpassant_keys[file as usize];
     }
 
     hash

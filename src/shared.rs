@@ -1,52 +1,8 @@
-use std::fmt;
+use std::{fmt, mem};
 use std::ops::BitAnd;
 
-#[allow(non_camel_case_types)]
-#[allow(unused_variables)]
-#[allow(non_upper_case_globals)]
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct BoardPosition {
-    pub bitboards: [u64; 12],
-    pub occupancies: [u64; 3],
+use crate::types::board::BoardPosition;
 
-    // side to move
-    pub side: usize, // 0 - W, 1 - B, 2 - Default - none
-
-    // en passant square
-    pub enpassant: usize, // Number of square
-
-    // castling rights
-    pub castle: usize
-
-    /*
-    binary encoding
-    0001    1  white king can castle to the king side
-    0010    2  white king can castle to the queen side
-    0100    4  black king can castle to the king side
-    1000    8  black king can castle to the queen side
-    */
-}
-
-impl BoardPosition {
-    
-    pub fn find_capture_at_square(self, square: usize) -> Piece {
-        if self.side == 0 {
-            for piece in Piece::black_pieces() {
-                if get_bit(self.bitboards[piece.to_usize()], square) {
-                    return piece;
-                }
-            }
-        } else {
-            for piece in Piece::white_pieces() {
-                if get_bit(self.bitboards[piece.to_usize()], square) {
-                    return piece;
-                }
-            }
-        }
-
-        Piece::NONE
-    }
-}
 
 pub const MVV_LVA : [usize ; 36] = [
 105000000, 205000000, 305000000, 405000000, 505000000, 605000000,
@@ -75,104 +31,123 @@ pub struct SearchAnswer {
     pub eval: i32
 }
 
-// impl SearchAnswer {
-//     pub fn new() -> Self {
-//         Self {
-//             search_state: SearchState::new(),
-//             move_list: vec![],
-//             node_count: 0,
-//             eval: 0,
-//         }
-//     }
-// }
-
-#[derive(Clone, Copy)]
-pub struct Move {
-    // pub source_square: u8,
-    // pub target_square: u8,
-    // pub piece: Piece,
-    // pub promoted_piece: Piece,
-    // pub capture: bool,
-    // pub enpassant: bool,
-    // pub castling: bool,
-    // pub double_push: bool
-    pub mv: u32
+#[derive(Clone, Copy, PartialEq)]
+pub enum MoveCode {
+    QuietMove = 0,
+    DoublePush = 1,
+    KingCastle = 2,
+    QueenCastle = 3,
+    Capture = 4,
+    EnPassant = 5,
+    KnightPromotion = 8,
+    BishopPromotion = 9,
+    RookPromotion = 10,
+    QueenPromotion = 11,
+    KnightPromotionCapture = 12,
+    BishopPromotionCapture = 13,
+    RookPromotionCapture = 14,
+    QueenPromotionCapture = 15,
 }
 
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct Move(u32);
+
 impl Move {
-    pub fn create(source_square: u32, target_square: u32, piece: Piece, promoted_piece: Piece, capture: u32, enpassant: u32, castling: u32, double_push: u32, taken_piece: Piece) -> Move {
-        let value : u32 = (source_square) +
-            (target_square << 6) +
-            ((piece.to_usize() as u32) << 12) +
-            ((promoted_piece.to_usize() as u32) << 16) +
-            (capture << 20) +
-            (enpassant << 21) +
-            (castling << 22) +
-            (double_push << 23) + 
-            ((taken_piece.to_usize() as u32) << 24);
-        Move {mv: value}
+    pub fn create(
+        source_square: u8,
+        target_square: u8,
+        move_code : MoveCode,
+        old_ep_square: u8,
+        old_castle: usize,
+        taken_piece: Piece,
+    ) -> Move {
+        let value: u32 =
+            (source_square as u32) // 6 bits
+            | ((target_square as u32) << 6) // 6 bits
+            | ((move_code as u32) << 12) // 4 bits
+            | ((old_ep_square as u32) << 16) // 6 bits
+            | ((old_castle as u32) << 22) // 4 bits
+            | ((taken_piece as u32) << 26); // 4 bits
+        Move(value)
     }
 
-    pub fn get_source_square(self: &Move) -> u32 {
-        self.mv & 0x3f
+    pub fn create_null() -> Move {
+        Move(0)
     }
 
-    pub fn get_target_square(self: &Move) -> u32 {
-        (self.mv & 0xfc0) >> 6
+    pub fn get_source_square(self) -> u8 {
+        (self.0 & 0x3f) as u8
     }
 
-    pub fn get_piece(self: &Move) -> u32 {
-        (self.mv & 0xf000) >> 12
+    pub fn get_target_square(self) -> u8 {
+        (self.0 >> 6) as u8 & 0x3f
     }
 
-    pub fn get_promoted(self: &Move) -> u32 {
-        (self.mv & 0xf0000) >> 16
+    pub fn get_move_code(self) -> MoveCode {
+        unsafe { mem::transmute(((self.0 >> 12) & 0xf) as u8 ) }
     }
 
-    pub fn get_capture(self: &Move) -> bool {
-        if self.mv & 0x100000 > 0 {
-            return true;
-        }
-        false
+    pub fn get_promoted_piece_idx(self, side:bool) -> u8 {
+        if !self.is_promotion() {
+            return 12; // Piece::None index
+        }        
+
+        let promo_idx = ((self.0 >> 12) & 0x3) as u8;
+        6 * (side as u8) + promo_idx + 1   
     }
 
-    pub fn get_enpassant(self: &Move) -> bool {
-        if self.mv & 0x200000 > 0 {
-            return true;
-        }
-        false
+    pub fn get_promoted_piece(self, side: bool) -> Piece {
+        Piece::new(self.get_promoted_piece_idx(side) as usize)
     }
 
-    pub fn get_castling(self: &Move) -> bool {
-        if self.mv & 0x400000 > 0 {
-            return true;
-        }
-        false
+    pub fn is_capture(self) -> bool {
+        (self.0 >> 14) & 1 != 0
     }
 
-    pub fn get_double_pawn_push(self: &Move) -> bool {
-        if self.mv & 0x800000 > 0 {
-            return true;
-        }
-        false
+    pub fn is_promotion(self) -> bool {
+        (self.0 >> 15) & 1 != 0
     }
 
-    pub fn get_taken_piece(self: &Move) -> u32 {
-        (self.mv & 0xF000000) >> 24
+    pub fn is_enpassant(self) -> bool {
+        MoveCode::EnPassant == self.get_move_code()
+    }
+ 
+    pub fn get_castling(self) -> bool {
+        matches!(
+            self.get_move_code(),
+            MoveCode::KingCastle | MoveCode::QueenCastle
+        )
     }
 
+    pub fn get_double_pawn_push(self) -> bool {
+        MoveCode::DoublePush == self.get_move_code()
+    }
+
+    pub fn get_old_ep_square(self) -> u8 {
+        ((self.0 >> 16) & 0x3F) as u8
+    }
+
+    pub fn get_old_castle(self) -> usize {
+        ((self.0 >> 22) & 0xF) as usize
+    }
+
+    pub fn get_taken_piece(self) -> Piece {
+        Piece::new((self.0 >> 26) as usize & 0xF)
+    }
+ 
 }
 
 pub fn move_to_alg(mv: &Move) -> String {
-    match mv.get_promoted() {
+    match mv.get_promoted_piece_idx(false) { // white
         4 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
-        10 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        //10 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         1 => format!("{}{}n", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
-        7 => format!("{}{}n", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        //7 => format!("{}{}n", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         3 => format!("{}{}r", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
-        9 => format!("{}{}r", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        //9 => format!("{}{}r", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         2 => format!("{}{}b", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
-        8 => format!("{}{}b", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
+        //8 => format!("{}{}b", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         _ => format!("{}{}", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize])
     }
 }
@@ -181,65 +156,57 @@ impl fmt::Debug for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Move {{ {}-{}: {:?}, P={:?}{}{}{}{} }}",
+            "Move {{ {}({})-{}({}): P={:?}{}{}{} oep: {}, oc:{} }}",
             SQUARE_TO_COORDINATES[self.get_source_square() as usize],
+            self.get_source_square(),
             SQUARE_TO_COORDINATES[self.get_target_square() as usize],
-            self.get_piece(),
-            self.get_promoted(),
-            if self.get_capture() { &format!("+ taken:{}", self.get_taken_piece()) } else { "" },
-            if self.get_enpassant() { " EP" } else { "" },
+            self.get_target_square(),
+            self.get_promoted_piece(false),
+            if self.is_enpassant() { " EP" } else { "" },
             if self.get_castling() { " O-O" } else { "" },
             if self.get_double_pawn_push() { " dblPP" } else { "" },
+            self.get_old_ep_square(),
+            self.get_old_castle(),
         )
     }
 }
 
-// board squares
-// pub enum Sq {
-//     a8, b8, c8, d8, e8, f8, g8, h8,
-//     a7, b7, c7, d7, e7, f7, g7, h7,
-//     a6, b6, c6, d6, e6, f6, g6, h6,
-//     a5, b5, c5, d5, e5, f5, g5, h5,
-//     a4, b4, c4, d4, e4, f4, g4, h4,
-//     a3, b3, c3, d3, e3, f3, g3, h3,
-//     a2, b2, c2, d2, e2, f2, g2, h2,
-//     a1, b1, c1, d1, e1, f1, g1, h1, no_sq = 64
-// }
 
 // encode pieces
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(non_camel_case_types)]
+#[repr(u8)]
 pub enum Piece { P = 0, N = 1, B = 2, R = 3, Q = 4, K = 5, p = 6, n = 7, b = 8, r = 9, q = 10, k = 11, NONE = 12}
 
 impl Piece {
-    pub fn to_usize(&self) -> usize {
-        match self {
-            Piece::P => 0,
-            Piece::N => 1,
-            Piece::B => 2,
-            Piece::R => 3,
-            Piece::Q => 4,
-            Piece::K => 5,
-            Piece::p => 6,
-            Piece::n => 7,
-            Piece::b => 8,
-            Piece::r => 9,
-            Piece::q => 10,
-            Piece::k => 11,
-            Piece::NONE => 12,
+    pub fn new(idx: usize) -> Piece {
+        match idx {
+            0 => Piece::P,
+            1 => Piece::N,
+            2 => Piece::B,
+            3 => Piece::R,
+            4 => Piece::Q,
+            5 => Piece::K,
+            6 => Piece::p,
+            7 => Piece::n,
+            8 => Piece::b,
+            9 => Piece::r,
+            10 => Piece::q,
+            11 => Piece::k,
+            _ => Piece::NONE,
         }
     }
 
-    pub fn white_pieces() -> [Piece; 6] {
-        [Piece::P, Piece::N, Piece::B, Piece::R, Piece::Q, Piece::K]
-    }
-
-    pub fn black_pieces() -> [Piece; 6] {
-        [Piece::p, Piece::n, Piece::b, Piece::r, Piece::q, Piece::k]
+    pub const fn get_side(self) -> usize {
+        self as usize / 6
     }
 }
 
 pub enum Castle { Wk = 1, Wq = 2, Bk = 4, Bq = 8 }
+
+
+#[derive(PartialEq)]
+pub enum MoveSuccess { Success, Attacked }
 
 impl BitAnd<Castle> for usize {
     type Output = usize;
@@ -263,8 +230,8 @@ pub const SQUARE_TO_COORDINATES: [&str; 64] = [
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 ];
 
-pub fn coordinates_to_squares(coordinatestr: &str) -> usize {
-    let mut val: usize  = 0;
+pub fn coordinates_to_squares(coordinatestr: &str) -> u8 {
+    let mut val  = 0;
     let mut chars = coordinatestr.chars();
     let first = chars.next().unwrap();
     let second = chars.next().unwrap();
@@ -281,14 +248,14 @@ pub fn coordinates_to_squares(coordinatestr: &str) -> usize {
             'h' => val += 7,
             _ => return 65
         }
-        val = val + 56 - ((second.to_digit(10).unwrap() as i32 - 1) * 8) as usize;
+        val = val + 56 - ((second.to_digit(10).unwrap() as i32 - 1) * 8);
 
     }
     
-    val
+    val as u8
 }
 
-const ASCII_PIECES: [u8; 12] = [80, 78, 66, 82, 81, 75, 112, 110, 98, 114, 113, 107];
+pub const ASCII_PIECES: [u8; 12] = [80, 78, 66, 82, 81, 75, 112, 110, 98, 114, 113, 107];
 
 // convert ASCII character pieces to encoded constants
 // const CHAR_PIECES: [(char, i32); 12] = [
@@ -311,14 +278,17 @@ const ASCII_PIECES: [u8; 12] = [80, 78, 66, 82, 81, 75, 112, 110, 98, 114, 113, 
           Bit manipulations
 \**********************************/
 
+#[inline(always)]
 pub fn set_bit(bitboard: &mut u64, square: usize) {
     *bitboard |= 1u64 << square;
 }
 
+#[inline(always)]
 pub fn get_bit(bitboard: u64, square: usize) -> bool {
     (bitboard & (1u64 << square)) != 0
 }
 
+#[inline(always)]
 pub fn pop_bit(bitboard: &mut u64, square: usize) { *bitboard &= !(1u64 << square); }
 
 
@@ -357,86 +327,6 @@ pub fn print_bitboard(bitboard: u64) {
     println!("{}", bitboard);
 }
 
-// print board
-pub fn print_board(board: &BoardPosition)
-{
-    // print offset
-    println!();
-
-    // loop over board ranks
-    for rank in 0..8
-    {
-        // loop over board files
-        for file in 0..8
-        {
-        // init square
-            let square = rank * 8 + file;
-
-            // print ranks
-            if file == 0 {
-                print!("  {} ", 8 - rank);
-            }
-
-            // define piece variable
-            let mut piece = 12 as usize;
-
-            // loop over all piece bitboards
-            for bb_piece in 0..12
-            {
-                if get_bit(board.bitboards[bb_piece], square) {
-                    piece = bb_piece;
-                }
-            }
-
-            if piece == 12
-            {
-                print!(" .");
-            }
-            else {
-                print!(" {}", char::from(ASCII_PIECES[piece]));
-            }
-        }
-
-    // print new line every rank
-    println!();
-    }
-
-    // print board files
-    println!("\n     a b c d e f g h\n\n");
-
-    match board.side {
-        0 => println!("White"),
-        1 => println!("Black"),
-        _ => println!("No side"),
-    }
-
-    match board.enpassant {
-        64 => println!("Enpassant not available"),
-        65 => println!("Enpassant not available"),
-        _ => println!("Enpassant: {}", SQUARE_TO_COORDINATES[board.enpassant]),
-    }
-
-
-    // print castling rights
-
-    if board.castle & Castle::Wk != 0
-    {
-        print!("K");
-    }
-    if board.castle & Castle::Wq != 0
-    {
-        print!("Q");
-    }
-    if board.castle & Castle::Bk != 0
-    {
-        print!("k");
-    }
-    if board.castle & Castle::Bq != 0
-    {
-        print!("q");
-    }
-    println!();
-}
 //Count bits - x.countones()
 //LS1b - trailing zeros !! - invalid = 64, not -1
 
@@ -447,16 +337,26 @@ pub fn print_board(board: &BoardPosition)
 // FEN debug positions
 pub const EMPTY_BOARD: &str = "8/8/8/8/8/8/8/8 w - - ";
 pub const START_POSITION: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
+pub const START_POSITION_COMMAND: &str = "position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
 pub const KIWIPETE: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
-
+pub const KIWIPETE_COMMAND : &str = "position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
 pub const ENDGAME_PERFT: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
+pub const ENDGAME_PERFT_COMMAND : &str = "position fen 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
+
+// Piece index offsets: white pieces are 0..6, black pieces are 6..12.
+// For a given side, the king bitboard index is:
+//   side 0 (white) -> Piece::K = 5
+//   side 1 (black) -> Piece::k = 11
+pub const KING_INDEX: [usize; 2] = [Piece::K as usize, Piece::k as usize];
+
 pub fn parse_fen(fen: &str) -> BoardPosition {
 
     let mut board_position = BoardPosition {
         bitboards: [0; 12],
         occupancies: [0; 3],
+        mailbox: [Piece::NONE; 64],
         side: 2,
-        enpassant: 64,
+        enpassant: 0,
         castle: 0,
     };
 
@@ -467,23 +367,23 @@ pub fn parse_fen(fen: &str) -> BoardPosition {
     while let Some(ch) = fen_chars.next() {
         if ch.is_ascii_alphabetic() {
             let piece = match ch {
-                'P' => 0,
-                'N' => 1,
-                'B' => 2,
-                'R' => 3,
-                'Q' => 4,
-                'K' => 5,
-                'p' => 6,
-                'n' => 7,
-                'b' => 8,
-                'r' => 9,
-                'q' => 10,
-                'k' => 11,
+                'P' => Piece::P,
+                'N' => Piece::N,
+                'B' => Piece::B,
+                'R' => Piece::R,
+                'Q' => Piece::Q,
+                'K' => Piece::K,
+                'p' => Piece::p,
+                'n' => Piece::n,
+                'b' => Piece::b,
+                'r' => Piece::r,
+                'q' => Piece::q,
+                'k' => Piece::k,
                 _ => continue,
             };
             let square = rank * 8 + file;
-            board_position.bitboards[piece] |= 1u64 << square;
-            file += 1;
+                board_position.add_piece(square, piece);
+                file += 1;
         } else if ch.is_digit(10) {
             let offset = ch.to_digit(10).unwrap() as usize;
             file += offset;
@@ -538,7 +438,7 @@ pub fn parse_fen(fen: &str) -> BoardPosition {
                 }
             };
 
-            board_position.enpassant = rank * 8 + file;
+            board_position.enpassant = (rank * 8 + file) as u8;
         }
     }
 
@@ -554,4 +454,87 @@ pub fn parse_fen(fen: &str) -> BoardPosition {
     board_position.occupancies[2] = board_position.occupancies[0] | board_position.occupancies[1];
 
     board_position
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::shared::{Move, MoveCode, Piece};
+
+    #[test]
+    fn move_constructor_test_promotion() {
+        let source = 11;
+        let target = 27;
+        let promoted = Piece::Q;
+        let capture = 1;
+        let enpassant = 0;
+        let castling = 0;
+        let double_pawn_push = 0;
+        let old_ep_square = 37;
+        let old_castle = 11;
+        let taken = Piece::r;
+
+
+        let move_to_test = Move::create(source, target, MoveCode::QueenPromotionCapture, old_ep_square, old_castle, taken);
+        assert_eq!(move_to_test.get_source_square(), source);
+        assert_eq!(move_to_test.get_target_square(), target);
+        assert_eq!(move_to_test.get_promoted_piece(false), promoted);
+        assert_eq!(move_to_test.is_capture(), capture != 0);
+        assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
+        assert_eq!(move_to_test.get_castling(), castling != 0);
+        assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
+        assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
+        assert_eq!(move_to_test.get_old_castle(), old_castle);
+    }
+
+    #[test]
+    fn move_constructor_test_castling() {
+        let source = 4;
+        let target = 6;
+        let promoted = Piece::NONE;
+        let capture = 0;
+        let enpassant = 0;
+        let castling = 1;
+        let double_pawn_push = 0;
+        let old_ep_square = 37;
+        let old_castle = 15;
+        let taken = Piece::NONE;
+
+
+        let move_to_test = Move::create(source, target, MoveCode::KingCastle, old_ep_square, old_castle, taken);
+        assert_eq!(move_to_test.get_source_square(), source);
+        assert_eq!(move_to_test.get_target_square(), target);
+        assert_eq!(move_to_test.get_promoted_piece(false), promoted);
+        assert_eq!(move_to_test.is_capture(), capture != 0);
+        assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
+        assert_eq!(move_to_test.get_castling(), castling != 0);
+        assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
+        assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
+        assert_eq!(move_to_test.get_old_castle(), old_castle);
+    }
+
+    #[test]
+    fn move_constructor_test_enpassant() {
+        let source = 24;
+        let target = 16;
+        let promoted = Piece::NONE;
+        let capture = 1;
+        let enpassant = 1;
+        let castling = 0;
+        let double_pawn_push = 0;
+        let old_ep_square = 37;
+        let old_castle = 15;
+        let taken = Piece::NONE;
+
+
+        let move_to_test = Move::create(source, target, MoveCode::EnPassant, old_ep_square, old_castle, taken);
+        assert_eq!(move_to_test.get_source_square(), source);
+        assert_eq!(move_to_test.get_target_square(), target);
+        assert_eq!(move_to_test.get_promoted_piece(false), promoted);
+        assert_eq!(move_to_test.is_capture(), capture != 0);
+        assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
+        assert_eq!(move_to_test.get_castling(), castling != 0);
+        assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
+        assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
+        assert_eq!(move_to_test.get_old_castle(), old_castle);
+    }
 }
