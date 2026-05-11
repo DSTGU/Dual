@@ -4,6 +4,7 @@ use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves};
 use crate::types::search_state::SearchState;
 use crate::shared::{DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
+use crate::types::tt::TTFlag;
 
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
@@ -70,8 +71,56 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
     let mut new_alpha = alpha;
 
+    if let Some(entry) = search_state.probe_tt().copied() {
+
+        if entry.depth >= depth as i32 {
+
+            match entry.flag {
+
+                TTFlag::Exact => {
+                    return SearchAnswer {
+                        move_list: vec![],
+                        node_count: 1,
+                        eval: entry.score,
+                    };
+                }
+
+                TTFlag::Alpha => {
+                    if entry.score <= alpha {
+                        return SearchAnswer {
+                            move_list: vec![],
+                            node_count: 1,
+                            eval: alpha,
+                        };
+                    }
+                }
+
+                TTFlag::Beta => {
+                    if entry.score >= beta {
+                        return SearchAnswer {
+                            move_list: vec![],
+                            node_count: 1,
+                            eval: beta,
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+
+    let tt_move = search_state.tt_move();
+
     let mut move_list = generate_moves(&search_state.board_position);
     move_list.sort_by(|a, b| {
+        if Some(*a) == tt_move {
+            return std::cmp::Ordering::Less;
+        }
+
+        if Some(*b) == tt_move {
+            return std::cmp::Ordering::Greater;
+        }
+
         let score_a = search_state.get_move_score(*a, search_state.max_depth - depth);
         let score_b = search_state.get_move_score(*b, search_state.max_depth - depth);
         score_b.cmp(&score_a)
@@ -106,6 +155,14 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         if mv.is_quiet() {
                             search_state.update_killer_move(mv, search_state.max_depth-depth);
                         }
+
+                        search_state.store_tt(
+                            depth,
+                            beta,
+                            TTFlag::Beta,
+                            mv,
+                        );
+
                         return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
                     }
 
@@ -135,6 +192,14 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
                 if -score.eval > new_alpha {
                     if -score.eval >= beta {
+
+                        search_state.store_tt(
+                            depth,
+                            beta,
+                            TTFlag::Beta,
+                            mv,
+                        );
+
                         if mv.is_quiet() {
                             search_state.update_killer_move(mv, search_state.max_depth-depth);
                         }
@@ -164,6 +229,20 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
             }
     }
 
+    let flag = if new_alpha <= alpha {
+        TTFlag::Alpha
+    } else if new_alpha >= beta {
+        TTFlag::Beta
+    } else {
+        TTFlag::Exact
+    };
+
+    search_state.store_tt(
+        depth,
+        new_alpha,
+        flag,
+        best_move.unwrap_or(Move::create_null()),
+    );
     best_move_list.push(best_move);
     return SearchAnswer { move_list: best_move_list, node_count: nodes, eval: new_alpha };
 }

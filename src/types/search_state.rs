@@ -1,7 +1,7 @@
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
 use crate::shared::{FIRST_KILLER_BONUS, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
-use crate::types::tt::{RepetitionTable, TranspositionTable, compute_hash};
+use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash};
 
 /// Search state structure - encapsulates all search-related state
 pub struct SearchState {
@@ -127,6 +127,41 @@ impl SearchState {
 
     pub fn is_king_attacked(&self) -> bool {
         is_square_attacked(self.board_position.bitboards[6*self.board_position.side+5].trailing_zeros() as u8, &self.board_position)
+    }
+
+    #[inline(always)]
+    pub fn probe_tt(&mut self) -> Option<&TTEntry> {
+        self.tt.probe(self.board_position.hash)
+    }
+
+    #[inline(always)]
+    pub fn store_tt(
+        &mut self,
+        depth: usize,
+        score: i32,
+        flag: TTFlag,
+        best_move: Move,
+    ) {
+        self.tt.store(
+            self.board_position.hash,
+            depth as i32,
+            score,
+            flag,
+            best_move, // or .into()
+        );
+    }
+
+    #[inline(always)]
+    pub fn tt_move(&mut self) -> Option<Move> {
+        self.tt
+            .probe(self.board_position.hash)
+            .and_then(|e| {
+                if !e.best_move.is_null() {
+                    Some(e.best_move)
+                } else {
+                    None
+                }
+            })
     }
 
 }

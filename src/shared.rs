@@ -72,8 +72,12 @@ impl Move {
         Move(value)
     }
 
-    pub fn create_null() -> Move {
+    pub const fn create_null() -> Move {
         Move(0)
+    }
+
+    pub const fn is_null(self) -> bool {
+        self.0 == 0
     }
 
     pub fn get_source_square(self) -> u8 {
