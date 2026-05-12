@@ -2,11 +2,11 @@ use std::time::SystemTime;
 
 use crate::search::{collect_pv, single_depth_search_aspirated}; 
 use crate::shared::{ENDGAME_PERFT, KIWIPETE, MIN_DEPTH, Move, START_POSITION, SearchAnswer}; 
-use crate::types::{board::BoardPosition, search_state::SearchState};
+use crate::types::{search_state::SearchState};
 
 
 pub fn test_position(fen: &str, depth: usize) {
-    let mut search_state = &mut SearchState::new(BoardPosition::new(fen));
+    let mut search_state = &mut SearchState::new(fen);
 
     let now = SystemTime::now();
     let mut local_depth = MIN_DEPTH;

@@ -75,15 +75,15 @@ pub fn perft(search_state: &mut SearchState, depth: usize) {
 mod tests{
     use std::thread;
 
-use crate::{gui::parse_position, move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERFT_COMMAND, KIWIPETE_COMMAND, MoveSuccess, START_POSITION_COMMAND}, types::{search_state::SearchState, tt::compute_hash}};
+use crate::{move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERFT, KIWIPETE, MoveSuccess, START_POSITION}, types::{search_state::SearchState, tt::compute_hash}};
 
     #[test]
     fn test_perft_kiwipete() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
-                let mut board_pos = parse_position(KIWIPETE_COMMAND); //Rook on e3
-                let movecnt = perft_driver(&mut board_pos, 5);
+                let mut search_state = SearchState::new(KIWIPETE);
+                let movecnt = perft_driver(&mut search_state, 5);
                 assert_eq!(movecnt, 193690690);
             })
             .unwrap();
@@ -95,8 +95,8 @@ use crate::{gui::parse_position, move_gen::generate_moves, perft::perft_driver, 
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
-                let mut board_pos = parse_position(ENDGAME_PERFT_COMMAND); //Rook on e3
-                let movecnt = perft_driver(&mut board_pos, 6);
+                let mut search_state = SearchState::new(ENDGAME_PERFT);
+                let movecnt = perft_driver(&mut search_state, 6);
                 assert_eq!(movecnt, 11030083);
             })
             .unwrap();
@@ -110,9 +110,9 @@ use crate::{gui::parse_position, move_gen::generate_moves, perft::perft_driver, 
             .spawn(|| {
                 // These are the expected perft results for each depth from startpos
                 let expected = [20, 400, 8902, 197281, 4865609, 119060324];
-                let mut board_pos = parse_position(START_POSITION_COMMAND);
+                let mut search_state = SearchState::new(START_POSITION);
                 for (depth, &exp) in expected.iter().enumerate() {
-                    let movecnt = perft_driver(&mut board_pos, depth + 1);
+                    let movecnt = perft_driver(&mut search_state, depth + 1);
                     assert_eq!(movecnt, exp, "Perft mismatch at depth {}", depth + 1);
                 }
             })
@@ -153,8 +153,8 @@ use crate::{gui::parse_position, move_gen::generate_moves, perft::perft_driver, 
         let handler = builder
             .spawn(|| {
                 // These are the expected perft results for each depth from startpos
-                let mut board_pos = parse_position(KIWIPETE_COMMAND);
-                test_perft_driver_occupancies(&mut board_pos, 5);
+                let mut search_state = SearchState::new(KIWIPETE);
+                test_perft_driver_occupancies(&mut search_state, 5);
             })
             .unwrap();
         handler.join().unwrap();
@@ -194,10 +194,10 @@ use crate::{gui::parse_position, move_gen::generate_moves, perft::perft_driver, 
         let handler = builder
             .spawn(|| {
                 // These are the expected perft results for each depth from startpos
-                let mut board_pos = parse_position(KIWIPETE_COMMAND);
-                let clone_board = board_pos.board_position.clone();
-                test_perft_driver_copy_make(&mut board_pos, 4);
-                assert_eq!(board_pos.board_position, clone_board);
+                let mut search_state = SearchState::new(KIWIPETE);
+                let clone_board = search_state.board_position.clone();
+                test_perft_driver_copy_make(&mut search_state, 4);
+                assert_eq!(search_state.board_position, clone_board);
             })
             .unwrap();
         handler.join().unwrap();

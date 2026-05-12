@@ -1,6 +1,7 @@
+use crate::gui::parse_move;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
-use crate::shared::{FIRST_KILLER_BONUS, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
+use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
 use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash};
 
 /// Search state structure - encapsulates all search-related state
@@ -18,8 +19,9 @@ pub struct SearchState {
 }
 
 impl SearchState {
-    pub fn new(board_position: BoardPosition) -> Self {
-        let mut search_state = Self {
+    pub fn new(fen : &str) -> Self {
+        let board_position = BoardPosition::new(fen);
+        let search_state = Self {
             board_position: board_position,
             max_depth: 0,
             seldepth: 0,
@@ -33,6 +35,63 @@ impl SearchState {
         };
 
         search_state
+    }
+
+    // This function was moved here to preserve TT between nodes
+    pub fn change_position(&mut self, fen: &str) {
+        let board_position = BoardPosition::new(fen);
+        self.board_position = board_position;
+        self.max_depth = 0;
+        self.seldepth = 0;
+        self.killer_moves = [[Move::create_null(); 256]; 2];
+        self.history_moves = [[0; 64]; 12];
+        self.prev_iter_best_move = Move::create_null();
+        self.rep_table.clear();
+        self.nodes_searched = 0;
+    }
+
+
+    pub fn parse_position_command(&mut self, command: &str) {
+        let words : Vec<&str> = command.trim().split(" ").collect();
+
+        if words.len() < 2 {
+            self.change_position(START_POSITION);
+            return;
+        }
+
+        match words[1] {
+            "fen" => {
+                self.change_position(&command[13..]);
+                if words.len() > 8 {
+                    for &i in words[9..].iter() {
+                        let mov = parse_move(&self.board_position, i);
+                        if let Some(x) = mov {
+                            self.make_move(x);
+                        }
+                    }
+                }
+            },
+            "startpos" => {
+                self.change_position(START_POSITION);
+                for &i in words[2..].iter() {
+                    let mov = parse_move(&self.board_position, i);
+                    if let Some(x) = mov {
+                        self.make_move(x);
+                    }
+                }
+            },
+            "kiwipete" => {
+                self.change_position(KIWIPETE);
+                for &i in words[2..].iter() {
+                    let mov = parse_move(&self.board_position, i);
+                    if let Some(x) = mov {
+                        self.make_move(x);
+                    }
+                }
+            },
+            _ => self.change_position(START_POSITION),
+        }
+
     }
 
     pub fn reset_for_new_search(&mut self, depth: usize, previter_bestmove: Move) {
@@ -172,6 +231,6 @@ impl SearchState {
 
 impl Default for SearchState {
     fn default() -> Self {
-        Self::new(BoardPosition::new(START_POSITION))
+        Self::new(START_POSITION)
     }
 }

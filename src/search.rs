@@ -363,7 +363,7 @@ pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState, depth
 mod tests {
 
     use std::thread;
-    use crate::{gui::parse_position, search::{search, single_depth_search}, shared::Move, types::search_state::SearchState};
+    use crate::{search::single_depth_search, shared::{Move, START_POSITION}, types::search_state::{self, SearchState}};
 
 
     #[test]
@@ -372,10 +372,10 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let command = "position fen Q6K/8/8/8/8/8/7R/1k6 w - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
-                
-                let mut board: SearchState = parse_position(command.trim());
-                board.reset_for_new_search(4, Move::create_null());       
-                let score = single_depth_search(&mut board, 4); 
+                let mut search_state = SearchState::new(START_POSITION);
+                search_state.parse_position_command(command);
+                search_state.reset_for_new_search(4, Move::create_null());       
+                let score = single_depth_search(&mut search_state, 4); 
 
                 println!("{:?}", score);
 
