@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves};
 use crate::types::search_state::SearchState;
-use crate::shared::{DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
+use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
 use crate::types::tt::TTFlag;
 
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
@@ -79,7 +79,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
                 TTFlag::Exact => {
                     return SearchAnswer {
-                        move_list: vec![],
+                        move_list: vec![Some(entry.best_move)],
                         node_count: 1,
                         eval: entry.score,
                     };
@@ -88,7 +88,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                 TTFlag::Alpha => {
                     if entry.score <= alpha {
                         return SearchAnswer {
-                            move_list: vec![],
+                            move_list: vec![Some(entry.best_move)],
                             node_count: 1,
                             eval: alpha,
                         };
@@ -98,7 +98,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                 TTFlag::Beta => {
                     if entry.score >= beta {
                         return SearchAnswer {
-                            move_list: vec![],
+                            move_list: vec![Some(entry.best_move)],
                             node_count: 1,
                             eval: beta,
                         };
@@ -363,7 +363,7 @@ pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState, depth
 mod tests {
 
     use std::thread;
-    use crate::{gui::parse_position, search::single_depth_search, shared::Move};
+    use crate::{gui::parse_position, search::{search, single_depth_search}, shared::Move, types::search_state::SearchState};
 
 
     #[test]
@@ -373,7 +373,7 @@ mod tests {
             .spawn(|| {
                 let command = "position fen Q6K/8/8/8/8/8/7R/1k6 w - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
                 
-                let mut board: crate::types::search_state::SearchState = parse_position(command.trim());
+                let mut board: SearchState = parse_position(command.trim());
                 board.reset_for_new_search(4, Move::create_null());       
                 let score = single_depth_search(&mut board, 4); 
 
@@ -386,5 +386,26 @@ mod tests {
             .unwrap();
         handler.join().unwrap();
     }
-    // 
+    //
+
+    // #[test]
+    // fn test_unforced_trifold_repetition() {
+    //     let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+    //     let handler = builder
+    //         .spawn(|| {
+    //             let command = "position fen 8/7r/8/1p5p/2k5/6P1/5PK1/1R6 w - - 0 54 moves b1c1 c4b3 c1b1 b3c4 b1c1 c4b3";
+                
+    //             let mut board = parse_position(command.trim());
+    //             //board.reset_for_new_search(4, Move::create_null());       
+    //             //let score = 
+    //             search(&mut board, None, Some(1000)); 
+
+    //             //println!("{:?}", score);
+    //             //assert_eq!(score.eval, 0);
+                
+    //         })
+    //         .unwrap();
+    //     handler.join().unwrap();
+        
+    // } 
 }
