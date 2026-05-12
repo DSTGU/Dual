@@ -183,7 +183,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
                 if -score.eval > new_alpha && -score.eval < beta  {
                     // research with window [alfa;beta]
-                    score = pvs(&mut search_state, -beta, -alpha, depth-1);
+                    score = pvs(&mut search_state, -beta, -new_alpha, depth-1);
                     nodes += score.node_count;
 
                 }

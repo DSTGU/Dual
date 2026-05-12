@@ -164,6 +164,10 @@ impl SearchState {
             })
     }
 
+    pub fn get_tt_stats(&self) -> (u64, u64, u64, u64) {
+        self.tt.stats()
+    }
+
 }
 
 impl Default for SearchState {
