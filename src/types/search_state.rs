@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::gui::parse_move;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
@@ -16,6 +18,8 @@ pub struct SearchState {
     rep_table: RepetitionTable,
     nodes_searched: u64,
     tt_hits: u64,
+    deadline: Instant,
+    should_quit: bool,
 }
 
 impl SearchState {
@@ -32,6 +36,8 @@ impl SearchState {
             rep_table: RepetitionTable::new(),
             nodes_searched: 0,
             tt_hits: 0,
+            deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
+            should_quit: false
         };
 
         search_state
@@ -48,6 +54,8 @@ impl SearchState {
         self.prev_iter_best_move = Move::create_null();
         self.rep_table.clear();
         self.nodes_searched = 0;
+        self.deadline = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
+        self.should_quit = false;
     }
 
 
@@ -225,6 +233,30 @@ impl SearchState {
 
     pub fn get_tt_stats(&self) -> (u64, u64, u64, u64) {
         self.tt.stats()
+    }
+
+    pub fn passed_deadline(&self) -> bool {
+        return Instant::now() > self.deadline;
+    }
+
+    pub fn should_quit(&mut self) -> bool {
+        if self.should_quit {
+            return true;
+        }
+
+        if (self.nodes_searched & 0x1fff) == 0 {
+            if self.passed_deadline() {
+                self.should_quit = true;
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn set_deadline(&mut self, deadline: Instant) {
+        self.deadline = deadline;
+        self.should_quit = false;
     }
 
 }

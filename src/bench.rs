@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::time::{Duration, Instant, SystemTime};
 
 use crate::search::{collect_pv, single_depth_search_aspirated}; 
 use crate::shared::{ENDGAME_PERFT, KIWIPETE, MIN_DEPTH, Move, START_POSITION, SearchAnswer}; 
@@ -7,6 +7,7 @@ use crate::types::{search_state::SearchState};
 
 pub fn test_position(fen: &str, depth: usize) {
     let mut search_state = &mut SearchState::new(fen);
+    search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(100000)).unwrap());
 
     let now = SystemTime::now();
     let mut local_depth = MIN_DEPTH;

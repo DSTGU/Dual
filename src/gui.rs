@@ -42,14 +42,17 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
     let words : Vec<&str> = command.split_ascii_whitespace().collect();
     let mut wtime : Option<usize> = None;
     let mut btime : Option<usize> = None;
-    
-    
+    let mut winc : Option<usize> = None;
+    let mut binc : Option<usize> = None;
+
     for i in 0..words.len()/2 {
         match words[2 * i + 1] {
             "depth" => depth = Some(words[2*i+2].parse().unwrap_or(6)),
             "perft" => {perft(search_state, words[2*i+2].parse().unwrap_or(4)); return;},
             "wtime" => wtime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "btime" => btime = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "winc" => winc = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "binc" => binc = Some(words[2*i+2].parse().unwrap_or(1000)),
             _ => ()
         }
     }
@@ -63,7 +66,18 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
         time = wtime;
     }
 
-    search(search_state, depth, time);
+    let inc: Option<usize>;
+
+    if search_state.board_position.side == 1 {
+        inc = binc;
+    }
+    else {
+        inc = winc;
+    }
+
+    let time_available : Option<usize> = if let Some(timeval) = time { Some((timeval/20 + inc.unwrap_or(0)/2).min(timeval*3/4)) } else {None};
+    println!("time: {}", time_available.unwrap());
+    search(search_state, depth, time_available);
 
 }
 
