@@ -88,7 +88,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                 TTFlag::Alpha => {
                     if entry.score <= alpha {
                         return SearchAnswer {
-                            move_list: vec![Some(entry.best_move)],
+                            move_list: vec![],
                             node_count: 1,
                             eval: alpha,
                         };
