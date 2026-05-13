@@ -305,9 +305,10 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
 
         search_state.reset_for_new_search(depth.unwrap(), Move::create_null());        
         
-        let score = single_depth_search(&mut search_state, depth.unwrap());
+        let mut score: SearchAnswer = single_depth_search(&mut search_state, depth.unwrap());
 
         print_info_string(&score, search_state, depth.unwrap());
+        println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
 
     } else {
         let now = SystemTime::now();
