@@ -5,9 +5,9 @@ use crate::shared::{ENDGAME_PERFT, KIWIPETE, MIN_DEPTH, Move, START_POSITION, Se
 use crate::types::{search_state::SearchState};
 
 
-pub fn test_position(fen: &str, depth: usize) {
-    let mut search_state = &mut SearchState::new(fen);
+pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
     search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(100000)).unwrap());
+    search_state.change_position(fen);
 
     let now = SystemTime::now();
     let mut local_depth = MIN_DEPTH;
@@ -15,9 +15,9 @@ pub fn test_position(fen: &str, depth: usize) {
     let mut total_node_count = 0;
 
     while local_depth <= depth {
-            search_state.reset_for_new_search(depth, Move::create_null());
+            search_state.reset_for_new_iteration(depth, Move::create_null());
 
-            score = single_depth_search_aspirated(&mut search_state, local_depth, score.eval);
+            score = single_depth_search_aspirated(search_state, local_depth, score.eval);
                         
             local_depth = local_depth + 1;
             total_node_count += score.node_count;
@@ -30,13 +30,13 @@ pub fn test_position(fen: &str, depth: usize) {
     println!("TT: hits:{}, collisions:{}, inserts:{}, overwrites:{}", stats.0, stats.1, stats.2, stats.3);
 }
 
-pub fn bench_engine() {
+pub fn bench_engine(search_state: &mut SearchState) {
 
     println!("Startpos:");
-    test_position(START_POSITION, 7);
+    test_position(search_state, START_POSITION, 7);
     println!("Kiwipete:");
-    test_position(KIWIPETE, 6);
+    test_position(search_state, KIWIPETE, 6);
     println!("Endgame pos");
-    test_position(ENDGAME_PERFT, 10);
+    test_position(search_state, ENDGAME_PERFT, 10);
 
 }

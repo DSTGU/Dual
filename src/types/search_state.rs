@@ -102,7 +102,7 @@ impl SearchState {
 
     }
 
-    pub fn reset_for_new_search(&mut self, depth: usize, previter_bestmove: Move) {
+    pub fn reset_for_new_iteration(&mut self, depth: usize, previter_bestmove: Move) {
         self.max_depth = depth;
         self.seldepth = depth;
         self.prev_iter_best_move = previter_bestmove;

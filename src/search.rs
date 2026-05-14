@@ -156,6 +156,10 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
                 if -score.eval > new_alpha {
                     if -score.eval >= beta {
+                        if search_state.should_quit() {
+                            return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
+                        }
+                        
                         if mv.is_quiet() {
                             search_state.update_killer_move(mv, search_state.max_depth-depth);
                         }
@@ -196,6 +200,10 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
                 if -score.eval > new_alpha {
                     if -score.eval >= beta {
+                        
+                        if search_state.should_quit() {
+                            return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
+                        }
 
                         search_state.store_tt(
                             depth,
@@ -223,10 +231,6 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
             }
         }
     }
-    
-    if search_state.should_quit() {
-       return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};
-    }
 
     if legal_moves == 0 {
             if search_state.is_king_attacked() {
@@ -235,6 +239,10 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
             else {
                 return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};
             }
+    }
+
+    if search_state.should_quit() {
+       return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
     }
 
     let flag = if new_alpha <= alpha {
@@ -312,19 +320,19 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
     if time_available.is_none() && depth.is_some() {
         search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(1000000)).unwrap());
         if depth.unwrap() <= MIN_DEPTH {
-            search_state.reset_for_new_search(depth.unwrap(), Move::create_null());        
+            search_state.reset_for_new_iteration(depth.unwrap(), Move::create_null());        
             let mut score: SearchAnswer = single_depth_search(&mut search_state, depth.unwrap());
             print_info_string(&score, search_state, depth.unwrap());
             println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
         } else {
-            search_state.reset_for_new_search(MIN_DEPTH, Move::create_null());
+            search_state.reset_for_new_iteration(MIN_DEPTH, Move::create_null());
 
             let mut score: SearchAnswer = single_depth_search(search_state, MIN_DEPTH);
             
             print_info_string(&score, search_state, MIN_DEPTH);
             
             let mut curr_depth = MIN_DEPTH + 1;
-            search_state.reset_for_new_search(curr_depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+            search_state.reset_for_new_iteration(curr_depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
 
             while curr_depth <= depth.unwrap()   {
             
@@ -334,7 +342,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
                 
                 curr_depth = curr_depth + 1;
                 
-                search_state.reset_for_new_search(curr_depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+                search_state.reset_for_new_iteration(curr_depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
             }
 
 
@@ -356,17 +364,17 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
 
         search_state.set_deadline(Instant::now().checked_add(Duration::from_millis(time_avail as u64)).unwrap());
 
-        search_state.reset_for_new_search(MIN_DEPTH, Move::create_null());
+        search_state.reset_for_new_iteration(MIN_DEPTH, Move::create_null());
 
         let mut score: SearchAnswer = single_depth_search(search_state, MIN_DEPTH);
         
         print_info_string(&score, search_state, MIN_DEPTH);
         
         let mut depth = MIN_DEPTH + 1;
-        
-        search_state.reset_for_new_search(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
 
-        while now.elapsed().unwrap().as_millis() < (time_avail/2) as u128 {
+        search_state.reset_for_new_iteration(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+
+        while now.elapsed().unwrap().as_millis() < (time_avail/4) as u128 {
         
             let new_score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
             if (!search_state.should_quit() && score.move_list.len() > 0) {
@@ -377,7 +385,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
             
             depth = depth + 1;
             
-            search_state.reset_for_new_search(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+            search_state.reset_for_new_iteration(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
         }
 
         println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
@@ -414,7 +422,7 @@ mod tests {
                 let command = "position fen Q6K/8/8/8/8/8/7R/1k6 w - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
                 let mut search_state = SearchState::new(START_POSITION);
                 search_state.parse_position_command(command);
-                search_state.reset_for_new_search(4, Move::create_null());       
+                search_state.reset_for_new_iteration(4, Move::create_null());       
                 let score = single_depth_search(&mut search_state, 4); 
 
                 println!("{:?}", score);
