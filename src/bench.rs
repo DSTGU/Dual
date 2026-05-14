@@ -8,6 +8,7 @@ use crate::types::{search_state::SearchState};
 pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
     search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(100000)).unwrap());
     search_state.change_position(fen);
+    //search_state.clear_tt();
 
     let now = SystemTime::now();
     let mut local_depth = MIN_DEPTH;

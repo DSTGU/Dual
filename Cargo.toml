@@ -11,3 +11,9 @@ stacker = "0.1.15"
 
 [profile.release]
 lto = "fat"
+
+#profiling profile
+[profile.bench]
+debug = true
+lto = "fat"
+codegen-units = 1

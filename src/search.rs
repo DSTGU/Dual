@@ -6,6 +6,24 @@ use crate::types::search_state::SearchState;
 use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
 use crate::types::tt::TTFlag;
 
+pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>, depth: usize) -> Vec<Move> {
+    let mut scored_moves: Vec<(Move, i32)> = move_list
+        .into_iter()
+        .map(|m| {
+            let score = if Some(m) == search_state.tt_move() {
+                i32::MAX
+            } else {
+                search_state.get_move_score(m, depth) as i32
+            };
+
+            (m, score)
+        })
+        .collect();
+
+    scored_moves.sort_unstable_by_key(|&(_, score)| -score);
+    scored_moves.into_iter().map(|(mv, _)| mv).collect()
+}
+
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
     search_state.seldepth = search_state.seldepth.max(search_state.max_depth+ply-1);
@@ -29,12 +47,8 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     }
 
     let move_list = generate_moves(&search_state.board_position);
-    let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.is_capture() == true).collect();
-    filtered_move_list.sort_by(|a, b| {
-        let score_a = search_state.get_move_score(*a, search_state.max_depth + ply);
-        let score_b = search_state.get_move_score(*b, search_state.max_depth + ply);
-        score_b.cmp(&score_a)
-    });
+    let filtered_move_list = move_list.into_iter().filter(|mv| mv.is_capture() == true).collect();
+    let filtered_move_list = sort_move_list(search_state, filtered_move_list, search_state.max_depth + ply);
 
     let mut nodes = 1;
 
@@ -112,23 +126,8 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
         }
     }
 
-
-    let tt_move = search_state.tt_move();
-
-    let mut move_list = generate_moves(&search_state.board_position);
-    move_list.sort_by(|a, b| {
-        if Some(*a) == tt_move {
-            return std::cmp::Ordering::Less;
-        }
-
-        if Some(*b) == tt_move {
-            return std::cmp::Ordering::Greater;
-        }
-
-        let score_a = search_state.get_move_score(*a, search_state.max_depth - depth);
-        let score_b = search_state.get_move_score(*b, search_state.max_depth - depth);
-        score_b.cmp(&score_a)
-    });
+    let move_list = generate_moves(&search_state.board_position);
+    let move_list = sort_move_list(search_state, move_list, search_state.max_depth - depth);
 
     // Move, eval (alpha), nodes
     let mut nodes = 1;

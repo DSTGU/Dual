@@ -168,6 +168,7 @@ pub fn determine_phase(board_position: &BoardPosition) -> i32 {
 
     (phase * 256 + (total_phase / 2)) / total_phase
 }
+
 pub fn evaluate(board_position: &BoardPosition) -> i32 {
 
     let mut mg_score = 0;

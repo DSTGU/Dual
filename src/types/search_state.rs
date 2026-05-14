@@ -58,6 +58,9 @@ impl SearchState {
         self.should_quit = false;
     }
 
+    pub fn clear_tt(&mut self) {
+        self.tt.clear();
+    }
 
     pub fn parse_position_command(&mut self, command: &str) {
         let words : Vec<&str> = command.trim().split(" ").collect();
@@ -244,7 +247,7 @@ impl SearchState {
             return true;
         }
 
-        if (self.nodes_searched & 0x1fff) == 0 {
+        if (self.nodes_searched & 0x3fff) == 0 {
             if self.passed_deadline() {
                 self.should_quit = true;
                 return true;

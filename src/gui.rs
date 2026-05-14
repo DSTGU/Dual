@@ -76,9 +76,7 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
     }
 
     let time_available : Option<usize> = if let Some(timeval) = time { Some((timeval/20 + inc.unwrap_or(0)/2).min(timeval*3/4)) } else {None};
-    println!("time: {}", time_available.unwrap());
     search(search_state, depth, time_available);
-
 }
 
 #[cfg(test)]
