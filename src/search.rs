@@ -47,7 +47,7 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     }
 
     let move_list = generate_moves(&search_state.board_position);
-    let filtered_move_list = move_list.into_iter().filter(|mv| mv.is_capture() == true).collect();
+    let filtered_move_list = move_list.into_iter().filter(|mv| mv.is_capture() || mv.is_promotion()).collect();
     let filtered_move_list = sort_move_list(search_state, filtered_move_list, search_state.max_depth + ply);
 
     let mut nodes = 1;
