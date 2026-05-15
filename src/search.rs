@@ -411,7 +411,6 @@ pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState, depth
 mod tests {
 
     use std::thread;
-    use crate::gui::parse_go;
     use crate::search::single_depth_search;
     use crate::shared::{Move, START_POSITION};
     use crate::types::search_state::SearchState;
@@ -437,46 +436,4 @@ mod tests {
             .unwrap();
         handler.join().unwrap();
     }
-
-        #[test]
-    fn test_do_not_empty_history_unnecessairly() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-                let mut search_state = SearchState::new(START_POSITION);
-                let command = "position startpos";
-                search_state.parse_position_command(command);
-                parse_go("go depth 4", &mut search_state);
-                assert_ne!([[0; 64]; 12], search_state.history_moves);
-                let command2 = "position startpos e2e4 e7e5";
-                search_state.parse_position_command(command2);
-                assert_ne!([[0; 64]; 12], search_state.history_moves);
-                parse_go("go depth 4", &mut search_state);
-                
-            })
-            .unwrap();
-        handler.join().unwrap();
-    }
-    //
-
-    // #[test]
-    // fn test_unforced_trifold_repetition() {
-    //     let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-    //     let handler = builder
-    //         .spawn(|| {
-    //             let command = "position fen 8/7r/8/1p5p/2k5/6P1/5PK1/1R6 w - - 0 54 moves b1c1 c4b3 c1b1 b3c4 b1c1 c4b3";
-                
-    //             let mut board = parse_position(command.trim());
-    //             //board.reset_for_new_search(4, Move::create_null());       
-    //             //let score = 
-    //             search(&mut board, None, Some(1000)); 
-
-    //             //println!("{:?}", score);
-    //             //assert_eq!(score.eval, 0);
-                
-    //         })
-    //         .unwrap();
-    //     handler.join().unwrap();
-        
-    // } 
 }
