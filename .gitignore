@@ -20,3 +20,9 @@ Cargo.lock
 *.iml
 
 .vscode
+
+# Personal notes
+.dual-notes.md
+
+flamegraph.svg
+perf.*

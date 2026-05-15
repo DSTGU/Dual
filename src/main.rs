@@ -6,6 +6,7 @@ mod gui;
 mod search;
 mod evaluate;
 mod types;
+mod bench;
 
 use std::io;
 use std::thread;
@@ -34,9 +35,10 @@ use shared::print_bitboard;
 use attacks::PAWN_ATTACKS;
 use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
-use crate::gui::{parse_go, parse_position};
+use crate::bench::bench_engine;
+use crate::gui::{parse_go};
 use crate::types::search_state::SearchState;
-use crate::shared::{ parse_fen, Piece, START_POSITION};
+use crate::shared::{ Piece, START_POSITION};
 
 /**********************************\
  ==================================
@@ -46,11 +48,15 @@ use crate::shared::{ parse_fen, Piece, START_POSITION};
  ==================================
 \**********************************/
 
-pub fn uci_loop() {
-    println!("id name Dual v0.2.7");
+pub fn print_identification() {
+    println!("id name Dual v0.2.8");
     println!("id author Tomasz Stawowy");
     println!("uciok");
-    let mut search_state: SearchState = SearchState::new(parse_fen(START_POSITION));
+}
+
+pub fn uci_loop() {
+
+    let mut search_state: SearchState = SearchState::new(START_POSITION);
     loop {  
         // Read user input
         let mut input = String::new();
@@ -68,12 +74,13 @@ pub fn uci_loop() {
         match words[0] {
             "exit" => return,
             "go" => parse_go(command, &mut search_state),
-            "position" => search_state = parse_position(command),
-            "ucinewgame" => search_state = parse_position("position startpos"),
-            "uci" => println!("id name Dual v0.2.7\nid author Tomasz Stawowy\nuciok"),
+            "position" => search_state.parse_position_command(command),
+            "ucinewgame" => search_state.parse_position_command("position startpos"),
+            "uci" => print_identification(),
             "printboard" => search_state.board_position.print_board(),
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
+            "bench" => bench_engine(&mut search_state),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
         }
@@ -82,6 +89,7 @@ pub fn uci_loop() {
 
 
 fn main() {
+    print_identification();
     let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
     let handler = builder.spawn(|| {
         // thread code

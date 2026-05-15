@@ -428,7 +428,7 @@ pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
 mod tests {
     use crate::types::board::BoardPosition;
     use crate::move_gen::is_square_attacked;
-    use crate::shared::{coordinates_to_squares, parse_fen, print_bitboard};
+    use crate::shared::{coordinates_to_squares, print_bitboard};
     use std::thread;
 
     pub fn run_through_attacks(board_position: &BoardPosition) -> u64 {
@@ -453,7 +453,7 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let board_pos =
-                    parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
+                    BoardPosition::new("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
                 assert_eq!(run_through_attacks(&board_pos), 18437032593966828032);
             })
             .unwrap();
@@ -465,7 +465,7 @@ mod tests {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
-                let board_pos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
+                let board_pos = BoardPosition::new("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
                 assert_eq!(
                     is_square_attacked(coordinates_to_squares("d3"), &board_pos),
                     true
@@ -480,7 +480,7 @@ mod tests {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
-                let board_pos = parse_fen("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
+                let board_pos = BoardPosition::new("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
                 assert_eq!(
                     is_square_attacked(coordinates_to_squares("b1"), &board_pos),
                     false

@@ -7,7 +7,7 @@
 
 use std::sync::OnceLock;
 
-use crate::types::board::BoardPosition;
+use crate::{shared::{MATE_SCORE, Move}, types::board::BoardPosition};
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND
@@ -135,7 +135,7 @@ pub struct TTEntry {
     pub depth: i32,     // Search depth
     pub score: i32,     // Evaluated score
     pub flag: TTFlag,   // Type of score
-    pub best_move: u32, // Best move found (if any)
+    pub best_move: Move, // Best move found (if any)
     pub age: u8,        // Search age for replacement
 }
 
@@ -146,7 +146,7 @@ impl TTEntry {
             depth: 0,
             score: 0,
             flag: TTFlag::Exact,
-            best_move: 0,
+            best_move: Move::create_null(),
             age: 0,
         }
     }
@@ -219,7 +219,7 @@ impl TranspositionTable {
 
     /// Store an entry in the transposition table
     #[inline]
-    pub fn store(&mut self, hash: u64, depth: i32, score: i32, flag: TTFlag, best_move: u32) {
+    pub fn store(&mut self, hash: u64, depth: i32, score: i32, flag: TTFlag, best_move: Move) {
         let idx = Self::index(hash);
         let entry = &mut self.entries[idx];
 
@@ -293,28 +293,23 @@ impl RepetitionTable {
         self.hashes.push(hash);
     }
 
-    /// Push a position onto the history (calculate hash yourself)
-    #[inline(always)]
-    pub fn push_position(&mut self, board_position: &BoardPosition) {
-        self.hashes.push(compute_hash(board_position));
-    }
-
     /// Pop the last hash from history
     #[inline(always)]
-    pub fn pop(&mut self) {
-        self.hashes.pop();
+    pub fn pop(&mut self) -> u64 {
+        self.hashes.pop().expect("can't unmake a move that's not there")
     }
 
     /// Check if the current position is a draw by repetition
-    /// (appears at least 3 times in the history including current)
+    /// (appears at least 2 times in the history)
+    /// TODO: Investigate skip by 2
     #[inline]
     pub fn is_draw(&self, hash: u64) -> bool {
         let mut count = 0;
         // Only check even plies (same side to move)
-        for (i, &h) in self.hashes.iter().enumerate().rev().step_by(2) {
+        for (i, &h) in self.hashes.iter().enumerate().rev() {
             if h == hash {
                 count += 1;
-                if count >= 3 {
+                if count >= 2 {
                     // Current occurrence + 2 previous = 3 total
                     return true;
                 }

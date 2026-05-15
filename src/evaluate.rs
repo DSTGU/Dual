@@ -168,6 +168,7 @@ pub fn determine_phase(board_position: &BoardPosition) -> i32 {
 
     (phase * 256 + (total_phase / 2)) / total_phase
 }
+
 pub fn evaluate(board_position: &BoardPosition) -> i32 {
 
     let mut mg_score = 0;
@@ -201,7 +202,7 @@ pub fn evaluate(board_position: &BoardPosition) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shared::{parse_fen, START_POSITION};
+    use crate::shared::{START_POSITION};
 
     #[test]
     fn test_mirror_sq() {
@@ -223,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_evaluation_determinism() {
-        let board = parse_fen(START_POSITION);
+        let board = BoardPosition::new(START_POSITION);
 
         // Same position should always give same evaluation
         let eval1 = evaluate(&board);
@@ -237,8 +238,8 @@ mod tests {
     #[test]
     fn test_evaluation_preserves_order() {
         // Test that piece advantage is detected
-        let balanced = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
-        let white_up_pawn = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPP1/RNBQKBNR w KQkq -");
+        let balanced = BoardPosition::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
+        let white_up_pawn = BoardPosition::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPP1/RNBQKBNR w KQkq -");
 
         let eval_balanced = evaluate(&balanced);
         let eval_white_up = evaluate(&white_up_pawn);
@@ -253,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_phase_calculation() {
-        let start = parse_fen(START_POSITION);
+        let start = BoardPosition::new(START_POSITION);
         let phase_start = determine_phase(&start);
 
         // Start position should be middlegame (low phase value in original code)
@@ -262,7 +263,7 @@ mod tests {
         println!("Start position phase: {}", phase_start);
 
         // Endgame should have higher phase value
-        let endgame = parse_fen("4k3/8/8/8/8/8/8/4K3 w - -");
+        let endgame = BoardPosition::new("4k3/8/8/8/8/8/8/4K3 w - -");
         let phase_end = determine_phase(&endgame);
         println!("Endgame phase: {}", phase_end);
 
@@ -277,7 +278,7 @@ mod tests {
     fn test_performance() {
         use std::time::Instant;
 
-        let board = parse_fen(START_POSITION);
+        let board = BoardPosition::new(START_POSITION);
         let iterations = 100000;
 
         // Warm up
@@ -306,8 +307,8 @@ mod tests {
     #[test]
     fn test_middlegame_endgame_interpolation() {
         // Test that tapered evaluation works
-        let mg_heavy = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
-        let eg_heavy = parse_fen("4k3/8/8/8/8/8/8/4K3 w - -");
+        let mg_heavy = BoardPosition::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
+        let eg_heavy = BoardPosition::new("4k3/8/8/8/8/8/8/4K3 w - -");
 
         let phase_mg = determine_phase(&mg_heavy);
         let phase_eg = determine_phase(&eg_heavy);
@@ -323,8 +324,8 @@ mod tests {
     #[test]
     fn test_side_to_move_perspective() {
         // Same position, different side to move
-        let white_move = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
-        let black_move = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq -");
+        let white_move = BoardPosition::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
+        let black_move = BoardPosition::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq -");
 
         let eval_white = evaluate(&white_move);
         let eval_black = evaluate(&black_move);

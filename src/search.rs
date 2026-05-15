@@ -1,11 +1,33 @@
 use std::{vec};
-use std::time::SystemTime;
+use coarsetime::{Duration, Instant};
+
 use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves};
 use crate::types::search_state::SearchState;
 use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
+use crate::types::tt::TTFlag;
+
+pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>, depth: usize) -> Vec<Move> {
+    let mut scored_moves: Vec<(Move, i32)> = move_list
+        .into_iter()
+        .map(|m| {
+            let score = if Some(m) == search_state.tt_move() {
+                i32::MAX
+            } else {
+                search_state.get_move_score(m, depth) as i32
+            };
+
+            (m, score)
+        })
+        .collect();
+
+    scored_moves.sort_unstable_by_key(|&(_, score)| -score);
+    scored_moves.into_iter().map(|(mv, _)| mv).collect()
+}
 
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
+
+    search_state.seldepth = search_state.seldepth.max(search_state.max_depth+ply-1);
 
     let eval = evaluate(&search_state.board_position);
 
@@ -26,12 +48,8 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     }
 
     let move_list = generate_moves(&search_state.board_position);
-    let mut filtered_move_list : Vec<Move> = move_list.into_iter().filter(|mv| mv.is_capture() == true).collect();
-    filtered_move_list.sort_by(|a, b| {
-        let score_a = search_state.get_move_score(*a, search_state.max_depth + ply);
-        let score_b = search_state.get_move_score(*b, search_state.max_depth + ply);
-        score_b.cmp(&score_a)
-    });
+    let filtered_move_list = move_list.into_iter().filter(|mv| mv.is_capture() || mv.is_promotion()).collect();
+    let filtered_move_list = sort_move_list(search_state, filtered_move_list, search_state.max_depth + ply);
 
     let mut nodes = 1;
 
@@ -57,8 +75,11 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
 
 }
 
-pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
-
+pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
+    if search_state.should_quit() {
+       return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
+    }
+    
     if depth == 0 {
         return quiescence(search_state, alpha, beta, 1);
     }
@@ -69,12 +90,45 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
 
     let mut new_alpha = alpha;
 
-    let mut move_list = generate_moves(&search_state.board_position);
-    move_list.sort_by(|a, b| {
-        let score_a = search_state.get_move_score(*a, search_state.max_depth - depth);
-        let score_b = search_state.get_move_score(*b, search_state.max_depth - depth);
-        score_b.cmp(&score_a)
-    });
+    if let Some(entry) = search_state.probe_tt().copied() {
+
+        if entry.depth >= depth as i32 {
+
+            match entry.flag {
+
+                TTFlag::Exact => {
+                    return SearchAnswer {
+                        move_list: vec![Some(entry.best_move)],
+                        node_count: 1,
+                        eval: entry.score,
+                    };
+                }
+
+                TTFlag::Alpha => {
+                    if entry.score <= alpha {
+                        return SearchAnswer {
+                            move_list: vec![],
+                            node_count: 1,
+                            eval: alpha,
+                        };
+                    }
+                }
+
+                TTFlag::Beta => {
+                    if entry.score >= beta {
+                        return SearchAnswer {
+                            move_list: vec![Some(entry.best_move)],
+                            node_count: 1,
+                            eval: beta,
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+    let move_list = generate_moves(&search_state.board_position);
+    let move_list = sort_move_list(search_state, move_list, search_state.max_depth - depth);
 
     // Move, eval (alpha), nodes
     let mut nodes = 1;
@@ -95,31 +149,89 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
             legal_moves += 1;
             let _newdepth = depth-1;
             
-            let res = negamax(&mut search_state, -beta, -new_alpha, depth-1);
-            search_state.take_back(mv);
-            nodes += res.node_count;
-            
+            if !is_PV_node {
+                let score: SearchAnswer = pvs(&mut search_state, -beta, -new_alpha, depth-1);
+                search_state.take_back(mv);
+                nodes += score.node_count;
 
-            if -res.eval >= beta {                
-                if mv.is_capture() {
-                    search_state.update_killer_move(mv, search_state.max_depth-depth);
-                }
-                return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
-            }
+                if -score.eval > new_alpha {
+                    if -score.eval >= beta {
+                        if search_state.should_quit() {
+                            return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
+                        }
+                        
+                        if mv.is_quiet() {
+                            search_state.update_killer_move(mv, search_state.max_depth-depth);
+                        }
 
-            if -res.eval > new_alpha {
-                if !mv.is_capture() {
-                    search_state.update_history(mv, depth);
+                        search_state.store_tt(
+                            depth,
+                            beta,
+                            TTFlag::Beta,
+                            mv,
+                        );
+
+                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
+                    }
+
+                    if mv.is_quiet() {
+                        search_state.update_history(mv, depth);
+                    }
+
+                    new_alpha = -score.eval;
+                    best_move = Some(mv);
+                    best_move_list = score.move_list;
+                    is_PV_node = true;
                 }
-                
-                new_alpha = -res.eval;
-                best_move = Some(mv);
-                best_move_list = res.move_list;
-                is_PV_node = true;
+
+            } else {
+
+                let mut score = pvs(&mut search_state, -new_alpha-1, -new_alpha, depth-1); // alphaBeta or zwSearch
+                nodes += score.node_count;
+
+                if -score.eval > new_alpha && -score.eval < beta  {
+                    // research with window [alfa;beta]
+                    score = pvs(&mut search_state, -beta, -new_alpha, depth-1);
+                    nodes += score.node_count;
+
+                }
+
+                search_state.take_back(mv);
+
+                if -score.eval > new_alpha {
+                    if -score.eval >= beta {
+                        
+                        if search_state.should_quit() {
+                            return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
+                        }
+
+                        search_state.store_tt(
+                            depth,
+                            beta,
+                            TTFlag::Beta,
+                            mv,
+                        );
+
+                        if mv.is_quiet() {
+                            search_state.update_killer_move(mv, search_state.max_depth-depth);
+                        }
+                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
+                    }
+
+                    if mv.is_quiet() {
+                        search_state.update_history(mv, depth);
+                    }
+
+                    new_alpha = -score.eval;
+                    best_move = Some(mv);
+                    best_move_list = score.move_list;
+                    is_PV_node = true;
+                }
+
             }
         }
     }
-    
+
     if legal_moves == 0 {
             if search_state.is_king_attacked() {
                 return SearchAnswer { move_list: vec![], node_count: 1, eval: -4999900 - depth as i32};
@@ -129,6 +241,24 @@ pub fn negamax(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth:
             }
     }
 
+    if search_state.should_quit() {
+       return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
+    }
+
+    let flag = if new_alpha <= alpha {
+        TTFlag::Alpha
+    } else if new_alpha >= beta {
+        TTFlag::Beta
+    } else {
+        TTFlag::Exact
+    };
+
+    search_state.store_tt(
+        depth,
+        new_alpha,
+        flag,
+        best_move.unwrap_or(Move::create_null()),
+    );
     best_move_list.push(best_move);
     return SearchAnswer { move_list: best_move_list, node_count: nodes, eval: new_alpha };
 }
@@ -150,7 +280,7 @@ pub fn collect_pv(moves: &Vec<Option<Move>>) -> String {
 }
 
 pub fn single_depth_search(search_state: &mut SearchState, depth: usize) -> SearchAnswer {
-    negamax(search_state, -5000000, 5000000, depth)
+    pvs(search_state, -5000000, 5000000, depth)
 }
 
 pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: usize, eval: i32) -> SearchAnswer {
@@ -161,7 +291,7 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
 
     for _ in 0..3 {
         //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
-        score = negamax(&mut search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
+        score = pvs(&mut search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
         //println!("aspiration, score: {:?}", score.eval);
 
         if score.move_list.len() > 0 {
@@ -185,46 +315,78 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
 }
 
 
-pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Option<usize>) {
+pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_available: Option<usize>) {
 
-    if time.is_none() && depth.is_some() {
+    if time_available.is_none() && depth.is_some() {
+        search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(1000000)).unwrap());
+        if depth.unwrap() <= MIN_DEPTH {
+            search_state.reset_for_new_iteration(depth.unwrap(), Move::create_null());        
+            let mut score: SearchAnswer = single_depth_search(&mut search_state, depth.unwrap());
+            print_info_string(&score, search_state, depth.unwrap());
+            println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
+        } else {
+            search_state.reset_for_new_iteration(MIN_DEPTH, Move::create_null());
 
-        search_state.reset_for_new_search(depth.unwrap(), Move::create_null());        
+            let mut score: SearchAnswer = single_depth_search(search_state, MIN_DEPTH);
+            
+            print_info_string(&score, search_state, MIN_DEPTH);
+            
+            let mut curr_depth = MIN_DEPTH + 1;
+            search_state.reset_for_new_iteration(curr_depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+
+            while curr_depth <= depth.unwrap()   {
+            
+                score = single_depth_search_aspirated(&mut search_state, curr_depth, score.eval);
+                
+                print_info_string(&score, search_state, curr_depth);
+                
+                curr_depth = curr_depth + 1;
+                
+                search_state.reset_for_new_iteration(curr_depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+            }
+
+
+            println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
+        }
         
-        let score = single_depth_search(&mut search_state, depth.unwrap());
+        
 
-        print_info_string(&score, depth.unwrap());
 
     } else {
-        let now = SystemTime::now();
-        let time_avail;
-        if let Some(x) = time {
-            time_avail = x/60
+        let now: Instant = Instant::now();
+        let time_avail: usize;
+        if let Some(x) = time_available {
+            time_avail = x;
         }
         else {
-            time_avail = 10000000;
+            time_avail = 1000;
         }
 
-        search_state.reset_for_new_search(MIN_DEPTH, Move::create_null());
+        search_state.set_deadline(Instant::now().checked_add(Duration::from_millis(time_avail as u64)).unwrap());
 
-        let mut score = single_depth_search(search_state, MIN_DEPTH);
+        search_state.reset_for_new_iteration(MIN_DEPTH, Move::create_null());
+
+        let mut score: SearchAnswer = single_depth_search(search_state, MIN_DEPTH);
         
-        print_info_string(&score, MIN_DEPTH);
+        print_info_string(&score, search_state, MIN_DEPTH);
         
         let mut depth = MIN_DEPTH + 1;
-        search_state.reset_for_new_search(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
 
-        while now.elapsed().unwrap().as_millis() < time_avail as u128 {
+        search_state.reset_for_new_iteration(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+
+        while now.elapsed().as_millis() < (time_avail/3) as u64 {
         
-            score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
-            
-            print_info_string(&score, depth);
+            let new_score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
+            if (!search_state.should_quit() && score.move_list.len() > 0) {
+                score = new_score;
+                print_info_string(&score, search_state, depth);
+            }
+
             
             depth = depth + 1;
             
-            search_state.reset_for_new_search(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+            search_state.reset_for_new_iteration(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
         }
-
 
         println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
         
@@ -232,15 +394,15 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time: Op
     
 }
 
-pub fn print_info_string(score: &SearchAnswer, depth: usize) {
+pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState, depth: usize) {
     let pv: String = collect_pv(&score.move_list);
 
     if score.eval > 4000000 || score.eval < -4000000 {
         let mate = score_to_mate( score.eval, depth);
-        println!("info score mate {} depth {} nodes {} pv {}", mate, depth, score.node_count, pv);
+        println!("info score mate {} depth {} seldepth {} nodes {} pv {}", mate, depth, search_state.seldepth, score.node_count, pv);
     }
     else {
-        println!("info score cp {} depth {} nodes {} pv {}", score.eval, depth, score.node_count, pv);
+        println!("info score cp {} depth {} seldepth {} nodes {} pv {}", score.eval, depth, search_state.seldepth, score.node_count, pv);
     }
 }
 
@@ -249,19 +411,22 @@ pub fn print_info_string(score: &SearchAnswer, depth: usize) {
 mod tests {
 
     use std::thread;
-    use crate::{gui::parse_position, search::single_depth_search, shared::Move};
+    use crate::gui::parse_go;
+    use crate::search::single_depth_search;
+    use crate::shared::{Move, START_POSITION};
+    use crate::types::search_state::SearchState;
 
 
     #[test]
-    fn test_go() {
+    fn test_forced_trifold_repetition() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 let command = "position fen Q6K/8/8/8/8/8/7R/1k6 w - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
-                
-                let mut board: crate::types::search_state::SearchState = parse_position(command.trim());
-                board.reset_for_new_search(4, Move::create_null());       
-                let score = single_depth_search(&mut board, 4); 
+                let mut search_state = SearchState::new(START_POSITION);
+                search_state.parse_position_command(command);
+                search_state.reset_for_new_iteration(4, Move::create_null());       
+                let score = single_depth_search(&mut search_state, 4); 
 
                 println!("{:?}", score);
 
@@ -272,5 +437,46 @@ mod tests {
             .unwrap();
         handler.join().unwrap();
     }
-    // 
+
+        #[test]
+    fn test_do_not_empty_history_unnecessairly() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                let mut search_state = SearchState::new(START_POSITION);
+                let command = "position startpos";
+                search_state.parse_position_command(command);
+                parse_go("go depth 4", &mut search_state);
+                assert_ne!([[0; 64]; 12], search_state.history_moves);
+                let command2 = "position startpos e2e4 e7e5";
+                search_state.parse_position_command(command2);
+                assert_ne!([[0; 64]; 12], search_state.history_moves);
+                parse_go("go depth 4", &mut search_state);
+                
+            })
+            .unwrap();
+        handler.join().unwrap();
+    }
+    //
+
+    // #[test]
+    // fn test_unforced_trifold_repetition() {
+    //     let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+    //     let handler = builder
+    //         .spawn(|| {
+    //             let command = "position fen 8/7r/8/1p5p/2k5/6P1/5PK1/1R6 w - - 0 54 moves b1c1 c4b3 c1b1 b3c4 b1c1 c4b3";
+                
+    //             let mut board = parse_position(command.trim());
+    //             //board.reset_for_new_search(4, Move::create_null());       
+    //             //let score = 
+    //             search(&mut board, None, Some(1000)); 
+
+    //             //println!("{:?}", score);
+    //             //assert_eq!(score.eval, 0);
+                
+    //         })
+    //         .unwrap();
+    //     handler.join().unwrap();
+        
+    // } 
 }
