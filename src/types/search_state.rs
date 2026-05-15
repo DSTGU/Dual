@@ -12,7 +12,8 @@ pub struct SearchState {
     pub max_depth: usize,
     pub seldepth: usize,
     killer_moves: [[Move; 256]; 2],
-    history_moves: [[usize; 64]; 12],
+    //only public for test purposes
+    pub history_moves: [[usize; 64]; 12],
     prev_iter_best_move: Move,
     tt: TranspositionTable,
     rep_table: RepetitionTable,
@@ -58,8 +59,9 @@ impl SearchState {
         self.should_quit = false;
     }
 
-    pub fn clear_tt(&mut self) {
+    pub fn clear_persistent_data(&mut self) {
         self.tt.clear();
+        self.history_moves = [[0; 64]; 12];
     }
 
     pub fn parse_position_command(&mut self, command: &str) {
@@ -67,7 +69,14 @@ impl SearchState {
 
         if words.len() < 2 {
             self.change_position(START_POSITION);
+            self.clear_persistent_data();
             return;
+        }
+
+        let hash = self.board_position.hash;
+        let mut hash_in_node = false;
+        if hash == self.board_position.hash {
+            hash_in_node = true;
         }
 
         match words[1] {
@@ -79,6 +88,9 @@ impl SearchState {
                         if let Some(x) = mov {
                             self.make_move(x);
                         }
+                        if hash == self.board_position.hash {
+                            hash_in_node = true;
+                        }
                     }
                 }
             },
@@ -89,6 +101,9 @@ impl SearchState {
                     if let Some(x) = mov {
                         self.make_move(x);
                     }
+                    if hash == self.board_position.hash {
+                        hash_in_node = true;
+                    }
                 }
             },
             "kiwipete" => {
@@ -98,9 +113,17 @@ impl SearchState {
                     if let Some(x) = mov {
                         self.make_move(x);
                     }
+                    if hash == self.board_position.hash {
+                        hash_in_node = true;
+                    }
                 }
+
             },
             _ => self.change_position(START_POSITION),
+        }
+
+        if !hash_in_node {
+            self.clear_persistent_data();
         }
 
     }
@@ -110,8 +133,6 @@ impl SearchState {
         self.seldepth = depth;
         self.prev_iter_best_move = previter_bestmove;
         self.tt.increment_age();
-        self.killer_moves = [[Move::create_null(); 256]; 2];
-        self.history_moves = [[0; 64]; 12];
         self.nodes_searched = 0;
     }
 

@@ -411,7 +411,10 @@ pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState, depth
 mod tests {
 
     use std::thread;
-    use crate::{search::single_depth_search, shared::{Move, START_POSITION}, types::search_state::{SearchState}};
+    use crate::gui::parse_go;
+    use crate::search::single_depth_search;
+    use crate::shared::{Move, START_POSITION};
+    use crate::types::search_state::SearchState;
 
 
     #[test]
@@ -429,6 +432,26 @@ mod tests {
 
                 assert!(score.node_count < 10);
                 assert_eq!(score.eval, 0);
+                
+            })
+            .unwrap();
+        handler.join().unwrap();
+    }
+
+        #[test]
+    fn test_do_not_empty_history_unnecessairly() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                let mut search_state = SearchState::new(START_POSITION);
+                let command = "position startpos";
+                search_state.parse_position_command(command);
+                parse_go("go depth 4", &mut search_state);
+                assert_ne!([[0; 64]; 12], search_state.history_moves);
+                let command2 = "position startpos e2e4 e7e5";
+                search_state.parse_position_command(command2);
+                assert_ne!([[0; 64]; 12], search_state.history_moves);
+                parse_go("go depth 4", &mut search_state);
                 
             })
             .unwrap();
