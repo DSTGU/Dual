@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use coarsetime::{Duration, Instant};
 
 use crate::gui::parse_move;
 use crate::types::board::BoardPosition;

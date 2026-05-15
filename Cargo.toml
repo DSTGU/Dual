@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+coarsetime = "0.1.37"
 lazy_static = "1.4.0"
-stacker = "0.1.15"
 
 [profile.release]
 lto = "fat"

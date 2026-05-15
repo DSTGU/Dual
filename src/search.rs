@@ -1,5 +1,6 @@
 use std::{vec};
-use std::time::{Duration, Instant, SystemTime};
+use coarsetime::{Duration, Instant};
+
 use crate::evaluate::evaluate;
 use crate::move_gen::{generate_moves};
 use crate::types::search_state::SearchState;
@@ -352,7 +353,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
 
 
     } else {
-        let now = SystemTime::now();
+        let now: Instant = Instant::now();
         let time_avail: usize;
         if let Some(x) = time_available {
             time_avail = x;
@@ -373,7 +374,7 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
 
         search_state.reset_for_new_iteration(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
 
-        while now.elapsed().unwrap().as_millis() < (time_avail/4) as u128 {
+        while now.elapsed().as_millis() < (time_avail/3) as u64 {
         
             let new_score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
             if (!search_state.should_quit() && score.move_list.len() > 0) {
@@ -410,7 +411,7 @@ pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState, depth
 mod tests {
 
     use std::thread;
-    use crate::{search::single_depth_search, shared::{Move, START_POSITION}, types::search_state::{self, SearchState}};
+    use crate::{search::single_depth_search, shared::{Move, START_POSITION}, types::search_state::{SearchState}};
 
 
     #[test]
