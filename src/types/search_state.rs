@@ -21,6 +21,7 @@ pub struct SearchState {
     tt_hits: u64,
     deadline: Instant,
     should_quit: bool,
+    ply: usize,
 }
 
 impl SearchState {
@@ -38,7 +39,8 @@ impl SearchState {
             nodes_searched: 0,
             tt_hits: 0,
             deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
-            should_quit: false
+            should_quit: false,
+            ply: 0,
         };
 
         search_state
@@ -57,6 +59,7 @@ impl SearchState {
         self.nodes_searched = 0;
         self.deadline = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
         self.should_quit = false;
+        self.ply = 0;
     }
 
     pub fn clear_persistent_data(&mut self) {
@@ -141,6 +144,8 @@ impl SearchState {
         let result = self.board_position.make_move(move_to_make);
         if result == MoveSuccess::Attacked {
             self.rep_table.pop();
+        } else {
+            self.ply += 1;
         }
 
         result
@@ -149,7 +154,7 @@ impl SearchState {
     pub fn take_back(&mut self, move_to_take_back: Move) {
         //take back manages the hash        
         self.board_position.take_back(move_to_take_back, self.rep_table.pop());
-        
+        self.ply -= 1;
         debug_assert!(compute_hash(&self.board_position) == self.board_position.hash)
     }
 
@@ -167,10 +172,10 @@ impl SearchState {
         self.board_position.mailbox[mv.get_source_square() as usize]
     }
 
-    pub fn get_move_score(&self, mv: Move, ply: usize) -> usize {
+    pub fn get_move_score(&self, mv: Move) -> usize {
         // PV move from previous iteration gets highest priority
         
-        if ply == 0 && mv == self.prev_iter_best_move {
+        if self.ply == 0 && mv == self.prev_iter_best_move {
             return PV_MOVE_BONUS;
         }
 
@@ -180,22 +185,23 @@ impl SearchState {
         }
 
         // Killer moves
-        if self.killer_moves[0][ply] == mv {
-            return FIRST_KILLER_BONUS;
-        }
-        if self.killer_moves[1][ply] == mv {
-            return SECOND_KILLER_BONUS;
+        if self.ply < 256 {
+            if self.killer_moves[0][self.ply] == mv {
+                return FIRST_KILLER_BONUS;
+            }
+            if self.killer_moves[1][self.ply] == mv {
+                return SECOND_KILLER_BONUS;
+            }
         }
 
         // History heuristic
         self.history_moves[self.get_piece(mv) as usize][mv.get_target_square() as usize]
     }
 
-    pub fn update_killer_move(&mut self, mv: Move, ply: usize) {
-        let idx = self.max_depth.saturating_sub(ply);
-        if idx < 256 {
-            self.killer_moves[1][idx] = self.killer_moves[0][idx];
-            self.killer_moves[0][idx] = mv;
+    pub fn update_killer_move(&mut self, mv: Move) {
+        if self.ply < 256 {
+            self.killer_moves[1][self.ply] = self.killer_moves[0][self.ply];
+            self.killer_moves[0][self.ply] = mv;
         }
     }
 
@@ -228,7 +234,7 @@ impl SearchState {
     #[inline(always)]
     pub fn store_tt(
         &mut self,
-        depth: usize,
+        depth:usize,
         score: i32,
         flag: TTFlag,
         best_move: Move,

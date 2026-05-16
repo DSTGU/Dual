@@ -44,6 +44,7 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
     let mut btime : Option<usize> = None;
     let mut winc : Option<usize> = None;
     let mut binc : Option<usize> = None;
+    let mut movetime : Option<usize> = None;
 
     for i in 0..words.len()/2 {
         match words[2 * i + 1] {
@@ -53,8 +54,14 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
             "btime" => btime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "winc" => winc = Some(words[2*i+2].parse().unwrap_or(1000)),
             "binc" => binc = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "movetime" => movetime = Some(words[2*i+2].parse().unwrap_or(1000)),
             _ => ()
         }
+    }
+
+    if movetime.is_some() {
+        search(search_state, depth, movetime);
+        return;
     }
 
     let time : Option<usize>;

@@ -40,7 +40,7 @@ impl BoardPosition {
             side: 2,
             enpassant: 0,
             castle: 0,
-            hash: 0
+            hash: 0,
         };
 
         board_position.parse_fen(fen);
@@ -140,6 +140,20 @@ impl BoardPosition {
             }
         }
 
+        // Keeping this comment for better times, when the state regarding previous move is gonna be kept on a stack, not deduced
+        // fen_chars.next(); // skip space
+
+        // let mut word = String::new();
+
+        // while let Some(c) = fen_chars.next() {
+        //     if c.is_whitespace() {
+        //         break;
+        //     }
+
+        //     word.push(c);
+        // }
+
+        // self.fifty_mr = word.parse().unwrap_or(0);
 
         for piece in 0..=5 {
             self.occupancies[0] |= self.bitboards[piece];
@@ -200,35 +214,26 @@ impl BoardPosition {
         let is_double_push = move_to_make.get_double_pawn_push();
         let promoted = move_to_make.is_promotion();
 
-        // if compute_hash(self) != self.hash {
-        //     println!("Oops");
-        // };
+        // //handle 50mr
+        // if is_capture || piece == Piece::P || piece == Piece::p {
+        //     self.fifty_mr += 1;
+        // } else {
+        //     self.fifty_mr = 0;
+        // }
 
         // Handle captures: 
         if is_capture && !is_enpassant {
             self.remove_piece(target, self.mailbox[target], true);
         }
 
-        // if compute_hash(self) != self.hash {
-        //     println!("Oops");
-        // };
-
         self.remove_piece(source, piece, true);
         self.add_piece(target, piece, true);
-
-        // if compute_hash(self) != self.hash {
-        //     println!("Oops");
-        // };
 
         // Handle promotion: replace the pawn with the promoted piece.
         if promoted {
             self.remove_piece(target, piece, true);
             self.add_piece(target, move_to_make.get_promoted_piece(self.side != 0), true);
         }
-
-        // if compute_hash(self) != self.hash {
-        //     println!("Oops");
-        // };
 
         // Handle en passant: remove the captured pawn (which is on a different
         // square from the target).
@@ -267,10 +272,6 @@ impl BoardPosition {
             self.hash ^= keys.enpassant_keys[(self.enpassant % 8) as usize];
         }
 
-        // if compute_hash(self) != self.hash {
-        //     println!("Oops");
-        // };
-
         // Handle castling: move the rook.
         if is_castling {
             let (rook_piece, rook_from, rook_to) = match target {
@@ -284,10 +285,6 @@ impl BoardPosition {
             self.remove_piece(rook_from, rook_piece, true);
             self.add_piece(rook_to, rook_piece, true);
         }
-
-        // if compute_hash(self) != self.hash {
-        //     println!("Oops");
-        // };
 
         for i in 0..4 {
             if self.castle & (1 << i) != 0 {
@@ -305,10 +302,6 @@ impl BoardPosition {
             }
         }
 
-        // if compute_hash(self) != self.hash {
-        //     println!("Oops");
-        // };
-
         // Recompute occupancies.
         self.occupancies[2] = self.occupancies[0] | self.occupancies[1];
 
@@ -325,11 +318,6 @@ impl BoardPosition {
         // Flip side for the returned position.
         self.side = 1 - self.side;
         self.hash ^= keys.side_key;
-        
-
-        // if compute_hash(self) != self.hash {
-        //     println!("Oops");
-        // };
 
         MoveSuccess::Success
     }

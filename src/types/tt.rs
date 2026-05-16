@@ -7,7 +7,7 @@
 
 use std::sync::OnceLock;
 
-use crate::{shared::{MATE_SCORE, Move}, types::board::BoardPosition};
+use crate::{shared::{Move}, types::board::BoardPosition};
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND

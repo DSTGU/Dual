@@ -7,14 +7,14 @@ use crate::types::search_state::SearchState;
 use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
 use crate::types::tt::TTFlag;
 
-pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>, depth: usize) -> Vec<Move> {
+pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>) -> Vec<Move> {
     let mut scored_moves: Vec<(Move, i32)> = move_list
         .into_iter()
         .map(|m| {
             let score = if Some(m) == search_state.tt_move() {
                 i32::MAX
             } else {
-                search_state.get_move_score(m, depth) as i32
+                search_state.get_move_score(m) as i32
             };
 
             (m, score)
@@ -49,7 +49,7 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
 
     let move_list = generate_moves(&search_state.board_position);
     let filtered_move_list = move_list.into_iter().filter(|mv| mv.is_capture() || mv.is_promotion()).collect();
-    let filtered_move_list = sort_move_list(search_state, filtered_move_list, search_state.max_depth + ply);
+    let filtered_move_list = sort_move_list(search_state, filtered_move_list);
 
     let mut nodes = 1;
 
@@ -128,7 +128,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     }
 
     let move_list = generate_moves(&search_state.board_position);
-    let move_list = sort_move_list(search_state, move_list, search_state.max_depth - depth);
+    let move_list = sort_move_list(search_state, move_list);
 
     // Move, eval (alpha), nodes
     let mut nodes = 1;
@@ -161,7 +161,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         }
                         
                         if mv.is_quiet() {
-                            search_state.update_killer_move(mv, search_state.max_depth-depth);
+                            search_state.update_killer_move(mv);
                         }
 
                         search_state.store_tt(
@@ -213,7 +213,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         );
 
                         if mv.is_quiet() {
-                            search_state.update_killer_move(mv, search_state.max_depth-depth);
+                            search_state.update_killer_move(mv);
                         }
                         return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
                     }
