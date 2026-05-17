@@ -25,6 +25,11 @@ pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>) -> V
     scored_moves.into_iter().map(|(mv, _)| mv).collect()
 }
 
+pub fn reduce_lmr_by(depth: usize, moves: usize) -> usize {
+    // Obsidian function
+    (0.99 + (depth as f32).ln() * (moves as f32).ln() / 3.14) as usize
+}
+
 pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
 
     search_state.seldepth = search_state.seldepth.max(search_state.max_depth+ply-1);
@@ -150,43 +155,44 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
     let mut legal_moves = 0;
 
-    #[allow(non_snake_case, unused_variables)]
-    let mut found_pv = false;
-
-
-
     for &mv in move_list.iter() {
 
-        // reduction = 0
+        let mut reduction = 0;
+        if depth >= 3 &&
+           legal_moves > 1 &&
+           mv.is_quiet() &&
+           !is_pv_node {
+           //and not inCheck
+           //and not givesCheck:
 
-        // if depth >= 3
-        //    and moveCount > 1
-        //    and isQuiet
-        //    and not isPV
-        //    and not inCheck
-        //    and not givesCheck:
+            reduction = reduce_lmr_by(depth, legal_moves);
+                            //improving);
 
-        //     reduction = computeLMR(
-        //                     depth,
-        //                     moveCount,
-        //                     improving)
+            // Often reduce less for good-history moves
+            //reduction -= historyBonus(move)
 
-        //     # Often reduce less for good-history moves
-        //     reduction -= historyBonus(move)
-
-        //     reduction = clamp(reduction, 0, newDepth - 1)
-
-        // reducedDepth = newDepth - reduction
-
+            reduction = reduction.clamp(0, depth - 1);
+        }
 
 
         let move_result = search_state.make_move( mv);
 
         if move_result == MoveSuccess::Success {
             legal_moves += 1;
-            let _newdepth = depth-1;
+
+                // --------------------------------------------------------
+                // PVS SEARCH LOGIC
+                //
+                // First move:
+                //   full window
+                //
+                // Later moves:
+                //   null window first
+                //
+                // LMR usually applies ONLY to the null-window search.
+                // --------------------------------------------------------
             
-            if !found_pv {
+            if legal_moves == 1 {
                 let score: SearchAnswer = pvs(&mut search_state, -beta, -new_alpha, depth-1);
                 search_state.take_back(mv);
                 nodes += score.node_count;
@@ -218,14 +224,36 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                     new_alpha = -score.eval;
                     best_move = Some(mv);
                     best_move_list = score.move_list;
-                    found_pv = true;
                 }
 
             } else {
+                // ----------------------------------------------------
+                // First try:
+                // reduced + null-window
+                // ----------------------------------------------------
 
-                let mut score = pvs(&mut search_state, -new_alpha-1, -new_alpha, depth-1); // alphaBeta or zwSearch
+                let mut score = pvs(&mut search_state, -new_alpha-1, -new_alpha, depth-1-reduction);
                 nodes += score.node_count;
 
+
+                // ----------------------------------------------------
+                // Case 1:
+                // Reduced search failed high
+                //
+                // The move may actually be good.
+                //
+                // Re-search at FULL DEPTH still using null window.
+                // ----------------------------------------------------
+                if reduction > 0 && -score.eval > new_alpha {
+                    score = pvs(&mut search_state, -new_alpha-1, -new_alpha, depth - 1);
+                } 
+
+                // ----------------------------------------------------
+                // Case 2:
+                // Null-window search indicates possible PV move
+                //
+                // Need full-window re-search.
+                // ----------------------------------------------------
                 if -score.eval > new_alpha && -score.eval < beta  {
                     // research with window [alfa;beta]
                     score = pvs(&mut search_state, -beta, -new_alpha, depth-1);
@@ -262,7 +290,6 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                     new_alpha = -score.eval;
                     best_move = Some(mv);
                     best_move_list = score.move_list;
-                    found_pv = true;
                 }
 
             }
