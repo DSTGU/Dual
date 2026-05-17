@@ -29,6 +29,7 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
 
     search_state.seldepth = search_state.seldepth.max(search_state.max_depth+ply-1);
 
+    //PESTO eval
     let eval = evaluate(&search_state.board_position);
 
     if eval >= beta
@@ -76,6 +77,9 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
 }
 
 pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
+
+    let is_pv_node = (beta - alpha > 1);
+
     if search_state.should_quit() {
        return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
     }
@@ -90,9 +94,14 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
     let mut new_alpha = alpha;
 
+
+
+    // ------------------------------------------------------------
+    // TT probe
+    // ------------------------------------------------------------
     if let Some(entry) = search_state.probe_tt().copied() {
 
-        if entry.depth >= depth as i32 {
+        if entry.depth >= depth as i32 && !search_state.is_twofold_repetition() {
 
             match entry.flag {
 
@@ -127,6 +136,9 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
         }
     }
 
+    // ------------------------------------------------------------
+    // Move generation / ordering
+    // ------------------------------------------------------------
     let move_list = generate_moves(&search_state.board_position);
     let move_list = sort_move_list(search_state, move_list);
 
@@ -139,9 +151,34 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     let mut legal_moves = 0;
 
     #[allow(non_snake_case, unused_variables)]
-    let mut is_PV_node = false;
+    let mut found_pv = false;
+
+
 
     for &mv in move_list.iter() {
+
+        // reduction = 0
+
+        // if depth >= 3
+        //    and moveCount > 1
+        //    and isQuiet
+        //    and not isPV
+        //    and not inCheck
+        //    and not givesCheck:
+
+        //     reduction = computeLMR(
+        //                     depth,
+        //                     moveCount,
+        //                     improving)
+
+        //     # Often reduce less for good-history moves
+        //     reduction -= historyBonus(move)
+
+        //     reduction = clamp(reduction, 0, newDepth - 1)
+
+        // reducedDepth = newDepth - reduction
+
+
 
         let move_result = search_state.make_move( mv);
 
@@ -149,7 +186,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
             legal_moves += 1;
             let _newdepth = depth-1;
             
-            if !is_PV_node {
+            if !found_pv {
                 let score: SearchAnswer = pvs(&mut search_state, -beta, -new_alpha, depth-1);
                 search_state.take_back(mv);
                 nodes += score.node_count;
@@ -181,7 +218,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                     new_alpha = -score.eval;
                     best_move = Some(mv);
                     best_move_list = score.move_list;
-                    is_PV_node = true;
+                    found_pv = true;
                 }
 
             } else {
@@ -225,7 +262,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                     new_alpha = -score.eval;
                     best_move = Some(mv);
                     best_move_list = score.move_list;
-                    is_PV_node = true;
+                    found_pv = true;
                 }
 
             }
@@ -429,7 +466,51 @@ mod tests {
 
                 println!("{:?}", score);
 
-                assert!(score.node_count < 10);
+                assert!(score.node_count < 3);
+                assert_eq!(score.eval, 0);
+                
+            })
+            .unwrap();
+        handler.join().unwrap();
+    }
+
+
+    #[test]
+    fn test_forced_trifold_repetition_start_with_black() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                let command = "position fen q6k/8/8/8/8/8/7r/1K6 b - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
+                let mut search_state = SearchState::new(START_POSITION);
+                search_state.parse_position_command(command);
+                search_state.reset_for_new_iteration(4, Move::create_null());       
+                let score = single_depth_search(&mut search_state, 4); 
+
+                println!("{:?}", score);
+
+                assert!(score.node_count < 3);
+                assert_eq!(score.eval, 0);
+                
+            })
+            .unwrap();
+        handler.join().unwrap();
+    }
+
+
+    #[test]
+    fn test_forced_trifold_repetition_switched_sides() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                let command = "position fen q6k/8/8/8/8/8/7r/2K5 w - - 0 1 moves c1b1 a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
+                let mut search_state = SearchState::new(START_POSITION);
+                search_state.parse_position_command(command);
+                search_state.reset_for_new_iteration(4, Move::create_null());       
+                let score = single_depth_search(&mut search_state, 4); 
+
+                println!("{:?}", score);
+
+                assert!(score.node_count < 3);
                 assert_eq!(score.eval, 0);
                 
             })

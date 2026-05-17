@@ -222,6 +222,10 @@ impl SearchState {
         self.rep_table.is_draw(self.board_position.hash)
     }
 
+    pub fn is_twofold_repetition(&self) -> bool {
+        self.rep_table.has_occurred(self.board_position.hash)
+    }
+
     pub fn is_king_attacked(&self) -> bool {
         is_square_attacked(self.board_position.bitboards[6*self.board_position.side+5].trailing_zeros() as u8, &self.board_position)
     }

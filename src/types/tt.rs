@@ -300,13 +300,17 @@ impl RepetitionTable {
     }
 
     /// Check if the current position is a draw by repetition
-    /// (appears at least 2 times in the history)
-    /// TODO: Investigate skip by 2
+    /// (appears at least 2 times in the history, for a total of 3
+    /// including the current position)
     #[inline]
     pub fn is_draw(&self, hash: u64) -> bool {
         let mut count = 0;
-        // Only check even plies (same side to move)
-        for (i, &h) in self.hashes.iter().enumerate().rev() {
+        // Only check positions where the same side is to move.
+        // hashes[i] stores the hash of the position before move i was made,
+        // so hashes[i] has the same side to move as the current position
+        // when i and self.hashes.len() have the same parity.
+        let start = self.hashes.len() % 2;
+        for &h in self.hashes.iter().skip(start).step_by(2) {
             if h == hash {
                 count += 1;
                 if count >= 2 {
@@ -321,7 +325,8 @@ impl RepetitionTable {
     /// Check if position has occurred at least once before
     /// (for detecting twofold repetition)
     pub fn has_occurred(&self, hash: u64) -> bool {
-        for (i, &h) in self.hashes.iter().enumerate().rev().step_by(2) {
+        let start = self.hashes.len() % 2;
+        for &h in self.hashes.iter().skip(start).step_by(2) {
             if h == hash {
                 return true;
             }
