@@ -74,6 +74,7 @@ pub fn uci_loop() {
         // Handle the command
         match words[0] {
             "exit" => return,
+            "quit" => return,
             "go" => parse_go(command, &mut search_state),
             "position" => search_state.parse_position_command(command),
             "ucinewgame" => search_state.parse_position_command("position startpos"),
