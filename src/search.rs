@@ -175,9 +175,6 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
             };
        }
 
-
-
-
     // ------------------------------------------------------------
     // Move generation / ordering
     // ------------------------------------------------------------
@@ -193,7 +190,25 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     let mut legal_moves = 0;
 
     for &mv in move_list.iter() {
+        // --------------------------------------------------------
+        // Futility pruning
+        //
+        // "Quiet move cannot raise alpha enough."
+        // --------------------------------------------------------
 
+        if !is_pv_node && 
+            depth <= 5 &&
+            legal_moves > 1 &&
+            mv.is_quiet() &&
+            !is_in_check {
+                if static_eval + 150 * depth as i32 <= alpha {
+                    continue;
+                }
+            }
+            
+        // --------------------------------------------------------
+        // LMR (Late Move Reductions)
+        // --------------------------------------------------------
         let mut reduction = 0;
         if depth >= 3 &&
            legal_moves > 1 &&
@@ -210,7 +225,6 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
             reduction = reduction.clamp(0, depth - 1);
         }
-
 
         let move_result = search_state.make_move( mv);
 

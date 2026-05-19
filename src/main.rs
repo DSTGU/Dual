@@ -50,7 +50,7 @@ use crate::shared::{ Piece, START_POSITION};
 \**********************************/
 
 pub fn print_identification() {
-    println!("id name Dual v0.2.8");
+    println!("id name Dual v0.2.9");
     println!("id author Tomasz Stawowy");
     println!("uciok");
 }
