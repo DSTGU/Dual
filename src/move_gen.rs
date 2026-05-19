@@ -126,6 +126,7 @@ fn generate_pawn_moves(
     board: &BoardPosition,
     side: usize,
     moves: &mut Vec<Move>,
+    quiescence: bool
 ) {
     let piece = if side == 0 { Piece::P } else { Piece::p };
     let promo_rank_range: (usize, usize) = if side == 0 { (8, 15) } else { (48, 55) };
@@ -149,13 +150,15 @@ fn generate_pawn_moves(
                     push_move(moves, source as u8, target as u8, promo, board.enpassant, board.castle, Piece::NONE);
                 }
             } else {
-                push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
-
-                // Double push
-                if source >= start_rank_range.0 && source <= start_rank_range.1 {
-                    let target2 = (target as isize + direction) as usize;
-                    if target2 < 64 && !get_bit(all_occ, target2) {
-                        push_move(moves, source as u8, target2 as u8,MoveCode::DoublePush, board.enpassant, board.castle, Piece::NONE);
+                if !quiescence {
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                    
+                    // Double push
+                    if source >= start_rank_range.0 && source <= start_rank_range.1 {
+                        let target2 = (target as isize + direction) as usize;
+                        if target2 < 64 && !get_bit(all_occ, target2) {
+                            push_move(moves, source as u8, target2 as u8,MoveCode::DoublePush, board.enpassant, board.castle, Piece::NONE);
+                        }
                     }
                 }
             }
@@ -192,6 +195,7 @@ fn generate_king_moves(
     board: &BoardPosition,
     side: usize,
     moves: &mut Vec<Move>,
+    quiescence: bool
 ) {
     let piece = if side == 0 { Piece::K } else { Piece::k };
     let our_occ = board.occupancies[side];
@@ -209,7 +213,9 @@ fn generate_king_moves(
             if get_bit(board.occupancies[1 - side], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
-                push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                if (!quiescence) {
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                }
             }
         }
     }
@@ -271,6 +277,7 @@ fn generate_knight_moves(
     board: &BoardPosition,
     side: usize,
     moves: &mut Vec<Move>,
+    quiescence: bool
 ) {
     let piece = if side == 0 { Piece::N } else { Piece::n };
     let our_occ = board.occupancies[side];
@@ -288,7 +295,9 @@ fn generate_knight_moves(
             if get_bit(board.occupancies[1 - side], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
-                push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                if !quiescence {
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                }
             }
         }
     }
@@ -299,6 +308,7 @@ fn generate_bishop_moves(
     board: &BoardPosition,
     side: usize,
     moves: &mut Vec<Move>,
+    quiescence: bool
 ) {
     let piece = if side == 0 { Piece::B } else { Piece::b };
     let our_occ = board.occupancies[side];
@@ -316,7 +326,9 @@ fn generate_bishop_moves(
             if get_bit(board.occupancies[1 - side], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
-                push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                if !quiescence {   
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                }
             }
         }
     }
@@ -327,6 +339,7 @@ fn generate_rook_moves(
     board: &BoardPosition,
     side: usize,
     moves: &mut Vec<Move>,
+    quiescence: bool
 ) {
     let piece = if side == 0 { Piece::R } else { Piece::r };
     let our_occ = board.occupancies[side];
@@ -344,7 +357,9 @@ fn generate_rook_moves(
             if get_bit(board.occupancies[1 - side], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
-                push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                if (!quiescence) {   
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                }
             }
         }
     }
@@ -355,6 +370,7 @@ fn generate_queen_moves(
     board: &BoardPosition,
     side: usize,
     moves: &mut Vec<Move>,
+    quiescence: bool
 ) {
     let piece = if side == 0 { Piece::Q } else { Piece::q };
     let our_occ = board.occupancies[side];
@@ -372,7 +388,9 @@ fn generate_queen_moves(
             if get_bit(board.occupancies[1 - side], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
-                push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                if !quiescence {
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                }
             }
         }
     }
@@ -403,18 +421,20 @@ fn promotion_capture_codes() -> [MoveCode; 4] {
 // ---------------------------------------------------------------------------
 
 /// Generate all pseudo-legal moves for the side to move.
-pub fn generate_moves(board: &BoardPosition) -> Vec<Move> {
+pub fn generate_moves(board: &BoardPosition, quiescence: bool) -> Vec<Move> {
     let side = board.side;
     // Typical legal positions have ~35 moves; 64 avoids most reallocations.
-    let mut moves = Vec::with_capacity(64);
+    let mut moves = Vec::with_capacity(if quiescence { 64 } else { 16 });
 
-    generate_pawn_moves(board, side, &mut moves);
-    generate_king_moves(board, side, &mut moves);
-    generate_castling_moves(board, side, &mut moves);
-    generate_knight_moves(board, side, &mut moves);
-    generate_bishop_moves(board, side, &mut moves);
-    generate_rook_moves(board, side, &mut moves);
-    generate_queen_moves(board, side, &mut moves);
+    generate_pawn_moves(board, side, &mut moves, quiescence);
+    generate_king_moves(board, side, &mut moves, quiescence);
+    if !quiescence {
+        generate_castling_moves(board, side, &mut moves);
+    }
+    generate_knight_moves(board, side, &mut moves, quiescence);
+    generate_bishop_moves(board, side, &mut moves, quiescence);
+    generate_rook_moves(board, side, &mut moves, quiescence);
+    generate_queen_moves(board, side, &mut moves, quiescence);
 
     moves
 }

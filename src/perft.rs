@@ -10,7 +10,7 @@ pub fn perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
     }
 
     //print_board(&search_state.board_position);
-    let movelist = generate_moves(&search_state.board_position);
+    let movelist = generate_moves(&search_state.board_position, false);
     
     let mut movecount = 0;
     
@@ -39,7 +39,7 @@ pub fn perft(search_state: &mut SearchState, depth: usize) {
     }
 
     let now = SystemTime::now();
-    let movelist = generate_moves(&search_state.board_position);
+    let movelist = generate_moves(&search_state.board_position, false);
 
     let mut movecount = 0;
 
@@ -126,7 +126,7 @@ use crate::{move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERF
             return 1;
         }
         
-        let movelist = generate_moves(&search_state.board_position);
+        let movelist = generate_moves(&search_state.board_position, false);
         
         let mut movecount = 0;
 
@@ -167,7 +167,7 @@ use crate::{move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERF
             return 1;
         }
         
-        let movelist = generate_moves(&search_state.board_position);
+        let movelist = generate_moves(&search_state.board_position, false);
         
         let mut movecount = 0;
 

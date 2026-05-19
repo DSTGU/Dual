@@ -8,7 +8,7 @@ use crate::shared::Piece::{B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 
-    let legal_moves = generate_moves(board);
+    let legal_moves = generate_moves(board, false);
 
     let src = coordinates_to_squares(&move_to_parse[0..2]);
     let target = coordinates_to_squares(&move_to_parse[2..4]);

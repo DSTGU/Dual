@@ -53,9 +53,8 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
         return SearchAnswer { move_list: vec![], node_count: 0, eval: 0 };
     }
 
-    let move_list = generate_moves(&search_state.board_position);
-    let filtered_move_list = move_list.into_iter().filter(|mv| mv.is_capture() || mv.is_promotion()).collect();
-    let filtered_move_list = sort_move_list(search_state, filtered_move_list);
+    let move_list = generate_moves(&search_state.board_position, true);
+    let filtered_move_list = sort_move_list(search_state, move_list);
 
     let mut nodes = 1;
 
@@ -83,7 +82,7 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
 
 pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
 
-    let is_pv_node = (beta - alpha > 1);
+    let is_pv_node = beta - alpha > 1;
 
     if search_state.should_quit() {
        return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
@@ -144,7 +143,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     // ------------------------------------------------------------
     // Move generation / ordering
     // ------------------------------------------------------------
-    let move_list = generate_moves(&search_state.board_position);
+    let move_list = generate_moves(&search_state.board_position, false);
     let move_list = sort_move_list(search_state, move_list);
 
     // Move, eval (alpha), nodes
