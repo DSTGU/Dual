@@ -205,12 +205,12 @@ impl TranspositionTable {
 
     /// Probe the transposition table
     #[inline]
-    pub fn probe(&mut self, hash: u64) -> Option<&TTEntry> {
+    pub fn probe(&self, hash: u64) -> Option<&TTEntry> {
         let idx = Self::index(hash);
         let entry = &self.entries[idx];
 
         if entry.is_valid(hash) {
-            self.hits += 1;
+            //self.hits += 1;
             Some(entry)
         } else {
             None

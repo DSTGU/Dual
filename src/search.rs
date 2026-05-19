@@ -2,9 +2,9 @@ use std::{vec};
 use coarsetime::{Duration, Instant};
 
 use crate::evaluate::evaluate;
-use crate::move_gen::{generate_moves};
+use crate::move_gen::{generate_moves, is_square_attacked};
 use crate::types::search_state::SearchState;
-use crate::shared::{DRAW_SCORE, MIN_DEPTH, Move, MoveSuccess, SearchAnswer, move_to_alg};
+use crate::shared::{DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
 use crate::types::tt::TTFlag;
 
 pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>) -> Vec<Move> {
@@ -103,7 +103,9 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     // ------------------------------------------------------------
     // TT probe
     // ------------------------------------------------------------
-    if let Some(entry) = search_state.probe_tt().copied() {
+    let probe = search_state.probe_tt();
+    
+    if let Some(entry) = probe {
 
         if entry.depth >= depth as i32 && !search_state.is_twofold_repetition() {
 
@@ -139,6 +141,42 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
             }
         }
     }
+
+    // ------------------------------------------------------------
+    // Static eval
+    // ------------------------------------------------------------
+
+    //Todo: move to movegen
+    let our_king = if search_state.board_position.side == 0 { Piece::K } else {Piece::k};
+    let is_in_check = is_square_attacked(search_state.board_position.bitboards[our_king as usize].trailing_zeros() as u8, &search_state.board_position);
+
+    let static_eval =  if is_in_check {
+        -MATE_SCORE
+    } else if probe.is_some() && probe.unwrap().flag == TTFlag::Exact {
+        probe.unwrap().score
+    } else {
+        evaluate(&search_state.board_position)
+    };
+
+    // ------------------------------------------------------------
+    // Reverse Futility Pruning (beta pruning)
+    //
+    // "Position is so good that even after margin reduction
+    //  we still exceed beta."
+    // ------------------------------------------------------------
+    if !is_pv_node
+       && depth <= 6
+       && !is_in_check
+       && static_eval - (150*depth) as i32 >= beta {
+            return SearchAnswer {
+                move_list: vec![],
+                node_count: 1,
+                eval: static_eval,
+            };
+       }
+
+
+
 
     // ------------------------------------------------------------
     // Move generation / ordering

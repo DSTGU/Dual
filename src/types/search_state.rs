@@ -231,7 +231,7 @@ impl SearchState {
     }
 
     #[inline(always)]
-    pub fn probe_tt(&mut self) -> Option<&TTEntry> {
+    pub fn probe_tt(&self) -> Option<&TTEntry> {
         self.tt.probe(self.board_position.hash)
     }
 
