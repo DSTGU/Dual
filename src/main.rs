@@ -9,7 +9,6 @@ mod types;
 mod bench;
 
 use std::io;
-use std::mem;
 use std::thread;
 
 /**********************************\

@@ -205,7 +205,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                     continue;
                 }
             }
-            
+
         // --------------------------------------------------------
         // LMR (Late Move Reductions)
         // --------------------------------------------------------
@@ -259,7 +259,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         }
 
                         search_state.store_tt(
-                            depth,
+                            depth as i32,
                             beta,
                             TTFlag::Beta,
                             mv,
@@ -322,7 +322,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         }
 
                         search_state.store_tt(
-                            depth,
+                            depth as i32,
                             beta,
                             TTFlag::Beta,
                             mv,
@@ -369,7 +369,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     };
 
     search_state.store_tt(
-        depth,
+        depth as i32,
         new_alpha,
         flag,
         best_move.unwrap_or(Move::create_null()),
@@ -388,6 +388,7 @@ pub fn score_to_mate( score: i32, depth: usize) -> i32 {
 pub fn collect_pv(moves: &Vec<Option<Move>>) -> String {
     moves
         .iter()
+        .filter(|&&mv| mv.is_some() && mv.unwrap() != Move::create_null())
         .filter_map(|x| x.as_ref().map(move_to_alg))
         .rev()
         .reduce(|a, b| a + " " + &b)

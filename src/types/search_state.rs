@@ -238,14 +238,14 @@ impl SearchState {
     #[inline(always)]
     pub fn store_tt(
         &mut self,
-        depth:usize,
+        depth: i32,
         score: i32,
         flag: TTFlag,
         best_move: Move,
     ) {
         self.tt.store(
             self.board_position.hash,
-            depth as i32,
+            depth,
             score,
             flag,
             best_move, // or .into()
