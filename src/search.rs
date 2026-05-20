@@ -182,6 +182,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
         if !is_in_check &&
         search_state.has_pieces() &&
         static_eval > beta &&
+        !is_pv_node &&
         depth > 6
         {
             let r = 2 + depth / 4; // NMP Reduction
