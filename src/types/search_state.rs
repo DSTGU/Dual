@@ -4,7 +4,7 @@ use crate::gui::parse_move;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
 use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
-use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash};
+use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash, get_zobrist_keys};
 
 /// Search state structure - encapsulates all search-related state
 pub struct SearchState {
@@ -151,11 +151,31 @@ impl SearchState {
         result
     }
 
+    pub fn make_null_move(&mut self) {
+        self.board_position.side = 1-self.board_position.side;
+        self.board_position.hash ^= get_zobrist_keys().side_key;
+
+        if self.board_position.enpassant != 0 {
+            self.board_position.hash ^= get_zobrist_keys().enpassant_keys[(self.board_position.enpassant % 8) as usize];
+            self.board_position.enpassant = 0;
+        }
+    }
+
     pub fn take_back(&mut self, move_to_take_back: Move) {
         //take back manages the hash        
         self.board_position.take_back(move_to_take_back, self.rep_table.pop());
         self.ply -= 1;
         debug_assert!(compute_hash(&self.board_position) == self.board_position.hash)
+    }
+
+    pub fn take_back_null_move(&mut self, old_ep_square: u8) {
+        self.board_position.side = 1-self.board_position.side;
+        self.board_position.hash ^= get_zobrist_keys().side_key;
+
+        if old_ep_square != 0 {
+            self.board_position.hash ^= get_zobrist_keys().enpassant_keys[(old_ep_square % 8) as usize];
+            self.board_position.enpassant = old_ep_square;
+        }
     }
 
     #[inline(always)]
@@ -224,6 +244,17 @@ impl SearchState {
 
     pub fn is_twofold_repetition(&self) -> bool {
         self.rep_table.has_occurred(self.board_position.hash)
+    }
+
+    pub fn has_pieces(&self) -> bool {
+        self.board_position.bitboards[Piece::B as usize] > 0 ||
+        self.board_position.bitboards[Piece::R as usize] > 0 ||
+        self.board_position.bitboards[Piece::N as usize] > 0 ||
+        self.board_position.bitboards[Piece::Q as usize] > 0 ||
+        self.board_position.bitboards[Piece::b as usize] > 0 ||
+        self.board_position.bitboards[Piece::r as usize] > 0 ||
+        self.board_position.bitboards[Piece::n as usize] > 0 ||
+        self.board_position.bitboards[Piece::q as usize] > 0
     }
 
     pub fn is_king_attacked(&self) -> bool {

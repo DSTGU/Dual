@@ -174,6 +174,14 @@ use crate::{move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERF
         let board_clone = search_state.board_position.clone();
 
         for i in movelist {
+            //null move test
+            let old_ep = search_state.board_position.enpassant;
+            search_state.make_null_move();
+            search_state.take_back_null_move(old_ep);
+
+            assert_eq!(compute_hash(&search_state.board_position), search_state.board_position.hash);
+            assert_eq!(board_clone, search_state.board_position);
+
             let result = search_state.make_move(i);
             
             if result == MoveSuccess::Success {
@@ -188,7 +196,7 @@ use crate::{move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERF
 
     }
 
-        #[test]
+    #[test]
     fn test_properly_unmake() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder

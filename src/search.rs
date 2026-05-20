@@ -175,6 +175,32 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
             };
        }
 
+
+    // ------------------------------------------------------------
+    // Null Move Pruning 
+    // ------------------------------------------------------------
+        if !is_in_check &&
+        search_state.has_pieces() &&
+        static_eval > beta &&
+        depth > 6
+        {
+            let r = 2 + depth / 4; // NMP Reduction
+            let old_ep = search_state.board_position.enpassant;
+            search_state.make_null_move();
+            let search_answer = pvs(search_state, -beta, -(beta - 1), depth - r - 1);
+            search_state.take_back_null_move(old_ep);
+            if -search_answer.eval >= beta {
+
+                return SearchAnswer {
+                    move_list: vec![],
+                    node_count: 1,
+                    eval: beta,
+                };
+                //return search_answer;
+            }
+        }
+
+
     // ------------------------------------------------------------
     // Move generation / ordering
     // ------------------------------------------------------------
