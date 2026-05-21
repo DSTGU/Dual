@@ -1,8 +1,9 @@
 use std::{vec};
 use coarsetime::{Duration, Instant};
 
-use crate::evaluate::evaluate;
+use crate::evaluate::{nnue_evaluate};
 use crate::move_gen::{generate_moves, is_square_attacked};
+use crate::nnue::NNUE;
 use crate::types::search_state::SearchState;
 use crate::shared::{DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
 use crate::types::tt::TTFlag;
@@ -35,7 +36,8 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     search_state.seldepth = search_state.seldepth.max(search_state.max_depth+ply-1);
 
     //PESTO eval
-    let eval = evaluate(&search_state.board_position);
+    search_state.board_position.refresh_nnue(&NNUE);
+    let eval = nnue_evaluate(&search_state.board_position);
 
     if eval >= beta
     {
@@ -155,7 +157,8 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     } else if probe.is_some() && probe.unwrap().flag == TTFlag::Exact {
         probe.unwrap().score
     } else {
-        evaluate(&search_state.board_position)
+        search_state.board_position.refresh_nnue(&NNUE);
+        nnue_evaluate(&search_state.board_position)
     };
 
     // ------------------------------------------------------------

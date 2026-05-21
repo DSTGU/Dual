@@ -1,5 +1,7 @@
+use crate::nnue::NNUE;
 use crate::types::board::BoardPosition;
 use crate::shared::pop_bit;
+use crate::types::search_state::SearchState;
 
 const MG_PAWN_TABLE: [i32; 64] = [
 82,  82,  82,  82,  82,  82,  82,  82,
@@ -198,6 +200,24 @@ pub fn evaluate(board_position: &BoardPosition) -> i32 {
     score * (board_position.side as i32 * 2 - 1 ) * -1 + 15
 }
 
+pub fn nnue_evaluate(board_position: &BoardPosition) -> i32 {
+    let stm = board_position.side;
+    let nstm = stm ^ 1;
+
+    NNUE.evaluate(
+        &board_position.accumulators[stm],
+        &board_position.accumulators[nstm],
+    )
+}
+
+pub fn evaltest(search_state: &mut SearchState) {
+
+    println!("PESTO: {}", evaluate(&search_state.board_position));
+
+    search_state.board_position.refresh_nnue(&NNUE);
+    println!("NNUE: {}", nnue_evaluate(&search_state.board_position));
+
+}
 
 #[cfg(test)]
 mod tests {

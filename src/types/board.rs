@@ -1,4 +1,5 @@
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
+use crate::nnue::{Accumulator, HIDDEN_SIZE, Network, feature_index};
 use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
 use crate::types::tt::{compute_hash, get_zobrist_keys};
 
@@ -20,7 +21,9 @@ pub struct BoardPosition {
     // castling rights
     pub castle: usize,
 
-    pub hash: u64
+    pub hash: u64,
+
+    pub accumulators: [Accumulator; 2],
 }
     /*
     binary encoding
@@ -41,6 +44,7 @@ impl BoardPosition {
             enpassant: 0,
             castle: 0,
             hash: 0,
+            accumulators: [Accumulator{ vals: [0; HIDDEN_SIZE]}; 2],
         };
 
         board_position.parse_fen(fen);
@@ -476,4 +480,29 @@ impl BoardPosition {
         println!("{}", self.format_board());
     }
 
+    pub fn refresh_nnue(&mut self, net: &Network) {
+        self.accumulators[0] = Accumulator::new(net);
+        self.accumulators[1] = Accumulator::new(net);
+
+        for square in 0..64 {
+            let nnue_square = square ^ 7;
+            let piece = self.mailbox[nnue_square];
+
+            if piece == Piece::NONE {
+                continue;
+            }
+
+            let feature = feature_index(piece, nnue_square);
+
+            self.accumulators[0].add_feature(feature, net);
+
+            // mirrored perspective for black (flip the top 3 bits)
+            let flipped_sq = nnue_square ^ 56;
+
+            let black_feature =
+                feature_index(piece.flip_color(), flipped_sq);
+
+            self.accumulators[1].add_feature(black_feature, net);
+        }
+    }
 }
