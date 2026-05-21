@@ -215,7 +215,9 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     let mut best_move_list = vec![];
 
     let mut legal_moves = 0;
-
+    let mut previous_quiet_moves = vec![]; // malus purposes
+    let history_bonus = 300 * depth as i32 - 250;
+    
     for &mv in move_list.iter() {
         // --------------------------------------------------------
         // Futility pruning
@@ -283,6 +285,15 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         
                         if mv.is_quiet() {
                             search_state.update_killer_move(mv);
+                            search_state.update_history(mv, history_bonus as i32);
+
+                            // apply malus to previous quiet moves
+                            for prev_mv in &previous_quiet_moves {
+                                search_state.update_history(
+                                    *prev_mv,
+                                    -history_bonus,
+                                );
+                            }
                         }
 
                         search_state.store_tt(
@@ -295,13 +306,13 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
                     }
 
-                    if mv.is_quiet() {
-                        search_state.update_history(mv, depth);
-                    }
-
                     new_alpha = -score.eval;
                     best_move = Some(mv);
                     best_move_list = score.move_list;
+                }
+
+                if mv.is_quiet() {
+                    previous_quiet_moves.push(mv);
                 }
 
             } else {
@@ -357,17 +368,27 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
                         if mv.is_quiet() {
                             search_state.update_killer_move(mv);
-                        }
-                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
-                    }
+                            search_state.update_history(mv, history_bonus as i32);
 
-                    if mv.is_quiet() {
-                        search_state.update_history(mv, depth);
+                            // apply malus to previous quiet moves
+                            for prev_mv in &previous_quiet_moves {
+                                search_state.update_history(
+                                    *prev_mv,
+                                    -history_bonus,
+                                );
+                            }
+                        }
+
+                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
                     }
 
                     new_alpha = -score.eval;
                     best_move = Some(mv);
                     best_move_list = score.move_list;
+                }
+
+                if mv.is_quiet() {
+                    previous_quiet_moves.push(mv);
                 }
 
             }
@@ -381,6 +402,10 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
             else {
                 return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};
             }
+    }
+
+    if best_move.is_some() && best_move.unwrap().is_quiet() {
+        search_state.update_history(best_move.unwrap(), history_bonus as i32);
     }
 
     if search_state.should_quit() {

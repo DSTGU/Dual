@@ -1,10 +1,8 @@
 use std::{fmt, mem};
 use std::ops::BitAnd;
 
-use crate::types::board::BoardPosition;
 
-
-pub const MVV_LVA : [usize ; 36] = [
+pub const MVV_LVA : [i32 ; 36] = [
 105000000, 205000000, 305000000, 405000000, 505000000, 605000000,
 104000000, 204000000, 304000000, 404000000, 504000000, 604000000,
 103000000, 203000000, 303000000, 403000000, 503000000, 603000000,
@@ -17,12 +15,13 @@ pub const MVV_LVA : [usize ; 36] = [
 pub const MATE_SCORE: i32 = 4_999_900;
 pub const INITIAL_ALPHA: i32 = -5_000_000;
 pub const INITIAL_BETA: i32 = 5_000_000;
-pub const PV_MOVE_BONUS: usize = 605000001;
-pub const FIRST_KILLER_BONUS: usize = 9_000_000;
-pub const SECOND_KILLER_BONUS: usize = 8_000_000;
+pub const PV_MOVE_BONUS: i32 = 605000001;
+pub const FIRST_KILLER_BONUS: i32 = 9_000_000;
+pub const SECOND_KILLER_BONUS: i32 = 8_000_000;
 pub const DRAW_SCORE: i32 = 0;
 pub const MIN_DEPTH: usize = 3;
 pub const LMR_REDUCTION: usize = 2;
+pub const MAX_HISTORY : i32 = 65536;
 
 #[derive(Debug)]
 pub struct SearchAnswer {

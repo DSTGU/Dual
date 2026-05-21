@@ -3,7 +3,7 @@ use coarsetime::{Duration, Instant};
 use crate::gui::parse_move;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
-use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
+use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MAX_HISTORY, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
 use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash, get_zobrist_keys};
 
 /// Search state structure - encapsulates all search-related state
@@ -13,12 +13,11 @@ pub struct SearchState {
     pub seldepth: usize,
     killer_moves: [[Move; 256]; 2],
     //only public for test purposes
-    pub history_moves: [[usize; 64]; 12],
+    pub history_moves: [[i32; 64]; 12],
     prev_iter_best_move: Move,
     tt: TranspositionTable,
     rep_table: RepetitionTable,
     nodes_searched: u64,
-    tt_hits: u64,
     deadline: Instant,
     should_quit: bool,
     ply: usize,
@@ -37,7 +36,6 @@ impl SearchState {
             tt: TranspositionTable::new(),
             rep_table: RepetitionTable::new(),
             nodes_searched: 0,
-            tt_hits: 0,
             deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
             should_quit: false,
             ply: 0,
@@ -53,7 +51,6 @@ impl SearchState {
         self.max_depth = 0;
         self.seldepth = 0;
         self.killer_moves = [[Move::create_null(); 256]; 2];
-        self.history_moves = [[0; 64]; 12];
         self.prev_iter_best_move = Move::create_null();
         self.rep_table.clear();
         self.nodes_searched = 0;
@@ -78,13 +75,13 @@ impl SearchState {
 
         let hash = self.board_position.hash;
         let mut hash_in_node = false;
-        if hash == self.board_position.hash {
-            hash_in_node = true;
-        }
 
         match words[1] {
             "fen" => {
                 self.change_position(&command[13..]);
+                if hash == self.board_position.hash {
+                    hash_in_node = true;
+                }
                 if words.len() > 8 {
                     for &i in words[9..].iter() {
                         let mov = parse_move(&self.board_position, i);
@@ -99,6 +96,9 @@ impl SearchState {
             },
             "startpos" => {
                 self.change_position(START_POSITION);
+                if hash == self.board_position.hash {
+                    hash_in_node = true;
+                }
                 for &i in words[2..].iter() {
                     let mov = parse_move(&self.board_position, i);
                     if let Some(x) = mov {
@@ -111,6 +111,9 @@ impl SearchState {
             },
             "kiwipete" => {
                 self.change_position(KIWIPETE);
+                if hash == self.board_position.hash {
+                    hash_in_node = true;
+                }
                 for &i in words[2..].iter() {
                     let mov = parse_move(&self.board_position, i);
                     if let Some(x) = mov {
@@ -179,7 +182,7 @@ impl SearchState {
     }
 
     #[inline(always)]
-    fn get_mvv_lva(victim: Piece, attacker: Piece) -> usize {
+    fn get_mvv_lva(victim: Piece, attacker: Piece) -> i32 {
         MVV_LVA[victim as usize % 6 + attacker as usize % 6 * 6]
     }
 
@@ -192,7 +195,7 @@ impl SearchState {
         self.board_position.mailbox[mv.get_source_square() as usize]
     }
 
-    pub fn get_move_score(&self, mv: Move) -> usize {
+    pub fn get_move_score(&self, mv: Move) -> i32 {
         // PV move from previous iteration gets highest priority
         
         if self.ply == 0 && mv == self.prev_iter_best_move {
@@ -225,11 +228,17 @@ impl SearchState {
         }
     }
 
-    pub fn update_history(&mut self, mv: Move, depth: usize) {
+    pub fn update_history(&mut self, mv: Move, bonus: i32) {
+        let clampedBonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY);
         let piece = self.get_piece(mv) as usize;
         let target = mv.get_target_square() as usize;
         if piece < 12 && target < 64 {
-            self.history_moves[piece][target] += depth;
+            let history_val = self.history_moves[piece][target];
+            //let bonus = depth * depth;
+
+            self.history_moves[piece][target] = clampedBonus - history_val * clampedBonus / MAX_HISTORY //second bonus should be abs
+            //self.history_moves[piece][target] += bonus;
+
         }
     }
 
@@ -329,5 +338,42 @@ impl SearchState {
 impl Default for SearchState {
     fn default() -> Self {
         Self::new(START_POSITION)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use std::thread;
+    use crate::{search::search, shared::{START_POSITION}, types::search_state::{SearchState}};
+
+    #[test]
+    fn assert_clearing_persistent_data_correctly() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                let mut search_state = SearchState::new(START_POSITION);
+                let empty_history = [[0; 64]; 12];
+                search(&mut search_state, Some(4), None);
+                assert_ne!(search_state.history_moves, empty_history);
+
+                search_state.parse_position_command("position startpos moves e2e4 e7e5");
+                assert_ne!(search_state.history_moves, empty_history);
+
+                search(&mut search_state, Some(4), None);
+                assert_ne!(search_state.history_moves, empty_history);
+
+                search_state.parse_position_command("position kiwipete");
+                assert_eq!(search_state.history_moves, empty_history);
+
+                search(&mut search_state, Some(6), None);
+                assert_ne!(search_state.history_moves, empty_history);
+
+            })
+            .unwrap();
+        handler.join().unwrap();
+
+
+
     }
 }
