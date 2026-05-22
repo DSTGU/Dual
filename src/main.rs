@@ -78,7 +78,7 @@ pub fn uci_loop() {
             "quit" => return,
             "go" => parse_go(command, &mut search_state),
             "position" => search_state.parse_position_command(command),
-            "eval" => evaltest(&mut search_state),
+            "eval" => evaltest(&mut search_state.board_position),
             "ucinewgame" => search_state.parse_position_command("position startpos"),
             "uci" => print_identification(),
             "printboard" => search_state.board_position.print_board(),

@@ -11,7 +11,7 @@ const QA: i16 = 255;
 const QB: i16 = 64;
 
 pub static NNUE: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../nets/rival-256x2.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../nets/quantised.bin")) };
 
 #[inline]
 /// Square Clipped ReLU - Activation Function.
@@ -109,3 +109,93 @@ pub fn feature_index(piece: Piece, square: usize) -> usize {
 
     piece as usize * 64 + square
 }
+
+
+// #[cfg(test)]
+// mod tests {
+//     use crate::{nnue::{Accumulator, Network, screlu}, shared::{KIWIPETE, START_POSITION}, types::board::BoardPosition};
+
+    
+// pub static NNUE: Network =
+//     unsafe { std::mem::transmute(*include_bytes!("../nets/beans.bin")) };
+
+//     #[test]
+//     pub fn test_nnue_loading() {
+//         println!("{}", std::mem::size_of::<Network>()); 
+//         println!("{}", include_bytes!("../nets/rival-256x2.bin").len());
+//         assert_eq!(std::mem::size_of::<Network>(), include_bytes!("../nets/rival-256x2.bin").len());
+        
+
+//         println!("{:?}", NNUE.feature_bias);
+//         println!("{:?}", NNUE.output_bias);
+//         println!("{:?}", NNUE.output_weights);
+
+//     }
+
+//         #[test]
+//     pub fn test_beans_loading() {  
+//         assert_eq!(NNUE.feature_bias.vals[0..16], [176 as i16, 33, 18, 47, 9, 64, 104, -24, 161, 85, 58, 180, 23, 57, 6, 36]);
+//         assert_eq!(NNUE.output_bias, 825);
+        
+//         let mut start_pos : BoardPosition = BoardPosition::new(START_POSITION);
+//         start_pos.refresh_nnue(&NNUE);
+
+//         assert_eq!([-1233 as i16, 106, 168, -515, 401, 268, 5, 134, 565, 564, -26, 233, -346, 253, 131, 237], start_pos.accumulators[0].vals[0..16]);
+//         assert_eq!([-1233 as i16, 106, 168, -515, 401, 268, 5, 134, 565, 564, -26, 233, -346, 253, 131, 237], start_pos.accumulators[1].vals[0..16]);
+
+//         println!("-------------------------------");
+//         let mut kiwipete : BoardPosition = BoardPosition::new(KIWIPETE);
+//         kiwipete.refresh_nnue(&NNUE);
+    
+//         assert_eq!([-1326 as i16, 140, 57, -500, 539, 265, -180, 81, 574, 576, 42, 271, -260, 286, -52, 287], kiwipete.accumulators[0].vals[0..16]);
+//         assert_eq!([-1296 as i16, 138, 83, -485, 511, 229, 7, 97, 575, 565, 2, -174, -279, 285, 153, 303], kiwipete.accumulators[1].vals[0..16]);
+
+//     }
+
+//     #[test]
+//     pub fn test_empty_acc() {
+//         let acc = Accumulator::new(&NNUE);
+
+//         let ev = NNUE.evaluate(&acc, &acc);
+//         println!("{}", ev);
+//         assert!(ev < 100);
+//         assert!(ev > 0);
+//     }
+
+//     #[test]
+//     pub fn test_validate_screlu() {
+//         assert_eq!(0, screlu(-1));    // 0
+//         assert_eq!(0, screlu(0));     // 0
+//         assert_eq!(1, screlu(1));     // 1
+//         assert_eq!(65025, screlu(255));   // 65025
+//         assert_eq!(65025, screlu(300));   // 65025
+//     }
+// }
+
+
+// beans
+// Test positions
+// startpos: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+// kiwipete: r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1
+// Network parameters
+// HL=64
+// activation=SCReLU
+// QA=255, QB=64
+// Scale=400
+// File IO
+// First 16 HL biases: 176 33 18 47 9 64 104 -24 161 85 58 180 23 57 6 36
+// Output neuron bias: 825
+// Active indices
+// startpos (both perspectives): 192 65 130 259 324 133 70 199 8 9 10 11 12 13 14 15 432 433 434 435 436 437 438 439 632 505 570 699 764 573 510 639
+// kiwipete (white): 192 324 199 8 9 10 139 140 13 14 15 82 277 407 409 28 35 100 552 489 428 493 430 432 434 435 692 437 566 632 764 639
+// kiwipete (black): 632 764 639 432 433 434 563 564 437 438 439 490 685 47 33 420 411 476 144 81 20 85 22 8 10 11 268 13 142 192 324 199
+// First 16 accumulator values (pre-activation)
+// startpos (both perspectives): -1233 106 168 -515 401 268 5 134 565 564 -26 233 -346 253 131 237
+// kiwipete (white): -1326 140 57 -500 539 265 -180 81 574 576 42 271 -260 286 -52 287
+// kiwipete (black): -1296 138 83 -485 511 229 7 97 575 565 2 -174 -279 285 153 303
+// Unscaled eval without output bias
+// startpos: 608404
+// kiwipete: -1423747
+// Final evaluation
+// startpos: 78
+// kiwipete: -116
