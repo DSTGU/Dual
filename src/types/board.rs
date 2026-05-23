@@ -1,4 +1,5 @@
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
+use crate::nnue::{Accumulator, HIDDEN_SIZE, NNUE, Network, feature_index};
 use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
 use crate::types::tt::{compute_hash, get_zobrist_keys};
 
@@ -20,7 +21,9 @@ pub struct BoardPosition {
     // castling rights
     pub castle: usize,
 
-    pub hash: u64
+    pub hash: u64,
+
+    pub accumulators: [Accumulator; 2],
 }
     /*
     binary encoding
@@ -41,10 +44,12 @@ impl BoardPosition {
             enpassant: 0,
             castle: 0,
             hash: 0,
+            accumulators: [Accumulator{ vals: [0; HIDDEN_SIZE]}; 2],
         };
 
         board_position.parse_fen(fen);
         board_position.hash = compute_hash(&board_position);
+        board_position.refresh_nnue(&NNUE);
 
         board_position
     }
@@ -179,6 +184,16 @@ impl BoardPosition {
         self.mailbox[square] = Piece::NONE;
         pop_bit(&mut self.occupancies[piece.get_side()], square);
         pop_bit(&mut self.bitboards[piece as usize], square);
+
+        let flipped_sq = square ^ 56;
+
+        // mirrored perspective for black (flip the top 3 bits)
+        let feature = feature_index(piece, flipped_sq);
+        self.accumulators[0].remove_feature(feature, &NNUE);
+
+        let black_feature =
+            feature_index(piece.flip_color(), square);
+        self.accumulators[1].remove_feature(black_feature, &NNUE);
     }
 
     #[inline(always)]
@@ -190,6 +205,16 @@ impl BoardPosition {
         self.mailbox[square] = piece;
         set_bit(&mut self.occupancies[piece.get_side()], square);
         set_bit(&mut self.bitboards[piece as usize], square);
+
+        let flipped_sq = square ^ 56;
+
+        // mirrored perspective for black (flip the top 3 bits)
+        let feature = feature_index(piece, flipped_sq);
+        self.accumulators[0].add_feature(feature, &NNUE);
+
+        let black_feature =
+            feature_index(piece.flip_color(), square);
+        self.accumulators[1].add_feature(black_feature, &NNUE);
     }
 
     #[inline(always)]
@@ -476,4 +501,29 @@ impl BoardPosition {
         println!("{}", self.format_board());
     }
 
+    pub fn refresh_nnue(&mut self, net: &Network) {
+        self.accumulators[0] = Accumulator::new(net);
+        self.accumulators[1] = Accumulator::new(net);
+
+        for square in 0..64 {
+            //let nnue_square = square ^ 7;
+            
+            let flipped_sq = square ^ 56;
+            let piece = self.mailbox[square];
+
+            if piece == Piece::NONE {
+                continue;
+            }
+
+            // mirrored perspective for white (flip the top 3 bits)
+            let feature = feature_index(piece, flipped_sq);
+
+            self.accumulators[0].add_feature(feature, net);
+
+            let black_feature =
+                feature_index(piece.flip_color(), square);
+
+            self.accumulators[1].add_feature(black_feature, net);
+        }
+    }
 }

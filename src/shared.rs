@@ -208,6 +208,11 @@ impl Piece {
     pub const fn get_side(self) -> usize {
         self as usize / 6
     }
+
+    pub fn flip_color(self) -> Piece {
+        debug_assert!(self != Piece::NONE);
+        Piece::new((self as usize + 6) % 12)
+    }
 }
 
 pub enum Castle { Wk = 1, Wq = 2, Bk = 4, Bq = 8 }

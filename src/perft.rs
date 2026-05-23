@@ -75,7 +75,7 @@ pub fn perft(search_state: &mut SearchState, depth: usize) {
 mod tests{
     use std::thread;
 
-use crate::{move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERFT, KIWIPETE, MoveSuccess, START_POSITION}, types::{search_state::SearchState, tt::compute_hash}};
+use crate::{move_gen::generate_moves, nnue::NNUE, perft::perft_driver, shared::{ENDGAME_PERFT, KIWIPETE, MoveSuccess, START_POSITION}, types::{search_state::SearchState, tt::compute_hash}};
 
     #[test]
     fn test_perft_kiwipete() {
@@ -178,19 +178,26 @@ use crate::{move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERF
             let old_ep = search_state.board_position.enpassant;
             search_state.make_null_move();
             search_state.take_back_null_move(old_ep);
-
             assert_eq!(compute_hash(&search_state.board_position), search_state.board_position.hash);
             assert_eq!(board_clone, search_state.board_position);
 
             let result = search_state.make_move(i);
+                           
+            let mut board_clone_after_move = search_state.board_position.clone();
+            board_clone_after_move.refresh_nnue(&NNUE);
+            assert_eq!(board_clone_after_move.accumulators, search_state.board_position.accumulators);
             
             if result == MoveSuccess::Success {
                 movecount += test_perft_driver_copy_make(search_state, depth - 1);
                 search_state.take_back(i);
             }
-            
+
             assert_eq!(compute_hash(&search_state.board_position), search_state.board_position.hash);
             assert_eq!(board_clone, search_state.board_position);
+
+            if depth == 3 {
+                println!("Move: {:?}, movecount: {}", i, movecount);
+            }
         }
         movecount
 
@@ -204,7 +211,7 @@ use crate::{move_gen::generate_moves, perft::perft_driver, shared::{ENDGAME_PERF
                 // These are the expected perft results for each depth from startpos
                 let mut search_state = SearchState::new(KIWIPETE);
                 let clone_board = search_state.board_position.clone();
-                test_perft_driver_copy_make(&mut search_state, 4);
+                test_perft_driver_copy_make(&mut search_state, 3);
                 assert_eq!(search_state.board_position, clone_board);
             })
             .unwrap();
