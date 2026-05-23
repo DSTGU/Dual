@@ -213,8 +213,6 @@ pub fn nnue_evaluate(board_position: &BoardPosition) -> i32 {
 pub fn evaltest(board_position: &mut BoardPosition) {
 
     println!("PESTO: {}", evaluate(board_position));
-
-    board_position.refresh_nnue(&NNUE);
     println!("NNUE: {}", nnue_evaluate(board_position));
 
 }

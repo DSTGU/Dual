@@ -1,6 +1,5 @@
-use crate::evaluate::{evaltest, evaluate, nnue_evaluate};
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
-use crate::nnue::{Accumulator, HIDDEN_SIZE, Network, feature_index};
+use crate::nnue::{Accumulator, HIDDEN_SIZE, NNUE, Network, feature_index};
 use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
 use crate::types::tt::{compute_hash, get_zobrist_keys};
 
@@ -50,6 +49,7 @@ impl BoardPosition {
 
         board_position.parse_fen(fen);
         board_position.hash = compute_hash(&board_position);
+        board_position.refresh_nnue(&NNUE);
 
         board_position
     }
@@ -184,6 +184,16 @@ impl BoardPosition {
         self.mailbox[square] = Piece::NONE;
         pop_bit(&mut self.occupancies[piece.get_side()], square);
         pop_bit(&mut self.bitboards[piece as usize], square);
+
+        let flipped_sq = square ^ 56;
+
+        // mirrored perspective for black (flip the top 3 bits)
+        let feature = feature_index(piece, flipped_sq);
+        self.accumulators[0].remove_feature(feature, &NNUE);
+
+        let black_feature =
+            feature_index(piece.flip_color(), square);
+        self.accumulators[1].remove_feature(black_feature, &NNUE);
     }
 
     #[inline(always)]
@@ -195,6 +205,16 @@ impl BoardPosition {
         self.mailbox[square] = piece;
         set_bit(&mut self.occupancies[piece.get_side()], square);
         set_bit(&mut self.bitboards[piece as usize], square);
+
+        let flipped_sq = square ^ 56;
+
+        // mirrored perspective for black (flip the top 3 bits)
+        let feature = feature_index(piece, flipped_sq);
+        self.accumulators[0].add_feature(feature, &NNUE);
+
+        let black_feature =
+            feature_index(piece.flip_color(), square);
+        self.accumulators[1].add_feature(black_feature, &NNUE);
     }
 
     #[inline(always)]
@@ -495,19 +515,15 @@ impl BoardPosition {
                 continue;
             }
 
+            // mirrored perspective for white (flip the top 3 bits)
             let feature = feature_index(piece, flipped_sq);
 
             self.accumulators[0].add_feature(feature, net);
-
-            // mirrored perspective for black (flip the top 3 bits)
-
 
             let black_feature =
                 feature_index(piece.flip_color(), square);
 
             self.accumulators[1].add_feature(black_feature, net);
-
-            //println!("Added a piece on {}", feature_index(piece, flipped_sq));
         }
     }
 }

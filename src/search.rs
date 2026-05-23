@@ -36,7 +36,6 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     search_state.seldepth = search_state.seldepth.max(search_state.max_depth+ply-1);
 
     //PESTO eval
-    search_state.board_position.refresh_nnue(&NNUE);
     let eval = nnue_evaluate(&search_state.board_position);
 
     if eval >= beta
@@ -157,7 +156,6 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     } else if probe.is_some() && probe.unwrap().flag == TTFlag::Exact {
         probe.unwrap().score
     } else {
-        search_state.board_position.refresh_nnue(&NNUE);
         nnue_evaluate(&search_state.board_position)
     };
 
