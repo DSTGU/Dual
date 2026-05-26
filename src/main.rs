@@ -7,6 +7,7 @@ mod search;
 mod evaluate;
 mod types;
 mod bench;
+mod morph;
 
 use std::io;
 use std::thread;

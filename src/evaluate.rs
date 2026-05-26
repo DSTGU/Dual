@@ -1,3 +1,4 @@
+use crate::morph::pattern::{DATABASE, PatternDatabase};
 use crate::types::board::BoardPosition;
 use crate::shared::pop_bit;
 
@@ -196,6 +197,15 @@ pub fn evaluate(board_position: &BoardPosition) -> i32 {
     let score = (mg_score * (256-phase) + eg_score * phase) / 256;
 
     score * (board_position.side as i32 * 2 - 1 ) * -1 + 15
+}
+
+pub fn pattern_evaluate(board_position: &BoardPosition) -> i32 {
+    let db = DATABASE.read().unwrap();
+    let eval = db.evaluate(board_position, 1.0);
+
+    println!("Evaluated to: {}", eval);
+
+    eval as i32
 }
 
 

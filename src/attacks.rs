@@ -1,8 +1,10 @@
 use std::sync::{Once};
 use lazy_static::lazy_static;
 
+use crate::shared::Piece;
 use crate::shared::set_bit;
 use crate::shared::pop_bit;
+use crate::types::board::BoardPosition;
 /**********************************\
  ==================================
 
@@ -684,4 +686,22 @@ pub fn get_rook_attacks(square: usize, occupancy: u64) -> u64 {
 
 pub fn get_queen_attacks(square: usize, occupancy: u64) -> u64 {
     get_rook_attacks(square,occupancy) | get_bishop_attacks(square,occupancy)
+}
+
+
+pub fn get_piece_attacks(board_position: &BoardPosition, square: usize) -> u64 {
+    
+    let piece = board_position.mailbox[square];
+
+    match piece {
+        Piece::P => PAWN_ATTACKS[0][square],
+        Piece::p => PAWN_ATTACKS[1][square],
+        Piece::K | Piece::k => KING_ATTACKS[square],
+        Piece::N | Piece::n => KNIGHT_ATTACKS[square],
+        Piece::B | Piece::b => get_bishop_attacks(square, board_position.occupancies[2]),
+        Piece::R | Piece::r => get_rook_attacks(square, board_position.occupancies[2]),
+        Piece::Q | Piece::q => get_queen_attacks(square,board_position.occupancies[2]),
+
+        Piece::NONE => 0
+    }
 }

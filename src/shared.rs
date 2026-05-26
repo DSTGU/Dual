@@ -1,6 +1,8 @@
 use std::{fmt, mem};
 use std::ops::BitAnd;
 
+use serde::{Deserialize, Serialize};
+
 
 pub const MVV_LVA : [i32 ; 36] = [
 105000000, 205000000, 305000000, 405000000, 505000000, 605000000,
@@ -181,7 +183,7 @@ impl fmt::Debug for Move {
 
 
 // encode pieces
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 #[repr(u8)]
 pub enum Piece { P = 0, N = 1, B = 2, R = 3, Q = 4, K = 5, p = 6, n = 7, b = 8, r = 9, q = 10, k = 11, NONE = 12}
