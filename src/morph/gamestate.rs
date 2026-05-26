@@ -1,4 +1,6 @@
-use crate::{shared::MATE_SCORE, types::board::BoardPosition};
+use std::collections::HashSet;
+
+use crate::{morph::pattern::{DATABASE, Pattern}, shared::MATE_SCORE, types::board::BoardPosition};
 
 
 
@@ -37,12 +39,41 @@ impl GameHistory {
             return;
         }
 
+        let mut db = DATABASE.write().unwrap();
+
         let result = WDL::from_eval(game_end_eval);
+
+        let mut patterns = HashSet::new(); 
 
         for position_tuple in self.positions.iter().rev() {
             let board = &position_tuple.0;
 
-               
+            let board_patterns = board.extract_patterns();
+            
+            for pattern in board_patterns {
+                if patterns.contains(&pattern) {
+                   continue; 
+                } else {
+                    let db_pattern = db.patterns.get(&pattern);
+
+                    if db_pattern.is_none() {
+                        //add behavior
+                        let pattern = Pattern {
+                            wdl: 0.0,
+                            data: pattern.clone(),
+                            weight: 1.0,
+                        };
+
+                        db.patterns.insert(pattern);
+
+                    } else {
+                        //update behavior
+                    }
+                    
+                    patterns.insert(pattern.clone());
+                }
+
+            } 
         }
     }
 }

@@ -1,3 +1,4 @@
+use crate::morph::pattern::{MaterialPattern, PatternData};
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
 use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
 use crate::types::tt::{compute_hash, get_zobrist_keys};
@@ -474,6 +475,13 @@ impl BoardPosition {
 
     pub fn print_board(&self) {
         println!("{}", self.format_board());
+    }
+
+    pub fn extract_patterns(&self) -> Vec<PatternData> {
+        let mut list = vec![];
+        list.push(PatternData::Material(MaterialPattern::extract_pattern(self)));
+
+        list
     }
 
 }
