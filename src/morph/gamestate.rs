@@ -32,7 +32,7 @@ impl WDL {
 }
 
 impl GameHistory {
-    pub fn save_patterns(&self) {
+    pub fn save_patterns(&mut self) {
 
         if self.positions.is_empty() {
             return;
@@ -85,7 +85,10 @@ impl GameHistory {
 
         match db.save() {
             Err(error) => println!("Error, {}", error.backtrace()),
-            Ok(_) => println!("Saved {} patterns", duplicate_patterns.len())
+            Ok(_) => {
+                println!("Saved {} patterns", duplicate_patterns.len());
+                self.positions = vec![];
+            }
         };
         
     }

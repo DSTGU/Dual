@@ -1,6 +1,7 @@
 use coarsetime::{Duration, Instant};
 
 use crate::gui::parse_move;
+use crate::morph::gamestate::GameHistory;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
 use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MAX_HISTORY, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
@@ -21,6 +22,7 @@ pub struct SearchState {
     deadline: Instant,
     should_quit: bool,
     ply: usize,
+    pub game_history: GameHistory
 }
 
 impl SearchState {
@@ -39,6 +41,7 @@ impl SearchState {
             deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
             should_quit: false,
             ply: 0,
+            game_history: GameHistory { positions: vec![] }
         };
 
         search_state
@@ -62,6 +65,7 @@ impl SearchState {
     pub fn clear_persistent_data(&mut self) {
         self.tt.clear();
         self.history_moves = [[0; 64]; 12];
+        self.game_history.save_patterns();
     }
 
     pub fn parse_position_command(&mut self, command: &str) {

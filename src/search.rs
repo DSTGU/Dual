@@ -1,7 +1,7 @@
 use std::{vec};
 use coarsetime::{Duration, Instant};
 
-use crate::evaluate::evaluate;
+use crate::evaluate::{evaluate, pattern_evaluate};
 use crate::move_gen::{generate_moves, is_square_attacked};
 use crate::types::search_state::SearchState;
 use crate::shared::{DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
@@ -35,7 +35,7 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     search_state.seldepth = search_state.seldepth.max(search_state.max_depth+ply-1);
 
     //PESTO eval
-    let eval = evaluate(&search_state.board_position);
+    let eval = pattern_evaluate(&search_state.board_position);
 
     if eval >= beta
     {
@@ -155,7 +155,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     } else if probe.is_some() && probe.unwrap().flag == TTFlag::Exact {
         probe.unwrap().score
     } else {
-        evaluate(&search_state.board_position)
+        pattern_evaluate(&search_state.board_position)
     };
 
     // ------------------------------------------------------------
@@ -515,11 +515,8 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
 
 
             println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
+            search_state.game_history.positions.push((search_state.board_position.clone(), score.eval));
         }
-        
-        
-
-
     } else {
         let now: Instant = Instant::now();
         let time_avail: usize;
@@ -557,7 +554,8 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
         }
 
         println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
-        
+        search_state.game_history.positions.push((search_state.board_position.clone(), score.eval));
+
     }
     
 }
