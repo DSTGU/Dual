@@ -1,7 +1,7 @@
 use std::{vec};
 use coarsetime::{Duration, Instant};
 
-use crate::evaluate::{evaluate, pattern_evaluate};
+use crate::evaluate::{pattern_evaluate};
 use crate::move_gen::{generate_moves, is_square_attacked};
 use crate::types::search_state::SearchState;
 use crate::shared::{DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};

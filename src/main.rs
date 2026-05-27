@@ -38,6 +38,8 @@ use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
 use crate::bench::bench_engine;
 use crate::gui::{parse_go};
+use crate::morph::pattern::DATABASE;
+use crate::types::search_state;
 use crate::types::search_state::SearchState;
 use crate::shared::{ Piece, START_POSITION};
 
@@ -53,6 +55,24 @@ pub fn print_identification() {
     println!("id name Dual v0.2.9");
     println!("id author Tomasz Stawowy");
     println!("uciok");
+}
+
+pub fn set_option(command: &str, search_state: &mut SearchState) {
+    let words : Vec<&str> = command.split_ascii_whitespace().collect();
+
+    if words.len() < 3 {
+        return;
+    }
+
+    match words[2] {
+        "database" => {
+            let db = DATABASE.write().unwrap();
+            
+        }
+
+        _ => (),
+    }
+
 }
 
 pub fn uci_loop() {
@@ -83,6 +103,7 @@ pub fn uci_loop() {
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
             "bench" => bench_engine(&mut search_state),
+            "setoption" => set_option(command, &mut search_state),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
         }

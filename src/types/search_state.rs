@@ -22,7 +22,7 @@ pub struct SearchState {
     deadline: Instant,
     should_quit: bool,
     ply: usize,
-    pub game_history: GameHistory
+    pub game_history: GameHistory,
 }
 
 impl SearchState {

@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::{HashMap, HashSet}, fs, hash::{Hash, Hasher}, path::Path, sync::RwLock};
+use std::{borrow::Borrow, collections::{HashMap, HashSet}, fs, hash::{Hash, Hasher}, path::{Path, PathBuf}, sync::RwLock};
 
 use once_cell::sync::Lazy;
 use serde::{Serialize, Deserialize};
@@ -8,6 +8,39 @@ use crate::{shared::Piece, types::board::BoardPosition};
 pub const DB_PATH: &str = "./database.json"; 
 pub const ALPHA : f32 = 0.08;
 pub const BETA : f32 = 1.0;
+
+pub struct DatabaseState {
+    pub path: PathBuf,
+    pub db: PatternDatabase,
+}
+
+impl DatabaseState {
+    pub fn switch_database<P: AsRef<Path>>(&mut self, path: P) -> anyhow::Result<()> {
+        let path = path.as_ref();
+
+        let new_db = PatternDatabase::load_from_path(path);
+
+        //let mut state = DATABASE.write().unwrap();
+
+        self.path = path.to_path_buf();
+        self.db = new_db;
+
+        Ok(())
+    }
+}
+
+pub static DATABASE: Lazy<RwLock<DatabaseState>> = Lazy::new(|| {
+    RwLock::new(DatabaseState {
+        path: PathBuf::from(DB_PATH),
+        db: PatternDatabase::load_from_path(DB_PATH),
+    })
+});
+
+
+// // Global runtime-managed database
+// pub static DATABASE: Lazy<RwLock<PatternDatabase>> =
+//     Lazy::new(|| RwLock::new(PatternDatabase::load_or_create()));
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PatternDatabase {
@@ -35,8 +68,8 @@ impl PatternDatabase {
                 continue;
             }
 
-            let w = pattern.weight();
-            let ex = (w - 0.5).abs().powf(BETA);
+            let w = pattern.wdl;
+            let ex = pattern.weight; // technically non compliant
 
             numerator += w * ex;
             denominator += ex;
@@ -49,9 +82,11 @@ impl PatternDatabase {
         }
     }
 
-    fn load_or_create() -> Self {
-        if Path::new(DB_PATH).exists() {
-            let content = fs::read_to_string(DB_PATH)
+    pub fn load_from_path<P: AsRef<Path>>(path: P) -> Self {
+        let path = path.as_ref();
+
+        if path.exists() {
+            let content = fs::read_to_string(path)
                 .expect("failed to read database file");
 
             serde_json::from_str(&content)
@@ -67,10 +102,6 @@ impl PatternDatabase {
         Ok(())
     }
 }
-
-// Global runtime-managed database
-pub static DATABASE: Lazy<RwLock<PatternDatabase>> =
-    Lazy::new(|| RwLock::new(PatternDatabase::load_or_create()));
 
 
 #[derive(Debug, Serialize, Deserialize)]

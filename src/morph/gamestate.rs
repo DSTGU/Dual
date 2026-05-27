@@ -60,12 +60,12 @@ impl GameHistory {
                    continue; 
                 } else {
 
-                    if let Some(mut existing_pattern) = db.patterns.take(&pattern) {
+                    if let Some(mut existing_pattern) = db.db.patterns.take(&pattern) {
                         // update behavior
                         existing_pattern.wdl =
                             (1.0 - ALPHA) * existing_pattern.wdl + ALPHA * result.result_f32();
 
-                        db.patterns.insert(existing_pattern);
+                        db.db.patterns.insert(existing_pattern);
                     } else {
                         // add behavior
                         let pattern = Pattern {
@@ -74,7 +74,7 @@ impl GameHistory {
                             weight: 1.0,
                         };
 
-                        db.patterns.insert(pattern);
+                        db.db.patterns.insert(pattern);
                     }
                     
                     duplicate_patterns.insert(pattern);
@@ -83,7 +83,7 @@ impl GameHistory {
             } 
         }
 
-        match db.save() {
+        match db.db.save() {
             Err(error) => println!("Error, {}", error.backtrace()),
             Ok(_) => {
                 println!("Saved {} patterns", duplicate_patterns.len());
