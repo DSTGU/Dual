@@ -6,6 +6,8 @@ use serde::{Serialize, Deserialize};
 use crate::{shared::Piece, types::board::BoardPosition};
 
 pub const DB_PATH: &str = "./database.json"; 
+pub const ALPHA : f32 = 0.08;
+pub const BETA : f32 = 1.0;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PatternDatabase {
@@ -24,7 +26,6 @@ impl PatternDatabase {
     pub fn evaluate(
         &self,
         board: &BoardPosition,
-        beta: f32,
     ) -> f32 {
         let mut numerator = 0.0;
         let mut denominator = 0.0;
@@ -35,7 +36,7 @@ impl PatternDatabase {
             }
 
             let w = pattern.weight();
-            let ex = (w - 0.5).abs().powf(beta);
+            let ex = (w - 0.5).abs().powf(BETA);
 
             numerator += w * ex;
             denominator += ex;

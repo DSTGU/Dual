@@ -201,7 +201,7 @@ pub fn evaluate(board_position: &BoardPosition) -> i32 {
 
 pub fn pattern_evaluate(board_position: &BoardPosition) -> i32 {
     let db = DATABASE.read().unwrap();
-    let eval = db.evaluate(board_position, 1.0);
+    let eval = db.evaluate(board_position);
 
     println!("Evaluated to: {}", eval);
 
