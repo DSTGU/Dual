@@ -10,6 +10,7 @@ mod bench;
 mod morph;
 
 use std::io;
+use std::path::Path;
 use std::thread;
 
 /**********************************\
@@ -65,9 +66,22 @@ pub fn set_option(command: &str, search_state: &mut SearchState) {
     }
 
     match words[2] {
-        "database" => {
-            let db = DATABASE.write().unwrap();
+        "Database" => {
+            let mut db = DATABASE.write().unwrap();
+            let pathstr = words[3..].concat();
+            let path = Path::new(&pathstr);
             
+            if !path.exists() {
+                println!("Error: no file at {}", pathstr);
+                return;
+            }
+
+            search_state.config.set_path(pathstr.clone());
+
+            match db.switch_database(path) {
+                Ok(_) => println!("Loaded new db"),
+                Err(err) => println!("Error: {}", err.backtrace()), 
+            }
         }
 
         _ => (),

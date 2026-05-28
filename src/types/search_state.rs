@@ -2,9 +2,11 @@ use coarsetime::{Duration, Instant};
 
 use crate::gui::parse_move;
 use crate::morph::gamestate::GameHistory;
+use crate::morph::pattern::DATABASE;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
 use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MAX_HISTORY, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
+use crate::types::config::EngineConfig;
 use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash, get_zobrist_keys};
 
 /// Search state structure - encapsulates all search-related state
@@ -23,6 +25,7 @@ pub struct SearchState {
     should_quit: bool,
     ply: usize,
     pub game_history: GameHistory,
+    pub config: EngineConfig,
 }
 
 impl SearchState {
@@ -41,7 +44,8 @@ impl SearchState {
             deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
             should_quit: false,
             ply: 0,
-            game_history: GameHistory { positions: vec![] }
+            game_history: GameHistory { positions: vec![] },
+            config: EngineConfig::default()
         };
 
         search_state
@@ -66,6 +70,15 @@ impl SearchState {
         self.tt.clear();
         self.history_moves = [[0; 64]; 12];
         self.game_history.save_patterns();
+        
+        let db = DATABASE.read().unwrap();
+        match db.db.save(&self.config) {
+            Err(error) => println!("Error, {}", error.backtrace()),
+            Ok(_) => {
+                println!("Saved db");
+                self.game_history.positions = vec![];
+            }
+        };
     }
 
     pub fn parse_position_command(&mut self, command: &str) {

@@ -82,14 +82,5 @@ impl GameHistory {
 
             } 
         }
-
-        match db.db.save() {
-            Err(error) => println!("Error, {}", error.backtrace()),
-            Ok(_) => {
-                println!("Saved {} patterns", duplicate_patterns.len());
-                self.positions = vec![];
-            }
-        };
-        
     }
 }

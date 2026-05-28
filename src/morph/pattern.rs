@@ -1,9 +1,9 @@
-use std::{borrow::Borrow, collections::{HashMap, HashSet}, fs, hash::{Hash, Hasher}, path::{Path, PathBuf}, sync::RwLock};
+use std::{borrow::Borrow, collections::{HashSet}, fs, hash::{Hash, Hasher}, path::{Path, PathBuf}, sync::RwLock};
 
 use once_cell::sync::Lazy;
 use serde::{Serialize, Deserialize};
 
-use crate::{shared::Piece, types::board::BoardPosition};
+use crate::{shared::Piece, types::{board::BoardPosition, config::EngineConfig}};
 
 pub const DB_PATH: &str = "./database.json"; 
 pub const ALPHA : f32 = 0.08;
@@ -96,9 +96,9 @@ impl PatternDatabase {
         }
     }
 
-    pub fn save(&self) -> anyhow::Result<()> {
+    pub fn save(&self, config: &EngineConfig) -> anyhow::Result<()> {
         let json = serde_json::to_string_pretty(self)?;
-        fs::write(DB_PATH, json)?;
+        fs::write(config.get_path(), json)?;
         Ok(())
     }
 }
