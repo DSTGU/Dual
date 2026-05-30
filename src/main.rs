@@ -127,6 +127,7 @@ pub fn uci_loop() {
             "isready" => println!("readyok"),
             "bench" => bench_engine(&mut search_state),
             "setoption" => set_option(command, &mut search_state),
+            "printdb" => DATABASE.read().unwrap().print_info(),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
         }

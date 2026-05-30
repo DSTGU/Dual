@@ -3,7 +3,7 @@ use std::{borrow::Borrow, collections::{HashSet}, fs, hash::{Hash, Hasher}, path
 use once_cell::sync::Lazy;
 use serde::{Serialize, Deserialize};
 
-use crate::{shared::Piece, types::{board::BoardPosition, config::EngineConfig}};
+use crate::{evaluate::pattern_evaluate, shared::{KIWIPETE, Piece, START_POSITION}, types::{board::BoardPosition, config::EngineConfig}};
 
 pub const DB_PATH: &str = "./database.json"; 
 pub const ALPHA : f32 = 0.08;
@@ -26,6 +26,27 @@ impl DatabaseState {
         self.db = new_db;
 
         Ok(())
+    }
+
+
+    pub fn print_info(&self) {
+        println!("Path: {}", self.path.as_os_str().to_str().unwrap_or("Empty"));
+        println!("Entries: {}", self.db.patterns.len());
+
+        let wdlvec: Vec<f32> = self.db.patterns.iter().map(|p| p.wdl).collect();
+        let avg =  wdlvec.iter().sum::<f32>() / wdlvec.len() as f32;
+
+        println!("Avg WDL: {}", avg);
+
+        let start_pos = BoardPosition::new(START_POSITION);
+        println!("startposition static dbeval (wdl): {}, cp conversion: {}", self.db.evaluate(&start_pos), pattern_evaluate(&start_pos));
+        let scandi1 = BoardPosition::new("rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2");
+        println!("Scandi 1... static dbeval (wdl): {}, cp conversion: {}", self.db.evaluate(&scandi1), pattern_evaluate(&scandi1));
+        let scandi2 = BoardPosition::new("rnb1kbnr/ppp1pppp/8/3q4/8/8/PPPP1PPP/RNBQKBNR w KQkq - 0 3");
+        println!("Scandi 2. static dbeval (wdl): {}, cp conversion: {}", self.db.evaluate(&scandi2), pattern_evaluate(&scandi2));
+        let kiwipete_pos = BoardPosition::new(KIWIPETE);
+        println!("kiwipete static dbeval (wdl): {}, cp conversion: {}", self.db.evaluate(&kiwipete_pos), pattern_evaluate(&kiwipete_pos));
+
     }
 }
 
