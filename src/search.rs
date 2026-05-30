@@ -4,7 +4,7 @@ use coarsetime::{Duration, Instant};
 use crate::evaluate::{pattern_evaluate};
 use crate::move_gen::{generate_moves, is_square_attacked};
 use crate::types::search_state::SearchState;
-use crate::shared::{DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
+use crate::shared::{DRAW_CONTEMPT, DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
 use crate::types::tt::TTFlag;
 
 pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>) -> Vec<Move> {
@@ -50,7 +50,7 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
     }
 
     if search_state.is_trifold_repetition() {
-        return SearchAnswer { move_list: vec![], node_count: 0, eval: 0 };
+        return SearchAnswer { move_list: vec![], node_count: 0, eval: DRAW_CONTEMPT };
     }
 
     let move_list = generate_moves(&search_state.board_position, true);
@@ -93,7 +93,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     }
 
     if search_state.is_trifold_repetition() {
-        return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_SCORE };
+        return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_CONTEMPT };
     }
 
     let mut new_alpha = alpha;
@@ -515,7 +515,9 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
 
 
             println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
-            search_state.game_history.positions.push((search_state.board_position.clone(), score.eval));
+            if (search_state.config.is_training) {
+                search_state.game_history.positions.push((search_state.board_position.clone(), score.eval));
+            }
         }
     } else {
         let now: Instant = Instant::now();
@@ -554,7 +556,9 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
         }
 
         println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
-        search_state.game_history.positions.push((search_state.board_position.clone(), score.eval));
+        if (search_state.config.is_training) {
+            search_state.game_history.positions.push((search_state.board_position.clone(), score.eval));
+        }
 
     }
     

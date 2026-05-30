@@ -4,11 +4,12 @@ use std::path::Path;
 
 pub struct EngineConfig {
     database_path: String,
+    pub is_training: bool
 }
 
 impl Default for EngineConfig {
     fn default() -> Self {
-        Self { database_path: "./database.json".to_owned() }
+        Self { database_path: "./database.json".to_owned(), is_training: false }
     }
 }
 

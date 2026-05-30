@@ -69,7 +69,7 @@ impl GameHistory {
                     } else {
                         // add behavior
                         let pattern = Pattern {
-                            wdl: 0.0,
+                            wdl: result.result_f32(),
                             data: pattern.clone(),
                             weight: 1.0,
                         };

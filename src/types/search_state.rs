@@ -69,7 +69,9 @@ impl SearchState {
     pub fn clear_persistent_data(&mut self) {
         self.tt.clear();
         self.history_moves = [[0; 64]; 12];
-        self.game_history.save_patterns();
+        if self.config.is_training {
+            self.game_history.save_patterns();
+        }
         
         let db = DATABASE.read().unwrap();
         match db.db.save(&self.config) {

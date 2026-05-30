@@ -40,7 +40,6 @@ use attacks::KING_ATTACKS;
 use crate::bench::bench_engine;
 use crate::gui::{parse_go};
 use crate::morph::pattern::DATABASE;
-use crate::types::search_state;
 use crate::types::search_state::SearchState;
 use crate::shared::{ Piece, START_POSITION};
 
@@ -55,6 +54,8 @@ use crate::shared::{ Piece, START_POSITION};
 pub fn print_identification() {
     println!("id name Dual v0.2.9");
     println!("id author Tomasz Stawowy");
+    println!("option name Database type string default ./database.json");
+    println!("option name Training type combo default false var true");
     println!("uciok");
 }
 
@@ -64,26 +65,34 @@ pub fn set_option(command: &str, search_state: &mut SearchState) {
     if words.len() < 3 {
         return;
     }
-
+    //    0       1   2     3    4
+    //setoption name <id> value <x>
     match words[2] {
         "Database" => {
             let mut db = DATABASE.write().unwrap();
-            let pathstr = words[3..].concat();
+            let pathstr = words[4..].concat();
             let path = Path::new(&pathstr);
             
+            search_state.config.set_path(pathstr.clone());
+
             if !path.exists() {
-                println!("Error: no file at {}", pathstr);
+                println!("Warning: no file at {}", pathstr);
+                println!("Warning: not switching out db content, just save path");
                 return;
             }
-
-            search_state.config.set_path(pathstr.clone());
 
             match db.switch_database(path) {
                 Ok(_) => println!("Loaded new db"),
                 Err(err) => println!("Error: {}", err.backtrace()), 
             }
         }
-
+        "Training" => {
+            match words[4..].concat().as_str() {
+                "true" => search_state.config.is_training = true,
+                "false" => search_state.config.is_training = false,
+                _ => (),
+            }
+        }
         _ => (),
     }
 

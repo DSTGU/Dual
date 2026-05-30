@@ -24,6 +24,7 @@ pub const DRAW_SCORE: i32 = 0;
 pub const MIN_DEPTH: usize = 3;
 pub const LMR_REDUCTION: usize = 2;
 pub const MAX_HISTORY : i32 = 65536;
+pub const DRAW_CONTEMPT: i32 = -1;
 
 #[derive(Debug)]
 pub struct SearchAnswer {
