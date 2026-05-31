@@ -3,7 +3,7 @@ use std::{borrow::Borrow, collections::{HashSet}, fs, hash::{Hash, Hasher}, path
 use once_cell::sync::Lazy;
 use serde::{Serialize, Deserialize};
 
-use crate::{evaluate::pattern_evaluate, shared::{KIWIPETE, Piece, START_POSITION}, types::{board::BoardPosition, config::EngineConfig}};
+use crate::{evaluate::pattern_evaluate, morph::graphpattern::GraphPattern, shared::{KIWIPETE, Piece, START_POSITION}, types::{board::BoardPosition, config::EngineConfig}};
 
 pub const DB_PATH: &str = "./database.json"; 
 pub const ALPHA : f32 = 0.01;
@@ -84,13 +84,19 @@ impl PatternDatabase {
         let mut numerator = 0.0;
         let mut denominator = 0.0;
 
-        for pattern in &self.patterns {
-            if !pattern.applies(board) {
+        let patterns = board.extract_patterns();
+
+        for pattern in &patterns {
+            let db_data = self.patterns.get(pattern);
+            
+            if db_data.is_none() {
                 continue;
             }
 
-            let w = pattern.wdl;
-            let ex = pattern.weight; // technically non compliant
+            let db_pattern = db_data.unwrap();
+
+            let w = db_pattern.wdl;
+            let ex = db_pattern.weight; // technically non compliant
 
             numerator += w * ex;
             denominator += ex;
@@ -157,7 +163,7 @@ impl Eq for Pattern {}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum PatternData {
-    //Graph(GraphPattern),
+    Graph(GraphPattern),
     Material(MaterialPattern),
 }
 
@@ -170,12 +176,12 @@ impl Pattern {
         self.weight
     }
 
-    pub fn applies(&self, board: &BoardPosition) -> bool {
-        match &self.data {
-            //Pattern::Graph(p) => p.applies(board),
-            PatternData::Material(p) => p.applies(board),
-        }
-    }
+    // pub fn applies(&self, board: &BoardPosition) -> bool {
+    //     match &self.data {
+    //         Pattern::Graph(p) => p.applies(board),
+    //         PatternData::Material(p) => p.applies(board),
+    //     }
+    // }
 }
 
 pub enum TypeOfPattern {

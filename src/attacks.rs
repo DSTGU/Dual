@@ -1,6 +1,8 @@
 use std::sync::{Once};
 use lazy_static::lazy_static;
 
+use crate::morph::graphpattern::EdgeKind;
+use crate::morph::graphpattern::PositionEdge;
 use crate::shared::Piece;
 use crate::shared::set_bit;
 use crate::shared::pop_bit;
@@ -689,13 +691,13 @@ pub fn get_queen_attacks(square: usize, occupancy: u64) -> u64 {
 }
 
 
-pub fn get_piece_attacks(board_position: &BoardPosition, square: usize) -> u64 {
-    
-    let piece = board_position.mailbox[square];
+// Function for taking from which squares can a given piece attack a given square for that bp
+// That's why pawns are inverted
+pub fn get_piece_attacks(board_position: &BoardPosition, square: usize, piece: Piece) -> u64 {
 
     match piece {
-        Piece::P => PAWN_ATTACKS[0][square],
-        Piece::p => PAWN_ATTACKS[1][square],
+        Piece::P => PAWN_ATTACKS[1][square],
+        Piece::p => PAWN_ATTACKS[0][square],
         Piece::K | Piece::k => KING_ATTACKS[square],
         Piece::N | Piece::n => KNIGHT_ATTACKS[square],
         Piece::B | Piece::b => get_bishop_attacks(square, board_position.occupancies[2]),
@@ -704,4 +706,27 @@ pub fn get_piece_attacks(board_position: &BoardPosition, square: usize) -> u64 {
 
         Piece::NONE => 0
     }
+}
+
+pub fn attackers_and_defenders_for_square(board_position: &BoardPosition, square: usize) -> Vec<PositionEdge> {
+    let mut result = vec![];
+    
+    let victim = board_position.mailbox[square];
+    let victim_side = victim.get_side();
+    //board_position.occupancies[2]
+    for piece_idx in 0..12 {
+        let attacker = Piece::new(piece_idx);
+
+        let attacks = get_piece_attacks(board_position, square, attacker);
+
+        for _ in 0..attacks.count_ones() {
+            if attacker.get_side() == victim_side {
+                result.push(PositionEdge { kind: EdgeKind::Defends, attacker, victim });
+            } else {
+                result.push(PositionEdge { kind: EdgeKind::DirectAttack, attacker, victim });
+            }
+        }
+    }
+
+    result
 }

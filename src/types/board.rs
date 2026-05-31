@@ -1,3 +1,5 @@
+use crate::attacks::{attackers_and_defenders_for_square};
+use crate::morph::graphpattern::{GraphPattern};
 use crate::morph::pattern::{MaterialPattern, PatternData};
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
 use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
@@ -481,7 +483,59 @@ impl BoardPosition {
         let mut list = vec![];
         list.push(PatternData::Material(MaterialPattern::extract_pattern(self)));
 
+        list.extend(self.extract_graph_patterns());
+
         list
     }
 
+
+    fn extract_graph_patterns(&self) -> Vec<PatternData> {
+        let mut patterns = Vec::new();
+
+        // for from_sq in 0..64 {
+        //     let attacker = self.mailbox[from_sq];
+
+        //     if attacker == Piece::NONE {
+        //         continue;
+        //     }
+
+        //     let attacks = get_piece_attacks(self, from_sq);
+
+        //     let mut bb = attacks;
+
+        //     while bb != 0 {
+        //         let to_sq = bb.trailing_zeros() as usize;
+
+        //         let target = self.mailbox[to_sq];
+
+        //         if target != Piece::NONE {
+        //             patterns.push(PatternData::Graph(GraphPattern {
+        //                 attacks: vec![
+        //                     PositionEdge {
+        //                         attacker,
+        //                         kind: EdgeKind::DirectAttack,
+        //                         victim: target,
+        //                     }
+        //                 ]
+        //             }));
+        //         }
+
+        //         bb &= bb - 1;
+        //     }
+        // }
+
+        for to_sq in 0..64 {
+            let victim = self.mailbox[to_sq];
+
+            if victim == Piece::NONE {
+                continue;
+            }
+
+            let edges = attackers_and_defenders_for_square(self, to_sq);
+            patterns.push(PatternData::Graph(GraphPattern { attacks: edges }));
+
+        }
+
+        patterns
+    }
 }
