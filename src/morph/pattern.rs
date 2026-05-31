@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 use crate::{evaluate::pattern_evaluate, shared::{KIWIPETE, Piece, START_POSITION}, types::{board::BoardPosition, config::EngineConfig}};
 
 pub const DB_PATH: &str = "./database.json"; 
-pub const ALPHA : f32 = 0.08;
+pub const ALPHA : f32 = 0.01;
 pub const BETA : f32 = 1.0;
 
 pub struct DatabaseState {
@@ -130,6 +130,7 @@ pub struct Pattern {
     pub data: PatternData,
     pub wdl: f32,
     pub weight: f32,
+    pub uses: i32,
 }
 
 impl Borrow<PatternData> for Pattern {

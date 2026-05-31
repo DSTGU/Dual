@@ -62,8 +62,11 @@ impl GameHistory {
 
                     if let Some(mut existing_pattern) = db.db.patterns.take(&pattern) {
                         // update behavior
+                        existing_pattern.uses += 1;
+                        let uses = existing_pattern.uses;
+                        let change_factor = 1.0_f32.min((1.0/(uses + 1) as f32) + ALPHA);
                         existing_pattern.wdl =
-                            (1.0 - ALPHA) * existing_pattern.wdl + ALPHA * result.result_f32();
+                            (1.0 - change_factor) * existing_pattern.wdl + change_factor * result.result_f32();
 
                         db.db.patterns.insert(existing_pattern);
                     } else {
@@ -72,6 +75,7 @@ impl GameHistory {
                             wdl: result.result_f32(),
                             data: pattern.clone(),
                             weight: 1.0,
+                            uses: 1,
                         };
 
                         db.db.patterns.insert(pattern);

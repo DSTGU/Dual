@@ -29,3 +29,4 @@ perf.*
 
 database.json
 morphtraining/**
+database**

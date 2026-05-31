@@ -5,7 +5,7 @@ use crate::morph::gamestate::GameHistory;
 use crate::morph::pattern::DATABASE;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
-use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MAX_HISTORY, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
+use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MAX_HISTORY, MIN_DEPTH, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
 use crate::types::config::EngineConfig;
 use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash, get_zobrist_keys};
 
@@ -248,14 +248,14 @@ impl SearchState {
     }
 
     pub fn update_history(&mut self, mv: Move, bonus: i32) {
-        let clampedBonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY);
+        let clamped_bonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY);
         let piece = self.get_piece(mv) as usize;
         let target = mv.get_target_square() as usize;
         if piece < 12 && target < 64 {
             let history_val = self.history_moves[piece][target];
             //let bonus = depth * depth;
 
-            self.history_moves[piece][target] = clampedBonus - history_val * clampedBonus / MAX_HISTORY //second bonus should be abs
+            self.history_moves[piece][target] = clamped_bonus - history_val * clamped_bonus / MAX_HISTORY //second bonus should be abs
             //self.history_moves[piece][target] += bonus;
 
         }
@@ -338,7 +338,7 @@ impl SearchState {
         }
 
         if (self.nodes_searched & 0x3fff) == 0 {
-            if self.passed_deadline() {
+            if self.max_depth > MIN_DEPTH && self.passed_deadline() {
                 self.should_quit = true;
                 return true;
             }
