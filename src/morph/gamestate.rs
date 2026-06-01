@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{morph::pattern::{ALPHA, DATABASE, Pattern}, shared::MATE_SCORE, types::board::BoardPosition};
+use crate::{morph::pattern::{ALPHA, DATABASE, Pattern, PatternData::{Graph, Material}}, shared::MATE_SCORE, types::board::BoardPosition};
 
 pub struct GameHistory {
     pub positions: Vec<(BoardPosition, i32)>
@@ -71,10 +71,17 @@ impl GameHistory {
                         db.db.patterns.insert(existing_pattern);
                     } else {
                         // add behavior
+                        let pattern_clone = pattern.clone();
+
+                        let weight = match pattern_clone {
+                            Graph(gp) => 0.05*gp.attacks.len() as f32,
+                            Material(_) => 1.0,
+                        };
+
                         let pattern = Pattern {
                             wdl: result.result_f32(),
                             data: pattern.clone(),
-                            weight: 1.0,
+                            weight: weight,
                             uses: 1,
                         };
 

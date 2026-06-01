@@ -95,8 +95,9 @@ impl PatternDatabase {
 
             let db_pattern = db_data.unwrap();
 
+
             let w = db_pattern.wdl;
-            let ex = db_pattern.weight; // technically non compliant
+            let ex = db_pattern.weight * (db_pattern.wdl - 0.5).abs().powf(BETA); // technically non compliant
 
             numerator += w * ex;
             denominator += ex;
@@ -108,6 +109,9 @@ impl PatternDatabase {
             numerator / denominator
         }
     }
+
+    //TODO
+    //pub fn purge()
 
     pub fn load_from_path<P: AsRef<Path>>(path: P) -> Self {
         let path = path.as_ref();
