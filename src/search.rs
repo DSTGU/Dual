@@ -582,7 +582,7 @@ mod tests {
 
     use std::thread;
     use crate::search::single_depth_search;
-    use crate::shared::{Move, START_POSITION};
+    use crate::shared::{DRAW_CONTEMPT, Move, START_POSITION};
     use crate::types::search_state::SearchState;
 
 
@@ -600,7 +600,7 @@ mod tests {
                 println!("{:?}", score);
 
                 assert!(score.node_count < 3);
-                assert_eq!(score.eval, 0);
+                assert_eq!(score.eval, -DRAW_CONTEMPT);
                 
             })
             .unwrap();
@@ -622,7 +622,7 @@ mod tests {
                 println!("{:?}", score);
 
                 assert!(score.node_count < 3);
-                assert_eq!(score.eval, 0);
+                assert_eq!(score.eval, -DRAW_CONTEMPT);
                 
             })
             .unwrap();
@@ -644,7 +644,7 @@ mod tests {
                 println!("{:?}", score);
 
                 assert!(score.node_count < 3);
-                assert_eq!(score.eval, 0);
+                assert_eq!(score.eval, -DRAW_CONTEMPT);
                 
             })
             .unwrap();
