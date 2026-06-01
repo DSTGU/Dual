@@ -718,8 +718,10 @@ pub fn attackers_and_defenders_for_square(board_position: &BoardPosition, square
         let attacker = Piece::new(piece_idx);
 
         let attacks = get_piece_attacks(board_position, square, attacker);
+        let attacking_pieces = attacks & board_position.bitboards[piece_idx];
 
-        for _ in 0..attacks.count_ones() {
+
+        for _ in 0..attacking_pieces.count_ones() {
             if attacker.get_side() == victim_side {
                 result.push(PositionEdge { kind: EdgeKind::Defends, attacker, victim });
             } else {
