@@ -94,13 +94,12 @@ impl PatternDatabase {
             }
 
             let db_pattern = db_data.unwrap();
+            
+            let confidence = db_pattern.uses as f32 / (db_pattern.uses as f32 + 50.0); // confidence heuristic - lower importance of less explored patterns
+            let importance = db_pattern.weight * confidence * (db_pattern.wdl - 0.5).abs().powf(BETA);
 
-
-            let w = db_pattern.wdl;
-            let ex = db_pattern.weight * (db_pattern.wdl - 0.5).abs().powf(BETA); // technically non compliant
-
-            numerator += w * ex;
-            denominator += ex;
+            numerator += db_pattern.wdl * importance;
+            denominator += importance;
         }
 
         if denominator == 0.0 {
@@ -170,30 +169,6 @@ pub enum PatternData {
     Graph(GraphPattern),
     Material(MaterialPattern),
 }
-
-pub trait MatchesPosition {
-    fn applies(&self, position: &BoardPosition) -> bool;
-}
-
-impl Pattern {
-    pub fn weight(&self) -> f32 {
-        self.weight
-    }
-
-    // pub fn applies(&self, board: &BoardPosition) -> bool {
-    //     match &self.data {
-    //         Pattern::Graph(p) => p.applies(board),
-    //         PatternData::Material(p) => p.applies(board),
-    //     }
-    // }
-}
-
-pub enum TypeOfPattern {
-    Material,
-    Attack,
-}
-
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MaterialPattern {

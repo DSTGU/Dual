@@ -4,7 +4,7 @@ use coarsetime::{Duration, Instant};
 use crate::evaluate::{pattern_evaluate};
 use crate::move_gen::{generate_moves, is_square_attacked};
 use crate::types::search_state::SearchState;
-use crate::shared::{DRAW_CONTEMPT, DRAW_SCORE, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
+use crate::shared::{DRAW_CONTEMPT, MATE_SCORE, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
 use crate::types::tt::TTFlag;
 
 pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>) -> Vec<Move> {

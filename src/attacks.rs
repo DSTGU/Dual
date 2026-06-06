@@ -708,24 +708,26 @@ pub fn get_piece_attacks(board_position: &BoardPosition, square: usize, piece: P
     }
 }
 
+// Attackers and defenders, white normalised (white are always stm pieces, black are always opponents pieces)
 pub fn attackers_and_defenders_for_square(board_position: &BoardPosition, square: usize) -> Vec<PositionEdge> {
     let mut result = vec![];
     
     let victim = board_position.mailbox[square];
     let victim_side = victim.get_side();
+    let victim_normalised = if board_position.side == 1 {victim.switch_side()} else {victim};
     //board_position.occupancies[2]
     for piece_idx in 0..12 {
         let attacker = Piece::new(piece_idx);
+        let attacker_normalised = if board_position.side == 1 {attacker.switch_side()} else {attacker};
 
         let attacks = get_piece_attacks(board_position, square, attacker);
         let attacking_pieces = attacks & board_position.bitboards[piece_idx];
 
-
         for _ in 0..attacking_pieces.count_ones() {
             if attacker.get_side() == victim_side {
-                result.push(PositionEdge { kind: EdgeKind::Defends, attacker, victim });
+                result.push(PositionEdge { kind: EdgeKind::Defends, attacker:attacker_normalised, victim:victim_normalised });
             } else {
-                result.push(PositionEdge { kind: EdgeKind::DirectAttack, attacker, victim });
+                result.push(PositionEdge { kind: EdgeKind::DirectAttack, attacker:attacker_normalised, victim:victim_normalised });
             }
         }
     }

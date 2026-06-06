@@ -1,5 +1,5 @@
 use crate::attacks::{attackers_and_defenders_for_square};
-use crate::morph::graphpattern::{GraphPattern};
+use crate::morph::graphpattern::{EdgeKind, GraphPattern};
 use crate::morph::pattern::{MaterialPattern, PatternData};
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
 use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
@@ -531,9 +531,13 @@ impl BoardPosition {
                 continue;
             }
 
+            //white - our pieces, black - their pieces
             let edges = attackers_and_defenders_for_square(self, to_sq);
-            patterns.push(PatternData::Graph(GraphPattern { attacks: edges }));
 
+            //if !edges.iter().all(|e| e.kind == EdgeKind::Defends) {
+            if edges.len() > 0 {
+                patterns.push(PatternData::Graph(GraphPattern { attacks: edges }));
+            }
         }
 
         patterns

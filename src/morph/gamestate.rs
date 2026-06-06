@@ -74,8 +74,8 @@ impl GameHistory {
                         let pattern_clone = pattern.clone();
 
                         let weight = match pattern_clone {
-                            Graph(gp) => 0.05*gp.attacks.len() as f32,
-                            Material(_) => 1.0,
+                            Graph(_) => 0.1,
+                            Material(_) => 5.0,
                         };
 
                         let pattern = Pattern {

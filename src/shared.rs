@@ -21,7 +21,7 @@ pub const PV_MOVE_BONUS: i32 = 605000001;
 pub const FIRST_KILLER_BONUS: i32 = 9_000_000;
 pub const SECOND_KILLER_BONUS: i32 = 8_000_000;
 pub const DRAW_SCORE: i32 = 0;
-pub const MIN_DEPTH: usize = 3;
+pub const MIN_DEPTH: usize = 2;
 pub const LMR_REDUCTION: usize = 2;
 pub const MAX_HISTORY : i32 = 65536;
 pub const DRAW_CONTEMPT: i32 = -1;
@@ -210,6 +210,10 @@ impl Piece {
 
     pub const fn get_side(self) -> usize {
         self as usize / 6
+    }
+
+    pub fn switch_side(self) -> Piece {
+        Piece::new((self as usize % 6) + 6 * (1 - self.get_side()))
     }
 }
 
@@ -441,5 +445,15 @@ mod tests {
         assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
         assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
         assert_eq!(move_to_test.get_old_castle(), old_castle);
+    }
+
+    #[test]
+    fn test_switch_side() {
+        assert_eq!(Piece::P, Piece::p.switch_side());
+        assert_eq!(Piece::k, Piece::K.switch_side());
+        assert_eq!(Piece::R, Piece::r.switch_side());
+        assert_eq!(Piece::K, Piece::k.switch_side());
+        assert_eq!(Piece::p, Piece::P.switch_side());
+        assert_eq!(Piece::n, Piece::N.switch_side());
     }
 }
