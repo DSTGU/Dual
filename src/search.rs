@@ -184,12 +184,12 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
         search_state.has_pieces() &&
         static_eval > beta &&
         !is_pv_node &&
-        depth > 6
+        depth >= 3
         {
             let r = 2 + depth / 4; // NMP Reduction
             let old_ep = search_state.board_position.enpassant;
             search_state.make_null_move();
-            let search_answer = pvs(search_state, -beta, -(beta - 1), depth - r - 1);
+            let search_answer = pvs(search_state, -beta, -(beta - 1), (depth - r - 1).max(0));
             search_state.take_back_null_move(old_ep);
             if -search_answer.eval >= beta {
 
@@ -486,7 +486,7 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
 
 pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_available: Option<usize>) {
 
-    if time_available.is_none() && depth.is_some() {
+    if depth.is_some() {
         search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(1000000)).unwrap());
         if depth.unwrap() <= MIN_DEPTH {
             search_state.reset_for_new_iteration(depth.unwrap(), Move::create_null());        
