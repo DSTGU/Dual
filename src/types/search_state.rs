@@ -61,7 +61,7 @@ impl SearchState {
         self.prev_iter_best_move = Move::create_null();
         self.rep_table.clear();
         self.nodes_searched = 0;
-        self.deadline = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
+        //self.deadline = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
         self.should_quit = false;
         self.ply = 0;
     }
@@ -71,16 +71,16 @@ impl SearchState {
         self.history_moves = [[0; 64]; 12];
         if self.config.is_training {
             self.game_history.save_patterns();
+            
+            let db = DATABASE.read().unwrap();
+            match db.db.save(&self.config) {
+                Err(error) => println!("Error, {}", error.backtrace()),
+                Ok(_) => {
+                    println!("Saved db");
+                    self.game_history.positions = vec![];
+                }
+            };
         }
-        
-        let db = DATABASE.read().unwrap();
-        match db.db.save(&self.config) {
-            Err(error) => println!("Error, {}", error.backtrace()),
-            Ok(_) => {
-                println!("Saved db");
-                self.game_history.positions = vec![];
-            }
-        };
     }
 
     pub fn parse_position_command(&mut self, command: &str) {

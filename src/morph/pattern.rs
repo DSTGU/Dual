@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::{HashSet}, fs, hash::{Hash, Hasher}, path::{Path, PathBuf}, sync::RwLock};
+use std::{borrow::Borrow, collections::{HashMap, HashSet}, fs, hash::{Hash, Hasher}, path::{Path, PathBuf}, sync::RwLock};
 
 use once_cell::sync::Lazy;
 use serde::{Serialize, Deserialize};
@@ -35,8 +35,20 @@ impl DatabaseState {
 
         let wdlvec: Vec<f32> = self.db.patterns.iter().map(|p| p.wdl).collect();
         let avg =  wdlvec.iter().sum::<f32>() / wdlvec.len() as f32;
+        let variance = wdlvec
+            .iter()
+            .map(|wdl| {
+                let diff = wdl - avg;
+                diff * diff
+            })
+            .sum::<f32>()
+            / wdlvec.len() as f32;
+        let stddev = variance.sqrt();
 
         println!("Avg WDL: {}", avg);
+        println!("Stddev WDL: {}", stddev);
+
+        self.print_bucket_stats();
 
         let start_pos = BoardPosition::new(START_POSITION);
         println!("startposition static dbeval (wdl): {}, cp conversion: {}", self.db.evaluate(&start_pos), pattern_evaluate(&start_pos));
@@ -48,7 +60,88 @@ impl DatabaseState {
         println!("kiwipete static dbeval (wdl): {}, cp conversion: {}", self.db.evaluate(&kiwipete_pos), pattern_evaluate(&kiwipete_pos));
 
     }
+
+    pub fn print_bucket_stats(&self) {
+        let mut graph_buckets: HashMap<u32, BucketStats> = HashMap::new();
+        let mut material_buckets: HashMap<u32, BucketStats> = HashMap::new();
+        let mut usage_buckets: HashMap<u32, BucketStats> = HashMap::new();
+        
+        for pattern in &self.db.patterns {
+            let bucket = ((pattern.wdl * 10.0).floor() as u32).min(9);
+            let usage_bucket = (pattern.uses.ilog2() as u32).min(9);
+
+            let buckets = match &pattern.data {
+                PatternData::Graph(_) => &mut graph_buckets,
+                PatternData::Material(_) => &mut material_buckets,
+            };
+
+            let stats = buckets.entry(bucket).or_default();
+            stats.count += 1;
+            stats.uses_sum += pattern.uses as i64;
+            stats.wdls.push(pattern.wdl);
+
+            let usage_stats = usage_buckets.entry(usage_bucket).or_default();
+            usage_stats.count += 1;
+            usage_stats.uses_sum += pattern.uses as i64;
+            usage_stats.wdls.push(pattern.wdl);
+        }
+        self.print_buckets("Graph", &graph_buckets);
+        self.print_buckets("Material", &material_buckets);
+        self.print_buckets("usage", &usage_buckets);
+    }
+
+    fn print_buckets(
+        &self,
+        name: &str,
+        buckets: &HashMap<u32, BucketStats>,
+    ) {
+        println!("\n=== {} ===", name);
+
+        let mut keys: Vec<_> = buckets.keys().copied().collect();
+        keys.sort_unstable();
+
+        for bucket in keys {
+            let stats = &buckets[&bucket];
+
+            let avg_uses = stats.uses_sum as f32 / stats.count as f32;
+
+            let avg_wdl =
+                stats.wdls.iter().sum::<f32>() / stats.wdls.len() as f32;
+
+            let variance = stats
+                .wdls
+                .iter()
+                .map(|wdl| {
+                    let diff = wdl - avg_wdl;
+                    diff * diff
+                })
+                .sum::<f32>()
+                / stats.wdls.len() as f32;
+
+            let stddev = variance.sqrt();
+
+            let low = bucket as f32 / 10.0;
+            let high = low + 0.1;
+
+            println!(
+                "{:.1}-{:.1}: count={}, avg_uses={:.2}, avg_wdl={:.4}, stddev={:.4}",
+                low,
+                high,
+                stats.count,
+                avg_uses,
+                avg_wdl,
+                stddev,
+            );
+        }
+    }
 }
+
+    #[derive(Default)]
+    struct BucketStats {
+        count: usize,
+        uses_sum: i64,
+        wdls: Vec<f32>,
+    }
 
 pub static DATABASE: Lazy<RwLock<DatabaseState>> = Lazy::new(|| {
     RwLock::new(DatabaseState {
