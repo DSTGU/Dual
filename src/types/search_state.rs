@@ -14,6 +14,7 @@ pub struct SearchState {
     killer_moves: [[Move; 256]; 2],
     //only public for test purposes
     pub history_moves: [[i32; 64]; 12],
+    //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
     prev_iter_best_move: Move,
     tt: TranspositionTable,
     rep_table: RepetitionTable,
@@ -32,6 +33,7 @@ impl SearchState {
             seldepth: 0,
             killer_moves: [[Move::create_null(); 256]; 2],
             history_moves: [[0; 64]; 12],
+            //capt_history_moves: [[[0; 64]; 12]; 12],
             prev_iter_best_move: Move::create_null(),
             tt: TranspositionTable::new(),
             rep_table: RepetitionTable::new(),
@@ -62,6 +64,7 @@ impl SearchState {
     pub fn clear_persistent_data(&mut self) {
         self.tt.clear();
         self.history_moves = [[0; 64]; 12];
+        //self.capt_history_moves = [[[0; 64]; 12]; 12];
     }
 
     pub fn parse_position_command(&mut self, command: &str) {
@@ -197,14 +200,18 @@ impl SearchState {
 
     pub fn get_move_score(&self, mv: Move) -> i32 {
         // PV move from previous iteration gets highest priority
-        
+
         if self.ply == 0 && mv == self.prev_iter_best_move {
             return PV_MOVE_BONUS;
         }
 
         if mv.is_capture() {
             let victim = self.get_victim(mv);
-            return Self::get_mvv_lva(victim, self.get_piece(mv));
+            let mvv = Self::get_mvv_lva(victim, self.get_piece(mv));
+            
+            return mvv;
+            //return mvv + 
+            //    self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][self.get_piece(mv) as usize][mv.get_target_square() as usize];
         }
 
         // Killer moves
@@ -229,14 +236,19 @@ impl SearchState {
     }
 
     pub fn update_history(&mut self, mv: Move, bonus: i32) {
-        let clampedBonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY);
+        let clamped_bonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY);
         let piece = self.get_piece(mv) as usize;
         let target = mv.get_target_square() as usize;
         if piece < 12 && target < 64 {
             let history_val = self.history_moves[piece][target];
             //let bonus = depth * depth;
-
-            self.history_moves[piece][target] = clampedBonus - history_val * clampedBonus / MAX_HISTORY //second bonus should be abs
+            
+            self.history_moves[piece][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY //second bonus should be abs
+            //if mv.is_capture() {
+            //    let history_val = self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target];
+            //    self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY;
+            //} else {
+            //}
             //self.history_moves[piece][target] += bonus;
 
         }
