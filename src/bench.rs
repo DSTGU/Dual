@@ -37,10 +37,10 @@ pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
 pub fn bench_engine(search_state: &mut SearchState) {
 
     println!("Startpos:");
-    test_position(search_state, START_POSITION, 8);
+    test_position(search_state, START_POSITION, 11);
     println!("Kiwipete:");
-    test_position(search_state, KIWIPETE, 7);
+    test_position(search_state, KIWIPETE, 11);
     println!("Endgame pos");
-    test_position(search_state, ENDGAME_PERFT, 12);
+    test_position(search_state, ENDGAME_PERFT, 20);
 
 }
