@@ -292,7 +292,7 @@ impl SearchState {
     #[inline(always)]
     pub fn store_tt(
         &mut self,
-        depth: i32,
+        depth: u8,
         score: i32,
         flag: TTFlag,
         best_move: Move,
@@ -317,10 +317,6 @@ impl SearchState {
                     None
                 }
             })
-    }
-
-    pub fn get_tt_stats(&self) -> (u64, u64, u64, u64) {
-        self.tt.stats()
     }
 
     pub fn passed_deadline(&self) -> bool {

@@ -132,11 +132,11 @@ pub enum TTFlag {
 #[derive(Clone, Copy)]
 pub struct TTEntry {
     pub hash: u64,      // Full hash for verification
-    pub depth: i32,     // Search depth
     pub score: i32,     // Evaluated score
-    pub flag: TTFlag,   // Type of score
     pub best_move: Move, // Best move found (if any)
+    pub depth: u8,     // Search depth
     pub age: u8,        // Search age for replacement
+    pub flag: TTFlag,   // Type of score
 }
 
 impl TTEntry {
@@ -163,21 +163,13 @@ impl TTEntry {
 pub struct TranspositionTable {
     entries: Vec<TTEntry>,
     age: u8,
-    hits: u64,
-    collisions: u64,
-    inserts: u64,
-    overwrites: u64,
 }
 
 impl TranspositionTable {
     pub fn new() -> Self {
         Self {
             entries: vec![TTEntry::empty(); TT_SIZE],
-            age: 0,
-            hits: 0,
-            collisions: 0,
-            inserts: 0,
-            overwrites: 0,
+            age: 0
         }
     }
 
@@ -186,10 +178,6 @@ impl TranspositionTable {
         for entry in &mut self.entries {
             *entry = TTEntry::empty();
         }
-        self.hits = 0;
-        self.collisions = 0;
-        self.inserts = 0;
-        self.overwrites = 0;
     }
 
     /// Increment the search age
@@ -219,7 +207,7 @@ impl TranspositionTable {
 
     /// Store an entry in the transposition table
     #[inline]
-    pub fn store(&mut self, hash: u64, depth: i32, score: i32, flag: TTFlag, best_move: Move) {
+    pub fn store(&mut self, hash: u64, depth: u8, score: i32, flag: TTFlag, best_move: Move) {
         let idx = Self::index(hash);
         let entry = &mut self.entries[idx];
 
@@ -227,17 +215,10 @@ impl TranspositionTable {
         // 1. Always replace if entry is empty or from different position
         // 2. Replace if new search is deeper
         // 3. Replace if same depth but from older search
-        let should_replace = !entry.is_valid(hash)
+
+        if !entry.is_valid(hash)
             || depth > entry.depth
-            || (depth == entry.depth && self.age != entry.age);
-
-        if should_replace {
-            if entry.is_valid(hash) && entry.hash != 0 {
-                self.overwrites += 1;
-            } else {
-                self.inserts += 1;
-            }
-
+            || (depth == entry.depth && self.age != entry.age) {
             *entry = TTEntry {
                 hash,
                 depth,
@@ -247,11 +228,6 @@ impl TranspositionTable {
                 age: self.age,
             };
         }
-    }
-
-    /// Get statistics about table usage
-    pub fn stats(&self) -> (u64, u64, u64, u64) {
-        (self.hits, self.collisions, self.inserts, self.overwrites)
     }
 
     /// Calculate hash fill percentage

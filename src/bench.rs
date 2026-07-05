@@ -32,9 +32,6 @@ pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
         println!("Eval: {}, Depth: {}, Seldepth: {}, nodes: {}, time: {}ms, nps: {}knps", score.eval, search_state.max_depth, search_state.seldepth, total_node_count, time/1000, (total_node_count as u64 * 1000)/time);
         println!("PV: {}", collect_pv(&score.move_list));
     }
-
-    let stats = search_state.get_tt_stats();
-    println!("TT: hits:{}, collisions:{}, inserts:{}, overwrites:{}", stats.0, stats.1, stats.2, stats.3);
 }
 
 pub fn bench_engine(search_state: &mut SearchState) {

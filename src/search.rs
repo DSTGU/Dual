@@ -108,7 +108,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     
     if let Some(entry) = probe {
 
-        if entry.depth >= depth as i32 && !search_state.is_twofold_repetition() {
+        if entry.depth as usize >= depth && !search_state.is_twofold_repetition() {
 
             match entry.flag {
 
@@ -298,7 +298,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         }
 
                         search_state.store_tt(
-                            depth as i32,
+                            depth as u8,
                             beta,
                             TTFlag::Beta,
                             mv,
@@ -361,7 +361,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         }
 
                         search_state.store_tt(
-                            depth as i32,
+                            depth as u8,
                             beta,
                             TTFlag::Beta,
                             mv,
@@ -422,7 +422,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     };
 
     search_state.store_tt(
-        depth as i32,
+        depth as u8,
         new_alpha,
         flag,
         best_move.unwrap_or(Move::create_null()),
