@@ -13,7 +13,7 @@ pub struct SearchState {
     pub seldepth: usize,
     killer_moves: [[Move; 256]; 2],
     //only public for test purposes
-    pub history_moves: [[i32; 64]; 12],
+    pub history_moves: [[[i32; 64]; 64]; 2],
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
     prev_iter_best_move: Move,
     tt: TranspositionTable,
@@ -32,7 +32,7 @@ impl SearchState {
             max_depth: 0,
             seldepth: 0,
             killer_moves: [[Move::create_null(); 256]; 2],
-            history_moves: [[0; 64]; 12],
+            history_moves: [[[0; 64]; 64]; 2],
             //capt_history_moves: [[[0; 64]; 12]; 12],
             prev_iter_best_move: Move::create_null(),
             tt: TranspositionTable::new(),
@@ -63,7 +63,7 @@ impl SearchState {
 
     pub fn clear_persistent_data(&mut self) {
         self.tt.clear();
-        self.history_moves = [[0; 64]; 12];
+        self.history_moves = [[[0;64]; 64]; 2];
         //self.capt_history_moves = [[[0; 64]; 12]; 12];
     }
 
@@ -225,7 +225,7 @@ impl SearchState {
         }
 
         // History heuristic
-        self.history_moves[self.get_piece(mv) as usize][mv.get_target_square() as usize]
+        self.history_moves[self.board_position.side][mv.get_source_square() as usize][mv.get_target_square() as usize]
     }
 
     pub fn update_killer_move(&mut self, mv: Move) {
@@ -238,12 +238,14 @@ impl SearchState {
     pub fn update_history(&mut self, mv: Move, bonus: i32) {
         let clamped_bonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY);
         let piece = self.get_piece(mv) as usize;
+        let source = mv.get_source_square() as usize;
         let target = mv.get_target_square() as usize;
+        let side = self.board_position.side;
         if piece < 12 && target < 64 {
-            let history_val = self.history_moves[piece][target];
+            let history_val = self.history_moves[side][piece][target];
             //let bonus = depth * depth;
             
-            self.history_moves[piece][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY //second bonus should be abs
+            self.history_moves[self.board_position.side][source][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY //second bonus should be abs
             //if mv.is_capture() {
             //    let history_val = self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target];
             //    self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY;
@@ -365,7 +367,7 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let mut search_state = SearchState::new(START_POSITION);
-                let empty_history = [[0; 64]; 12];
+                let empty_history = [[[0; 64]; 64]; 2];
                 search(&mut search_state, Some(4), None);
                 assert_ne!(search_state.history_moves, empty_history);
 
