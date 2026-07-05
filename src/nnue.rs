@@ -1,8 +1,3 @@
-/*
-This is how you would load the network in rust.
-Commented out because it will error if it can't find the file.
-*/
-
 use crate::shared::Piece;
 
 pub const HIDDEN_SIZE: usize = 64;

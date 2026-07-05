@@ -153,7 +153,7 @@ impl TTEntry {
 
     /// Check if this entry is valid for the given hash
     #[inline(always)]
-    pub fn is_valid(&self, hash: u64) -> bool {
+    pub fn matches(&self, hash: u64) -> bool {
         self.hash == hash
     }
 }
@@ -197,8 +197,7 @@ impl TranspositionTable {
         let idx = Self::index(hash);
         let entry = &self.entries[idx];
 
-        if entry.is_valid(hash) {
-            //self.hits += 1;
+        if entry.matches(hash) {
             Some(entry)
         } else {
             None
@@ -216,9 +215,9 @@ impl TranspositionTable {
         // 2. Replace if new search is deeper
         // 3. Replace if same depth but from older search
 
-        if !entry.is_valid(hash)
-            || depth > entry.depth
-            || (depth == entry.depth && self.age != entry.age) {
+        if entry.hash == 0
+            || entry.matches(hash) && depth >= entry.depth // || (flag == TTFlag::Exact && entry.flag != TTFlag::Exact)
+            || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 3) > 0 {
             *entry = TTEntry {
                 hash,
                 depth,
