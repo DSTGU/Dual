@@ -216,7 +216,7 @@ impl TranspositionTable {
         // 3. Replace if same depth but from older search
 
         if entry.hash == 0
-            || entry.matches(hash) && depth >= entry.depth // || (flag == TTFlag::Exact && entry.flag != TTFlag::Exact)
+            || entry.matches(hash) && matches_replacement_strength(depth, flag) >= matches_replacement_strength(entry.depth, entry.flag) // || (flag == TTFlag::Exact && entry.flag != TTFlag::Exact)
             || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 3) > 0 {
             *entry = TTEntry {
                 hash,
@@ -235,6 +235,15 @@ impl TranspositionTable {
         (used as f64 / TT_SIZE as f64) * 100.0
     }
 }
+
+    #[inline]
+    pub fn matches_replacement_strength(depth: u8, flag: TTFlag) -> u8 {
+        depth + if flag == TTFlag::Exact {
+            1
+        } else {
+            0
+        }
+    }
 
 impl Default for TranspositionTable {
     fn default() -> Self {
