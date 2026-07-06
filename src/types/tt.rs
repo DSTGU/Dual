@@ -7,7 +7,7 @@
 
 use std::sync::OnceLock;
 
-use crate::{shared::{Move}, types::board::BoardPosition};
+use crate::{shared::{MATE_SCORE, MATE_THRESHOLD, Move}, types::board::BoardPosition};
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND
@@ -332,5 +332,27 @@ impl RepetitionTable {
 impl Default for RepetitionTable {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[inline(always)]
+pub fn score_from_tt(score: i32, ply: usize) -> i32 {
+    if score >= MATE_THRESHOLD {
+        score - ply as i32
+    } else if score <= -MATE_THRESHOLD {
+        score + ply as i32
+    } else {
+        score
+    }
+}
+
+#[inline(always)]
+pub fn score_to_tt(score: i32, ply: usize) -> i32 {
+    if score >= MATE_THRESHOLD {
+        score + ply as i32
+    } else if score <= -MATE_THRESHOLD {
+        score - ply as i32
+    } else {
+        score
     }
 }

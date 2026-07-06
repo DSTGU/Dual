@@ -12,7 +12,9 @@ pub const MVV_LVA : [i32 ; 36] = [
 ];
 
 // Score constants
-pub const MATE_SCORE: i32 = 4_999_900;
+pub const MAX_PLY : i32 = 512;
+pub const MATE_SCORE: i32 = 5_000_000;
+pub const MATE_THRESHOLD: i32 = MATE_SCORE - MAX_PLY;
 pub const INITIAL_ALPHA: i32 = -5_000_000;
 pub const INITIAL_BETA: i32 = 5_000_000;
 pub const PV_MOVE_BONUS: i32 = 605000001;

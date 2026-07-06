@@ -3,8 +3,8 @@ use coarsetime::{Duration, Instant};
 use crate::gui::parse_move;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
-use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MAX_HISTORY, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
-use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash, get_zobrist_keys};
+use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MATE_THRESHOLD, MAX_HISTORY, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
+use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash, get_zobrist_keys, score_to_tt};
 
 /// Search state structure - encapsulates all search-related state
 pub struct SearchState {
@@ -21,7 +21,7 @@ pub struct SearchState {
     nodes_searched: u64,
     deadline: Instant,
     should_quit: bool,
-    ply: usize,
+    pub ply: usize,
 }
 
 impl SearchState {
@@ -135,6 +135,7 @@ impl SearchState {
             self.clear_persistent_data();
         }
 
+        self.ply = 0;
     }
 
     pub fn reset_for_new_iteration(&mut self, depth: usize, previter_bestmove: Move) {
@@ -289,6 +290,7 @@ impl SearchState {
         self.tt.probe(self.board_position.hash)
     }
 
+    // add static eval
     #[inline(always)]
     pub fn store_tt(
         &mut self,
@@ -300,7 +302,7 @@ impl SearchState {
         self.tt.store(
             self.board_position.hash,
             depth,
-            score,
+            score_to_tt(score, self.ply),
             flag,
             best_move, // or .into()
         );
