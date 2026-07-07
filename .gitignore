@@ -26,3 +26,4 @@ Cargo.lock
 
 flamegraph.svg
 perf.*
+clanker*

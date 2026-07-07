@@ -341,6 +341,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                 // ----------------------------------------------------
                 if reduction > 0 && -score.eval > new_alpha {
                     score = pvs(&mut search_state, -new_alpha-1, -new_alpha, depth - 1);
+                    nodes += score.node_count;
                 } 
 
                 // ----------------------------------------------------
