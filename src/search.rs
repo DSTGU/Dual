@@ -3,7 +3,7 @@ use coarsetime::{Duration, Instant};
 
 use crate::evaluate::{nnue_evaluate};
 use crate::move_gen::{generate_moves, is_square_attacked};
-use crate::types::search_state::SearchState;
+use crate::types::search_state::{self, SearchState};
 use crate::shared::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
 use crate::types::tt::{TTFlag, score_from_tt};
 
@@ -90,7 +90,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
     let is_pv_node = beta - alpha > 1;
 
-    if search_state.should_quit() {
+    if search_state.should_quit(depth) {
        return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
     }
     
@@ -285,7 +285,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
                 if -score.eval > new_alpha {
                     if -score.eval >= beta {
-                        if search_state.should_quit() {
+                        if search_state.should_quit(depth) {
                             return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
                         }
                         
@@ -361,7 +361,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                 if -score.eval > new_alpha {
                     if -score.eval >= beta {
                         
-                        if search_state.should_quit() {
+                        if search_state.should_quit(depth) {
                             return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
                         }
 
@@ -414,7 +414,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
         search_state.update_history(best_move.unwrap(), history_bonus as i32);
     }
 
-    if search_state.should_quit() {
+    if search_state.should_quit(depth) {
        return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
     }
 
@@ -456,7 +456,9 @@ pub fn collect_pv(moves: &Vec<Option<Move>>) -> String {
 }
 
 pub fn single_depth_search(search_state: &mut SearchState, depth: usize) -> SearchAnswer {
-    pvs(search_state, -5000000, 5000000, depth)
+    let score = pvs(search_state, -5000000, 5000000, depth);
+    search_state.nodes += score.node_count as u64;
+    score
 }
 
 pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: usize, eval: i32) -> SearchAnswer {
@@ -469,10 +471,9 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
         //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
         score = pvs(&mut search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
         //println!("aspiration, score: {:?}", score.eval);
-
+        search_state.nodes += score.node_count as u64;
         if score.move_list.len() > 0 {
             if score.move_list[0].is_some() {
-                //println!("returning: {:?}", score);
                 return score;
             }
         }
@@ -492,6 +493,8 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
 
 
 pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_available: Option<usize>) {
+
+    search_state.search_start = Instant::now();
 
     if depth.is_some() {
         search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(1000000)).unwrap());
@@ -553,12 +556,11 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
         while now.elapsed().as_millis() < (time_avail/3) as u64 {
         
             let new_score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
-            if (!search_state.should_quit() && score.move_list.len() > 0) {
+            if !search_state.should_quit(search_state.max_depth) && score.move_list.len() > 0 {
                 score = new_score;
                 print_info_string(&score, search_state, depth);
             }
 
-            
             depth = depth + 1;
             
             search_state.reset_for_new_iteration(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
@@ -572,13 +574,16 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
 
 pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState, depth: usize) {
     let pv: String = collect_pv(&score.move_list);
+    let micros = if search_state.search_start.elapsed().as_micros() > 0 {search_state.search_start.elapsed().as_micros()} else {1};
 
     if score.eval.abs() > MATE_THRESHOLD {
         let mate = score_to_mate( score.eval );
-        println!("info score mate {} depth {} seldepth {} nodes {} pv {}", mate, depth, search_state.seldepth, score.node_count, pv);
+        println!("info score mate {} depth {} seldepth {} nodes {} time {} nps {} pv {}", mate, depth, 
+            search_state.seldepth, search_state.nodes, micros/1000, search_state.nodes * 1000000 / micros, pv);
     }
     else {
-        println!("info score cp {} depth {} seldepth {} nodes {} pv {}", score.eval, depth, search_state.seldepth, score.node_count, pv);
+        println!("info score cp {} depth {} seldepth {} nodes {} time {} nps {} pv {}", score.eval, depth, 
+            search_state.seldepth, search_state.nodes, micros/1000, search_state.nodes * 1000000 / micros, pv);
     }
 }
 

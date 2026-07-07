@@ -18,8 +18,9 @@ pub struct SearchState {
     prev_iter_best_move: Move,
     tt: TranspositionTable,
     rep_table: RepetitionTable,
-    nodes_searched: u64,
-    deadline: Instant,
+    pub nodes: u64,
+    deadline: Instant, // change to more universal stop_condition struct
+    pub search_start: Instant,
     should_quit: bool,
     pub ply: usize,
 }
@@ -37,8 +38,9 @@ impl SearchState {
             prev_iter_best_move: Move::create_null(),
             tt: TranspositionTable::new(),
             rep_table: RepetitionTable::new(),
-            nodes_searched: 0,
+            nodes: 0,
             deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
+            search_start: Instant::now(),
             should_quit: false,
             ply: 0,
         };
@@ -55,7 +57,7 @@ impl SearchState {
         self.killer_moves = [[Move::create_null(); 256]; 2];
         self.prev_iter_best_move = Move::create_null();
         self.rep_table.clear();
-        self.nodes_searched = 0;
+        self.nodes = 0;
         self.deadline = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
         self.should_quit = false;
         self.ply = 0;
@@ -143,7 +145,6 @@ impl SearchState {
         self.seldepth = depth;
         self.prev_iter_best_move = previter_bestmove;
         self.tt.increment_age();
-        self.nodes_searched = 0;
     }
 
     pub fn make_move(&mut self, move_to_make: Move) -> MoveSuccess {
@@ -325,12 +326,12 @@ impl SearchState {
         return Instant::now() > self.deadline;
     }
 
-    pub fn should_quit(&mut self) -> bool {
+    pub fn should_quit(&mut self, depth: usize) -> bool {
         if self.should_quit {
             return true;
         }
 
-        if (self.nodes_searched & 0x3fff) == 0 {
+        if self.max_depth - depth >= 3 {
             if self.passed_deadline() {
                 self.should_quit = true;
                 return true;
