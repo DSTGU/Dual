@@ -201,7 +201,7 @@ pub fn evaluate(board_position: &BoardPosition) -> i32 {
 
 pub fn nnue_evaluate(board_position: &BoardPosition) -> i32 {
     let stm = board_position.side;
-    let nstm = stm ^ 1;
+    let nstm = stm.invert();
 
     NNUE.evaluate(
         &board_position.accumulators[stm],

@@ -1,6 +1,7 @@
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
 use crate::nnue::{Accumulator, HIDDEN_SIZE, NNUE, Network, feature_index};
-use crate::types::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
+use crate::types::shared::Color::{Black, White};
+use crate::types::shared::{ASCII_PIECES, Castle, Color, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
 use crate::types::tt::{compute_hash, get_zobrist_keys};
 
 #[allow(non_camel_case_types)]
@@ -13,7 +14,7 @@ pub struct BoardPosition {
     pub mailbox: [Piece; 64],
 
     // side to move
-    pub side: usize, // 0 - W, 1 - B, 2 - Default - none
+    pub side: Color,
 
     // en passant square
     pub enpassant: u8, // Number of square
@@ -40,7 +41,7 @@ impl BoardPosition {
             bitboards: [0; 12],
             occupancies: [0; 3],
             mailbox: [Piece::NONE; 64],
-            side: 2,
+            side: White,
             enpassant: 0,
             castle: 0,
             hash: 0,
@@ -59,7 +60,7 @@ impl BoardPosition {
         self.bitboards = [0; 12];
         self.occupancies = [0; 3];
         self.mailbox = [Piece::NONE; 64];
-        self.side = 2;
+        self.side = White;
         self.enpassant = 0;
         self.castle = 0;
 
@@ -100,9 +101,9 @@ impl BoardPosition {
 
         if let Some(ch) = fen_chars.next() {
             self.side = match ch {
-                'w' => 0,
-                'b' => 1,
-                _ => 2,
+                'w' => White,
+                'b' => Black,
+                _ => White,
             };
             fen_chars.next();
         }
@@ -257,19 +258,19 @@ impl BoardPosition {
         // Handle promotion: replace the pawn with the promoted piece.
         if promoted {
             self.remove_piece(target, piece, true);
-            self.add_piece(target, move_to_make.get_promoted_piece(self.side != 0), true);
+            self.add_piece(target, move_to_make.get_promoted_piece(self.side), true);
         }
 
         // Handle en passant: remove the captured pawn (which is on a different
         // square from the target).
         if is_enpassant {
-            let ep_sq = if self.side == 0 {
+            let ep_sq = if self.side == White {
                 target + 8
             } else {
                 target - 8
             };
 
-            let pawn = if self.side == 0 {
+            let pawn = if self.side == White {
                 Piece::p
             } else {
                 Piece::P
@@ -286,7 +287,7 @@ impl BoardPosition {
         self.enpassant = 0;
 
         if is_double_push {
-            self.enpassant = if self.side == 0 {
+            self.enpassant = if self.side == White {
                 target as u8 + 8
             } else {
                 target as u8 - 8
@@ -335,13 +336,13 @@ impl BoardPosition {
             self.bitboards[KING_INDEX[self.side]].trailing_zeros() as u8;
 
         if is_square_attacked(king_sq, self) {
-            self.side = 1 - self.side;
+            self.side = self.side.invert();
             self.take_back(move_to_make, old_hash);    
             return MoveSuccess::Attacked;
         }
 
         // Flip side for the returned position.
-        self.side = 1 - self.side;
+        self.side = self.side.invert();
         self.hash ^= keys.side_key;
 
         MoveSuccess::Success
@@ -352,19 +353,19 @@ impl BoardPosition {
     /// `None` if the move leaves the king in check.
     pub fn take_back(&mut self, move_to_make: Move, old_hash: u64) -> MoveSuccess {
 
-        self.side = 1 - self.side;
+        self.side = self.side.invert();
         let source = move_to_make.get_source_square() as usize;
         let target = move_to_make.get_target_square() as usize;
         let piece = self.mailbox[target];
         let is_capture = move_to_make.is_capture();
         let is_enpassant = move_to_make.is_enpassant();
         let is_castling: bool = move_to_make.get_castling();
-        let promoted = move_to_make.get_promoted_piece(self.side != 0);
+        let promoted = move_to_make.get_promoted_piece(self.side);
         let taken_piece = move_to_make.get_taken_piece();
 
         if move_to_make.is_promotion() {
             self.remove_piece(target, promoted, false);
-            let pawn = if self.side == 0 {Piece::P} else {Piece::p};
+            let pawn = if self.side == White {Piece::P} else {Piece::p};
             self.add_piece(source,  pawn, false);
         } else {
             // Normal move
@@ -463,9 +464,8 @@ impl BoardPosition {
         output += "\n     a b c d e f g h\n\n";
 
         match self.side {
-            0 => output += "White\n",
-            1 => output += "Black\n",
-            _ => output += "No side\n",
+            White => output += "White\n",
+            Black => output += "Black\n",
         }
 
         match self.enpassant {

@@ -5,6 +5,7 @@ use crate::evaluate::{nnue_evaluate};
 use crate::move_gen::{generate_moves, is_square_attacked};
 use crate::types::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
 use crate::types::search_state::SearchState;
+use crate::types::shared::Color::White;
 use crate::types::shared::{Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
 use crate::types::tt::{TTFlag, score_from_tt};
 
@@ -155,7 +156,7 @@ pub fn pvs(search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) 
     // ------------------------------------------------------------
 
     //Todo: move to movegen
-    let our_king = if search_state.board_position.side == 0 { Piece::K } else {Piece::k};
+    let our_king = if search_state.board_position.side == White { Piece::K } else {Piece::k};
     let is_in_check = is_square_attacked(search_state.board_position.bitboards[our_king as usize].trailing_zeros() as u8, &search_state.board_position);
 
     let static_eval =  if is_in_check {

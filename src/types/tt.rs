@@ -6,6 +6,7 @@
 //! - Threefold repetition detection
 
 use std::sync::OnceLock;
+use crate::types::shared::Color::Black;
 use crate::types::shared::Move;
 use crate::types::board::BoardPosition;
 use crate::types::consts::MATE_THRESHOLD;
@@ -94,7 +95,7 @@ pub fn compute_hash(board: &BoardPosition) -> u64 {
     }
 
     // Hash side to move
-    if board.side == 1 {
+    if board.side == Black {
         hash ^= keys.side_key;
     }
 

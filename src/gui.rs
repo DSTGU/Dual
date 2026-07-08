@@ -3,6 +3,7 @@ use crate::move_gen::{generate_moves};
 use crate::perft::perft;
 use crate::search::{search};
 use crate::types::search_state::SearchState;
+use crate::types::shared::Color::{Black, White};
 use crate::types::shared::{Move, coordinates_to_squares};
 use crate::types::shared::Piece::{B, N, Q, R};
 
@@ -25,10 +26,10 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
     let ch = char.as_str();
 
     match ch {
-        "q" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(false) == Q).collect::<Vec<Move>>().pop(),
-        "n" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(false) == N).collect::<Vec<Move>>().pop(),
-        "b" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(false) == B).collect::<Vec<Move>>().pop(),
-        "r" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(false) == R).collect::<Vec<Move>>().pop(),
+        "q" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(White) == Q).collect::<Vec<Move>>().pop(),
+        "n" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(White) == N).collect::<Vec<Move>>().pop(),
+        "b" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(White) == B).collect::<Vec<Move>>().pop(),
+        "r" => legal_moves.into_iter().filter(|x| x.get_promoted_piece(White) == R).collect::<Vec<Move>>().pop(),
         _ => legal_moves.pop()
     }
 }
@@ -64,8 +65,8 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
         return;
     }
 
-    let time : Option<usize> = if search_state.board_position.side == 1 { btime } else { wtime };
-    let inc: Option<usize> =  if search_state.board_position.side == 1 { binc } else { winc };
+    let time : Option<usize> = if search_state.board_position.side == Black { btime } else { wtime };
+    let inc: Option<usize> =  if search_state.board_position.side == Black { binc } else { winc };
 
     let time_available : Option<usize> = time.map(|timeval| (timeval/20 + inc.unwrap_or(0)/2).min(timeval*3/4));
     search(search_state, depth, time_available);

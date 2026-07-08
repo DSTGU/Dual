@@ -1,4 +1,5 @@
 use crate::types::board::BoardPosition;
+use crate::types::shared::Color::{self, White};
 use crate::{
     get_bit, pop_bit, Piece, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS,
 };
@@ -36,12 +37,12 @@ pub const CASTLING_RIGHTS: [u8; 64] = [
 /// whether the given square is under attack by the opponent).
 pub fn is_square_attacked(square: u8, board: &BoardPosition) -> bool {
     // Check if the opponent of the side to move attacks this square.
-    let opponent = 1 - board.side;
+    let opponent = board.side.invert();
     let occ = board.occupancies[2];
 
     // Pawns: use PAWN_ATTACKS[board.side] which gives the reverse-attack
     // directions (i.e. squares from which an opponent pawn would attack).
-    let pawn_bb = board.bitboards[if opponent == 0 {
+    let pawn_bb = board.bitboards[if opponent == White {
         Piece::P as usize
     } else {
         Piece::p as usize
@@ -51,7 +52,7 @@ pub fn is_square_attacked(square: u8, board: &BoardPosition) -> bool {
     }
 
     // Knights
-    let knight_bb = board.bitboards[if opponent == 0 {
+    let knight_bb = board.bitboards[if opponent == White {
         Piece::N as usize
     } else {
         Piece::n as usize
@@ -61,7 +62,7 @@ pub fn is_square_attacked(square: u8, board: &BoardPosition) -> bool {
     }
 
     // Bishops
-    let bishop_bb = board.bitboards[if opponent == 0 {
+    let bishop_bb = board.bitboards[if opponent == White {
         Piece::B as usize
     } else {
         Piece::b as usize
@@ -71,7 +72,7 @@ pub fn is_square_attacked(square: u8, board: &BoardPosition) -> bool {
     }
 
     // Rooks
-    let rook_bb = board.bitboards[if opponent == 0 {
+    let rook_bb = board.bitboards[if opponent == White {
         Piece::R as usize
     } else {
         Piece::r as usize
@@ -81,7 +82,7 @@ pub fn is_square_attacked(square: u8, board: &BoardPosition) -> bool {
     }
 
     // Queens
-    let queen_bb = board.bitboards[if opponent == 0 {
+    let queen_bb = board.bitboards[if opponent == White {
         Piece::Q as usize
     } else {
         Piece::q as usize
@@ -91,7 +92,7 @@ pub fn is_square_attacked(square: u8, board: &BoardPosition) -> bool {
     }
 
     // Kings
-    let king_bb = board.bitboards[if opponent == 0 {
+    let king_bb = board.bitboards[if opponent == White {
         Piece::K as usize
     } else {
         Piece::k as usize
@@ -124,15 +125,15 @@ fn push_move(moves: &mut Vec<Move>, source: u8, target: u8, move_code: MoveCode,
 /// Generate all pawn moves for `side`.
 fn generate_pawn_moves(
     board: &BoardPosition,
-    side: usize,
+    side: Color,
     moves: &mut Vec<Move>,
     quiescence: bool
 ) {
-    let piece = if side == 0 { Piece::P } else { Piece::p };
-    let promo_rank_range: (usize, usize) = if side == 0 { (8, 15) } else { (48, 55) };
-    let start_rank_range: (usize, usize) = if side == 0 { (48, 55) } else { (8, 15) };
-    let direction: isize = if side == 0 { -8 } else { 8 };
-    let opp_occ = board.occupancies[1 - side];
+    let piece = if side == White { Piece::P } else { Piece::p };
+    let promo_rank_range: (usize, usize) = if side == White { (8, 15) } else { (48, 55) };
+    let start_rank_range: (usize, usize) = if side == White { (48, 55) } else { (8, 15) };
+    let direction: isize = if side == White { -8 } else { 8 };
+    let opp_occ = board.occupancies[side.invert()];
     let all_occ = board.occupancies[2];
 
     let mut bb = board.bitboards[piece as usize];
@@ -193,11 +194,11 @@ fn generate_pawn_moves(
 /// Generate all king moves (non-castling) for `side`.
 fn generate_king_moves(
     board: &BoardPosition,
-    side: usize,
+    side: Color,
     moves: &mut Vec<Move>,
     quiescence: bool
 ) {
-    let piece = if side == 0 { Piece::K } else { Piece::k };
+    let piece = if side == White { Piece::K } else { Piece::k };
     let our_occ = board.occupancies[side];
 
     let mut bb = board.bitboards[piece as usize];
@@ -210,7 +211,7 @@ fn generate_king_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
 
-            if get_bit(board.occupancies[1 - side], target) {
+            if get_bit(board.occupancies[side.invert()], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
                 if !quiescence {
@@ -224,12 +225,12 @@ fn generate_king_moves(
 /// Generate castling moves for `side`.
 fn generate_castling_moves(
     board: &BoardPosition,
-    side: usize,
+    side: Color,
     moves: &mut Vec<Move>,
 ) {
     let occ = board.occupancies[2];
 
-    if side == 0 {
+    if side == White {
         // White kingside (O-O): king e1->g1, rook h1->f1
         if board.castle & 1 != 0
             && !get_bit(occ, 61)
@@ -275,11 +276,11 @@ fn generate_castling_moves(
 /// Generate all knight moves for `side`.
 fn generate_knight_moves(
     board: &BoardPosition,
-    side: usize,
+    side: Color,
     moves: &mut Vec<Move>,
     quiescence: bool
 ) {
-    let piece = if side == 0 { Piece::N } else { Piece::n };
+    let piece = if side == White { Piece::N } else { Piece::n };
     let our_occ = board.occupancies[side];
 
     let mut bb = board.bitboards[piece as usize];
@@ -292,7 +293,7 @@ fn generate_knight_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
             
-            if get_bit(board.occupancies[1 - side], target) {
+            if get_bit(board.occupancies[side.invert()], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
                 if !quiescence {
@@ -306,11 +307,11 @@ fn generate_knight_moves(
 /// Generate all bishop moves for `side`.
 fn generate_bishop_moves(
     board: &BoardPosition,
-    side: usize,
+    side: Color,
     moves: &mut Vec<Move>,
     quiescence: bool
 ) {
-    let piece = if side == 0 { Piece::B } else { Piece::b };
+    let piece = if side == White { Piece::B } else { Piece::b };
     let our_occ = board.occupancies[side];
 
     let mut bb = board.bitboards[piece as usize];
@@ -323,7 +324,7 @@ fn generate_bishop_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
 
-            if get_bit(board.occupancies[1 - side], target) {
+            if get_bit(board.occupancies[side.invert()], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
                 if !quiescence {   
@@ -337,11 +338,11 @@ fn generate_bishop_moves(
 /// Generate all rook moves for `side`.
 fn generate_rook_moves(
     board: &BoardPosition,
-    side: usize,
+    side: Color,
     moves: &mut Vec<Move>,
     quiescence: bool
 ) {
-    let piece = if side == 0 { Piece::R } else { Piece::r };
+    let piece = if side == White { Piece::R } else { Piece::r };
     let our_occ = board.occupancies[side];
 
     let mut bb = board.bitboards[piece as usize];
@@ -354,7 +355,7 @@ fn generate_rook_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
 
-            if get_bit(board.occupancies[1 - side], target) {
+            if get_bit(board.occupancies[side.invert()], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
                 if !quiescence {   
@@ -368,11 +369,11 @@ fn generate_rook_moves(
 /// Generate all queen moves for `side`.
 fn generate_queen_moves(
     board: &BoardPosition,
-    side: usize,
+    side: Color,
     moves: &mut Vec<Move>,
     quiescence: bool
 ) {
-    let piece = if side == 0 { Piece::Q } else { Piece::q };
+    let piece = if side == White { Piece::Q } else { Piece::q };
     let our_occ = board.occupancies[side];
 
     let mut bb = board.bitboards[piece as usize];
@@ -385,7 +386,7 @@ fn generate_queen_moves(
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
 
-            if get_bit(board.occupancies[1 - side], target) {
+            if get_bit(board.occupancies[side.invert()], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
                 if !quiescence {

@@ -159,7 +159,7 @@ impl SearchState {
     }
 
     pub fn make_null_move(&mut self) {
-        self.board_position.side = 1-self.board_position.side;
+        self.board_position.side = self.board_position.side.invert();
         self.board_position.hash ^= get_zobrist_keys().side_key;
 
         if self.board_position.enpassant != 0 {
@@ -176,7 +176,7 @@ impl SearchState {
     }
 
     pub fn take_back_null_move(&mut self, old_ep_square: u8) {
-        self.board_position.side = 1-self.board_position.side;
+        self.board_position.side = self.board_position.side.invert();
         self.board_position.hash ^= get_zobrist_keys().side_key;
 
         if old_ep_square != 0 {
@@ -280,7 +280,7 @@ impl SearchState {
     }
 
     pub fn is_king_attacked(&self) -> bool {
-        is_square_attacked(self.board_position.bitboards[6*self.board_position.side+5].trailing_zeros() as u8, &self.board_position)
+        is_square_attacked(self.board_position.bitboards[6*self.board_position.side as usize+5].trailing_zeros() as u8, &self.board_position)
     }
 
     #[inline(always)]

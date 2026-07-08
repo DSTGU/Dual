@@ -1,6 +1,39 @@
 use std::{fmt, mem};
-use std::ops::BitAnd;
+use std::ops::{BitAnd, Index, IndexMut};
 
+use crate::types::shared::Color::White;
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[repr(u8)]
+pub enum Color {
+    White = 0,
+    Black = 1,
+}
+
+impl Color {
+    pub fn invert(self) -> Color {
+        unsafe { std::mem::transmute( 1 - self as u8) }
+    }
+
+    pub const fn new(value: u8) -> Self {
+        debug_assert!(value < 2);
+        unsafe { std::mem::transmute(value) }
+    }
+}
+
+impl<T> Index<Color> for [T] {
+    type Output = T;
+
+    fn index(&self, index: Color) -> &Self::Output {
+        &self[index as usize]
+    }
+}
+
+impl<T> IndexMut<Color> for [T] {
+    fn index_mut(&mut self, index: Color) -> &mut Self::Output {
+        &mut self[index as usize]
+    }
+}
 
 #[derive(Debug)]
 pub struct SearchAnswer {
@@ -71,7 +104,7 @@ impl Move {
         unsafe { mem::transmute(((self.0 >> 12) & 0xf) as u8 ) }
     }
 
-    pub fn get_promoted_piece_idx(self, side:bool) -> u8 {
+    pub fn get_promoted_piece_idx(self, side: Color) -> u8 {
         if !self.is_promotion() {
             return 12; // Piece::None index
         }        
@@ -80,7 +113,7 @@ impl Move {
         6 * (side as u8) + promo_idx + 1   
     }
 
-    pub fn get_promoted_piece(self, side: bool) -> Piece {
+    pub fn get_promoted_piece(self, side: Color) -> Piece {
         Piece::new(self.get_promoted_piece_idx(side) as usize)
     }
 
@@ -126,7 +159,7 @@ impl Move {
 }
 
 pub fn move_to_alg(mv: &Move) -> String {
-    match mv.get_promoted_piece_idx(false) { // white
+    match mv.get_promoted_piece_idx(White) { // white
         4 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         //10 => format!("{}{}q", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
         1 => format!("{}{}n", SQUARE_TO_COORDINATES[mv.get_source_square() as usize], SQUARE_TO_COORDINATES[mv.get_target_square() as usize]),
@@ -148,7 +181,7 @@ impl fmt::Debug for Move {
             self.get_source_square(),
             SQUARE_TO_COORDINATES[self.get_target_square() as usize],
             self.get_target_square(),
-            self.get_promoted_piece(false),
+            self.get_promoted_piece(White),
             if self.is_enpassant() { " EP" } else { "" },
             if self.get_castling() { " O-O" } else { "" },
             if self.get_double_pawn_push() { " dblPP" } else { "" },
@@ -184,8 +217,8 @@ impl Piece {
         }
     }
 
-    pub const fn get_side(self) -> usize {
-        self as usize / 6
+    pub const fn get_side(self) -> Color {
+        Color::new(self as u8 / 6)
     }
 
     pub fn flip_color(self) -> Piece {
@@ -195,7 +228,6 @@ impl Piece {
 }
 
 pub enum Castle { Wk = 1, Wq = 2, Bk = 4, Bq = 8 }
-
 
 #[derive(PartialEq)]
 pub enum MoveSuccess { Success, Attacked }
@@ -340,7 +372,7 @@ pub const KING_INDEX: [usize; 2] = [Piece::K as usize, Piece::k as usize];
 
 #[cfg(test)]
 mod tests {
-    use crate::types::shared::{Move, MoveCode, Piece};
+    use crate::types::shared::{Color::White, Move, MoveCode, Piece};
 
     #[test]
     fn move_constructor_test_promotion() {
@@ -359,7 +391,7 @@ mod tests {
         let move_to_test = Move::create(source, target, MoveCode::QueenPromotionCapture, old_ep_square, old_castle, taken);
         assert_eq!(move_to_test.get_source_square(), source);
         assert_eq!(move_to_test.get_target_square(), target);
-        assert_eq!(move_to_test.get_promoted_piece(false), promoted);
+        assert_eq!(move_to_test.get_promoted_piece(White), promoted);
         assert_eq!(move_to_test.is_capture(), capture != 0);
         assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
         assert_eq!(move_to_test.get_castling(), castling != 0);
@@ -385,7 +417,7 @@ mod tests {
         let move_to_test = Move::create(source, target, MoveCode::KingCastle, old_ep_square, old_castle, taken);
         assert_eq!(move_to_test.get_source_square(), source);
         assert_eq!(move_to_test.get_target_square(), target);
-        assert_eq!(move_to_test.get_promoted_piece(false), promoted);
+        assert_eq!(move_to_test.get_promoted_piece(White), promoted);
         assert_eq!(move_to_test.is_capture(), capture != 0);
         assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
         assert_eq!(move_to_test.get_castling(), castling != 0);
@@ -411,7 +443,7 @@ mod tests {
         let move_to_test = Move::create(source, target, MoveCode::EnPassant, old_ep_square, old_castle, taken);
         assert_eq!(move_to_test.get_source_square(), source);
         assert_eq!(move_to_test.get_target_square(), target);
-        assert_eq!(move_to_test.get_promoted_piece(false), promoted);
+        assert_eq!(move_to_test.get_promoted_piece(White), promoted);
         assert_eq!(move_to_test.is_capture(), capture != 0);
         assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
         assert_eq!(move_to_test.get_castling(), castling != 0);
