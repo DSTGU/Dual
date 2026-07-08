@@ -19,7 +19,7 @@ pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
 
             score = single_depth_search_aspirated(search_state, local_depth, score.eval);
                         
-            local_depth = local_depth + 1;
+            local_depth += 1;
     }
 
     let time = now.elapsed().as_micros();
@@ -27,7 +27,7 @@ pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
         println!("Eval: {}, Depth: {}, Seldepth: {}, nodes: {}, time: 0ms, nps: infinite knps", score.eval, search_state.max_depth, search_state.seldepth, search_state.nodes);
         println!("PV: {}", collect_pv(&score.move_list));
     } else {
-        println!("Eval: {}, Depth: {}, Seldepth: {}, nodes: {}, time: {}ms, nps: {}knps", score.eval, search_state.max_depth, search_state.seldepth, search_state.nodes, time/1000, (search_state.nodes as u64 * 1000)/time);
+        println!("Eval: {}, Depth: {}, Seldepth: {}, nodes: {}, time: {}ms, nps: {}knps", score.eval, search_state.max_depth, search_state.seldepth, search_state.nodes, time/1000, (search_state.nodes * 1000)/time);
         println!("PV: {}", collect_pv(&score.move_list));
     }
 }

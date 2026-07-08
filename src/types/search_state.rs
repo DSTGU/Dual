@@ -28,7 +28,7 @@ pub struct SearchState {
 impl SearchState {
     pub fn new(fen : &str) -> Self {
         let board_position = BoardPosition::new(fen);
-        let search_state = Self {
+        Self {
             board_position: board_position,
             max_depth: 0,
             seldepth: 0,
@@ -43,9 +43,7 @@ impl SearchState {
             search_start: Instant::now(),
             should_quit: false,
             ply: 0,
-        };
-
-        search_state
+        }
     }
 
     // This function was moved here to preserve TT between nodes
@@ -321,7 +319,7 @@ impl SearchState {
     }
 
     pub fn passed_deadline(&self) -> bool {
-        return Instant::now() > self.deadline;
+        Instant::now() > self.deadline
     }
 
     pub fn should_quit(&mut self, depth: usize) -> bool {
@@ -329,11 +327,9 @@ impl SearchState {
             return true;
         }
 
-        if self.max_depth - depth >= 3 {
-            if self.passed_deadline() {
-                self.should_quit = true;
-                return true;
-            }
+        if self.max_depth - depth >= 3 && self.passed_deadline() {
+            self.should_quit = true;
+            return true;
         }
 
         false

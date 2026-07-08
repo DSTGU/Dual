@@ -432,7 +432,7 @@ impl BoardPosition {
 
                 // print ranks
                 if file == 0 {
-                    output = output + &format!("  {} ", 8 - rank);
+                    output += &format!("  {} ", 8 - rank);
                 }
 
                 // define piece variable
@@ -448,29 +448,29 @@ impl BoardPosition {
 
                 if piece == 12
                 {
-                    output = output + " .";
+                    output += " .";
                 }
                 else {
-                    output = output + &format!(" {}", char::from(ASCII_PIECES[piece]));
+                    output += &format!(" {}", char::from(ASCII_PIECES[piece]));
                 }
             }
 
         // print new line every rank
-            output = output + "\n";
+            output += "\n";
         }
 
         // print board files
-        output = output + "\n     a b c d e f g h\n\n";
+        output += "\n     a b c d e f g h\n\n";
 
         match self.side {
-            0 => output = output + "White\n",
-            1 => output = output + "Black\n",
-            _ => output = output + "No side\n",
+            0 => output += "White\n",
+            1 => output += "Black\n",
+            _ => output += "No side\n",
         }
 
         match self.enpassant {
-            0 => output = output + "Enpassant not available\n",
-            _ =>  output = output + &format!("Enpassant: {}\n", SQUARE_TO_COORDINATES[self.enpassant as usize]),
+            0 => output += "Enpassant not available\n",
+            _ =>  output += &format!("Enpassant: {}\n", SQUARE_TO_COORDINATES[self.enpassant as usize]),
         }
 
 
@@ -478,21 +478,21 @@ impl BoardPosition {
 
         if self.castle & Castle::Wk != 0
         {
-            output = output + "K";
+            output += "K";
         }
         if self.castle & Castle::Wq != 0
         {
-            output = output + "Q";
+            output += "Q";
         }
         if self.castle & Castle::Bk != 0
         {
-            output = output + "k";
+            output += "k";
         }
         if self.castle & Castle::Bq != 0
         {
-            output = output + "q";
+            output += "q";
         }
-        output = output + "\n";
+        output += "\n";
 
         output
     }
