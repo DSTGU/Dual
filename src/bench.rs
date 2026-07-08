@@ -1,7 +1,7 @@
 use coarsetime::{Duration, Instant};
 
 use crate::search::{collect_pv, single_depth_search_aspirated}; 
-use crate::types::shared::{ENDGAME_PERFT, KIWIPETE, Move, START_POSITION, SearchAnswer}; 
+use crate::types::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION, SearchAnswer}; 
 use crate::types::consts::MIN_DEPTH;
 use crate::types::search_state::SearchState;
 
@@ -16,7 +16,7 @@ pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
     let mut score = SearchAnswer{eval: 0, move_list: vec![], node_count: 0};
 
     while local_depth <= depth {
-            search_state.reset_for_new_iteration(depth, Move::create_null());
+            search_state.reset_for_new_iteration(depth);
 
             score = single_depth_search_aspirated(search_state, local_depth, score.eval);
                         

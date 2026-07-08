@@ -11,7 +11,6 @@ pub const MVV_LVA : [i32 ; 36] = [
 pub const MAX_PLY : i32 = 512;
 pub const MATE_SCORE: i32 = 5_000_000;
 pub const MATE_THRESHOLD: i32 = MATE_SCORE - MAX_PLY;
-pub const PV_MOVE_BONUS: i32 = 605000001;
 pub const FIRST_KILLER_BONUS: i32 = 9_000_000;
 pub const SECOND_KILLER_BONUS: i32 = 8_000_000;
 pub const DRAW_SCORE: i32 = 0;

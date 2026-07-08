@@ -504,19 +504,19 @@ pub fn search(search_state: &mut SearchState, depth: Option<usize>, time_availab
     if let Some(depth) = depth {
         search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(1000000)).unwrap());
         if depth <= MIN_DEPTH {
-            search_state.reset_for_new_iteration(depth, Move::create_null());        
+            search_state.reset_for_new_iteration(depth);        
             let mut score: SearchAnswer = single_depth_search(search_state, depth);
             print_info_string(&score, search_state, depth);
             println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
         } else {
-            search_state.reset_for_new_iteration(MIN_DEPTH, Move::create_null());
+            search_state.reset_for_new_iteration(MIN_DEPTH);
 
             let mut score: SearchAnswer = single_depth_search(search_state, MIN_DEPTH);
             
             print_info_string(&score, search_state, MIN_DEPTH);
             
             let mut curr_depth = MIN_DEPTH + 1;
-            search_state.reset_for_new_iteration(curr_depth, score.move_list.last().unwrap().unwrap());        
+            search_state.reset_for_new_iteration(curr_depth);        
 
             while curr_depth <= depth {
             
@@ -526,7 +526,7 @@ pub fn search(search_state: &mut SearchState, depth: Option<usize>, time_availab
                 
                 curr_depth += 1;
                 
-                search_state.reset_for_new_iteration(curr_depth, score.move_list.last().unwrap().unwrap());        
+                search_state.reset_for_new_iteration(curr_depth);        
             }
 
 
@@ -548,7 +548,7 @@ pub fn search(search_state: &mut SearchState, depth: Option<usize>, time_availab
 
         search_state.set_deadline(Instant::now().checked_add(Duration::from_millis(time_avail as u64)).unwrap());
 
-        search_state.reset_for_new_iteration(MIN_DEPTH, Move::create_null());
+        search_state.reset_for_new_iteration(MIN_DEPTH);
 
         let mut score: SearchAnswer = single_depth_search(search_state, MIN_DEPTH);
         
@@ -556,7 +556,7 @@ pub fn search(search_state: &mut SearchState, depth: Option<usize>, time_availab
         
         let mut depth = MIN_DEPTH + 1;
 
-        search_state.reset_for_new_iteration(depth, score.move_list.last().unwrap().unwrap());        
+        search_state.reset_for_new_iteration(depth);        
 
         while now.elapsed().as_millis() < (time_avail/3) as u64 {
         
@@ -568,7 +568,7 @@ pub fn search(search_state: &mut SearchState, depth: Option<usize>, time_availab
 
             depth += 1;
             
-            search_state.reset_for_new_iteration(depth, score.move_list.last().unwrap().unwrap());        
+            search_state.reset_for_new_iteration(depth);        
         }
 
         println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
@@ -600,7 +600,7 @@ mod tests {
 
     use std::thread;
     use crate::search::{search, single_depth_search};
-    use crate::types::shared::{Move, START_POSITION};
+    use crate::types::shared::{START_POSITION};
     use crate::types::search_state::SearchState;
 
 
@@ -612,7 +612,7 @@ mod tests {
                 let command = "position fen Q6K/8/8/8/8/8/7R/1k6 w - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
                 let mut search_state = SearchState::new(START_POSITION);
                 search_state.parse_position_command(command);
-                search_state.reset_for_new_iteration(4, Move::create_null());       
+                search_state.reset_for_new_iteration(4);       
                 let score = single_depth_search(&mut search_state, 4); 
 
                 println!("{:?}", score);
@@ -634,7 +634,7 @@ mod tests {
                 let command = "position fen q6k/8/8/8/8/8/7r/1K6 b - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
                 let mut search_state = SearchState::new(START_POSITION);
                 search_state.parse_position_command(command);
-                search_state.reset_for_new_iteration(4, Move::create_null());       
+                search_state.reset_for_new_iteration(4);       
                 let score = single_depth_search(&mut search_state, 4); 
 
                 println!("{:?}", score);
@@ -656,7 +656,7 @@ mod tests {
                 let command = "position fen q6k/8/8/8/8/8/7r/2K5 w - - 0 1 moves c1b1 a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
                 let mut search_state = SearchState::new(START_POSITION);
                 search_state.parse_position_command(command);
-                search_state.reset_for_new_iteration(4, Move::create_null());       
+                search_state.reset_for_new_iteration(4);       
                 let score = single_depth_search(&mut search_state, 4); 
 
                 println!("{:?}", score);

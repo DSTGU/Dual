@@ -4,7 +4,7 @@ use crate::gui::parse_move;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
 use crate::types::shared::{KIWIPETE, Move, MoveSuccess, Piece, START_POSITION};
-use crate::types::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MVV_LVA, PV_MOVE_BONUS, SECOND_KILLER_BONUS};
+use crate::types::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MVV_LVA, SECOND_KILLER_BONUS};
 use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash, get_zobrist_keys, score_to_tt};
 
 /// Search state structure - encapsulates all search-related state
@@ -16,7 +16,6 @@ pub struct SearchState {
     //only public for test purposes
     pub history_moves: [[[i32; 64]; 64]; 2],
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
-    prev_iter_best_move: Move,
     tt: TranspositionTable,
     rep_table: RepetitionTable,
     pub nodes: u64,
@@ -36,7 +35,6 @@ impl SearchState {
             killer_moves: [[Move::create_null(); 256]; 2],
             history_moves: [[[0; 64]; 64]; 2],
             //capt_history_moves: [[[0; 64]; 12]; 12],
-            prev_iter_best_move: Move::create_null(),
             tt: TranspositionTable::new(),
             rep_table: RepetitionTable::new(),
             nodes: 0,
@@ -54,7 +52,6 @@ impl SearchState {
         self.max_depth = 0;
         self.seldepth = 0;
         self.killer_moves = [[Move::create_null(); 256]; 2];
-        self.prev_iter_best_move = Move::create_null();
         self.rep_table.clear();
         self.nodes = 0;
         self.deadline = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
@@ -139,10 +136,9 @@ impl SearchState {
         self.ply = 0;
     }
 
-    pub fn reset_for_new_iteration(&mut self, depth: usize, previter_bestmove: Move) {
+    pub fn reset_for_new_iteration(&mut self, depth: usize) {
         self.max_depth = depth;
         self.seldepth = depth;
-        self.prev_iter_best_move = previter_bestmove;
         self.tt.increment_age();
     }
 
@@ -200,12 +196,6 @@ impl SearchState {
     }
 
     pub fn get_move_score(&self, mv: Move) -> i32 {
-        // PV move from previous iteration gets highest priority
-
-        if self.ply == 0 && mv == self.prev_iter_best_move {
-            return PV_MOVE_BONUS;
-        }
-
         if mv.is_capture() {
             let victim = self.get_victim(mv);
             let mvv = Self::get_mvv_lva(victim, self.get_piece(mv));
