@@ -570,6 +570,8 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
         println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
         
     }
+
+    // search_state.print_history_stats();
     
 }
 

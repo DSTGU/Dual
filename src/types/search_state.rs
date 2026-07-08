@@ -244,10 +244,8 @@ impl SearchState {
         let target = mv.get_target_square() as usize;
         let side = self.board_position.side;
         if piece < 12 && target < 64 {
-            let history_val = self.history_moves[side][piece][target];
-            //let bonus = depth * depth;
-            
-            self.history_moves[self.board_position.side][source][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY //second bonus should be abs
+            let history_val = self.history_moves[side][source][target];           
+            self.history_moves[side][source][target] += clamped_bonus - history_val * clamped_bonus.abs() / MAX_HISTORY //second bonus should be abs
             //if mv.is_capture() {
             //    let history_val = self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target];
             //    self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY;
