@@ -15,14 +15,11 @@ pub const MVV_LVA : [i32 ; 36] = [
 pub const MAX_PLY : i32 = 512;
 pub const MATE_SCORE: i32 = 5_000_000;
 pub const MATE_THRESHOLD: i32 = MATE_SCORE - MAX_PLY;
-pub const INITIAL_ALPHA: i32 = -5_000_000;
-pub const INITIAL_BETA: i32 = 5_000_000;
 pub const PV_MOVE_BONUS: i32 = 605000001;
 pub const FIRST_KILLER_BONUS: i32 = 9_000_000;
 pub const SECOND_KILLER_BONUS: i32 = 8_000_000;
 pub const DRAW_SCORE: i32 = 0;
 pub const MIN_DEPTH: usize = 3;
-pub const LMR_REDUCTION: usize = 2;
 pub const MAX_HISTORY : i32 = 65536;
 
 #[derive(Debug)]
@@ -350,13 +347,9 @@ pub fn print_bitboard(bitboard: u64) {
 \******************************************/
 
 // FEN debug positions
-pub const EMPTY_BOARD: &str = "8/8/8/8/8/8/8/8 w - - ";
 pub const START_POSITION: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
-pub const START_POSITION_COMMAND: &str = "position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
 pub const KIWIPETE: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
-pub const KIWIPETE_COMMAND : &str = "position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
 pub const ENDGAME_PERFT: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
-pub const ENDGAME_PERFT_COMMAND : &str = "position fen 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
 
 // Piece index offsets: white pieces are 0..6, black pieces are 6..12.
 // For a given side, the king bitboard index is:

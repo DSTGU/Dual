@@ -3,7 +3,7 @@ use coarsetime::{Duration, Instant};
 
 use crate::evaluate::{nnue_evaluate};
 use crate::move_gen::{generate_moves, is_square_attacked};
-use crate::types::search_state::{self, SearchState};
+use crate::types::search_state::SearchState;
 use crate::shared::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH, Move, MoveSuccess, Piece, SearchAnswer, move_to_alg};
 use crate::types::tt::{TTFlag, score_from_tt};
 
@@ -457,7 +457,7 @@ pub fn collect_pv(moves: &Vec<Option<Move>>) -> String {
 }
 
 pub fn single_depth_search(search_state: &mut SearchState, depth: usize) -> SearchAnswer {
-    let score = pvs(search_state, -5000000, 5000000, depth);
+    let score = pvs(search_state, -MATE_SCORE, MATE_SCORE, depth);
     search_state.nodes += score.node_count as u64;
     score
 }

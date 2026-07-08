@@ -6,8 +6,8 @@
 //! - Threefold repetition detection
 
 use std::sync::OnceLock;
-
-use crate::{shared::{MATE_SCORE, MATE_THRESHOLD, Move}, types::board::BoardPosition};
+use crate::shared::{MATE_THRESHOLD, Move};
+use crate::types::board::BoardPosition;
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND
@@ -228,12 +228,6 @@ impl TranspositionTable {
             };
         }
     }
-
-    /// Calculate hash fill percentage
-    pub fn fill_percentage(&self) -> f64 {
-        let used = self.entries.iter().filter(|e| e.hash != 0).count();
-        (used as f64 / TT_SIZE as f64) * 100.0
-    }
 }
 
     #[inline]
@@ -316,16 +310,6 @@ impl RepetitionTable {
             }
         }
         false
-    }
-
-    /// Get the number of times a hash has occurred
-    pub fn count_occurrences(&self, hash: u64) -> usize {
-        self.hashes.iter().filter(|&&h| h == hash).count()
-    }
-
-    /// Get the current ply (half-move count)
-    pub fn ply(&self) -> usize {
-        self.hashes.len()
     }
 }
 

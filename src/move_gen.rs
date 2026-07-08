@@ -213,7 +213,7 @@ fn generate_king_moves(
             if get_bit(board.occupancies[1 - side], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
-                if (!quiescence) {
+                if !quiescence {
                     push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
                 }
             }
@@ -357,7 +357,7 @@ fn generate_rook_moves(
             if get_bit(board.occupancies[1 - side], target) {
                 push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
             } else {
-                if (!quiescence) {   
+                if !quiescence {   
                     push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
                 }
             }
