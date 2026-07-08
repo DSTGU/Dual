@@ -15,7 +15,7 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
     let mut legal_moves : Vec<Move> = legal_moves.into_iter().filter(|x| x.get_source_square() == src && x.get_target_square() == target).collect();
 
     if legal_moves.len() < 2 {
-        if legal_moves.len() == 0 {
+        if legal_moves.is_empty(){
             return None
         }
         return legal_moves.pop();
@@ -64,25 +64,10 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
         return;
     }
 
-    let time : Option<usize>;
-    
-    if search_state.board_position.side == 1 {
-        time = btime;
-    }
-    else {
-        time = wtime;
-    }
+    let time : Option<usize> = if search_state.board_position.side == 1 { btime } else { wtime };
+    let inc: Option<usize> =  if search_state.board_position.side == 1 { binc } else { winc };
 
-    let inc: Option<usize>;
-
-    if search_state.board_position.side == 1 {
-        inc = binc;
-    }
-    else {
-        inc = winc;
-    }
-
-    let time_available : Option<usize> = if let Some(timeval) = time { Some((timeval/20 + inc.unwrap_or(0)/2).min(timeval*3/4)) } else {None};
+    let time_available : Option<usize> = time.map(|timeval| (timeval/20 + inc.unwrap_or(0)/2).min(timeval*3/4));
     search(search_state, depth, time_available);
 }
 

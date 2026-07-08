@@ -184,7 +184,7 @@ fn generate_pawn_moves(
             let ep_bit = PAWN_ATTACKS[side][source] & (1u64 << board.enpassant);
             if ep_bit != 0 {
                 let ep_target = ep_bit.trailing_zeros() as u8;
-                push_move(moves, source as u8, ep_target as u8, MoveCode::EnPassant, board.enpassant, board.castle, Piece::NONE);
+                push_move(moves, source as u8, ep_target, MoveCode::EnPassant, board.enpassant, board.castle, Piece::NONE);
             }
         }
     }

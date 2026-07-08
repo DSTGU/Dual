@@ -14,7 +14,7 @@ pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>) -> V
             let score = if Some(m) == search_state.tt_move() {
                 i32::MAX
             } else {
-                search_state.get_move_score(m) as i32
+                search_state.get_move_score(m)
             };
 
             (m, score)
@@ -25,6 +25,7 @@ pub fn sort_move_list(search_state: &mut SearchState, move_list: Vec<Move>) -> V
     scored_moves.into_iter().map(|(mv, _)| mv).collect()
 }
 
+#[allow(clippy::approx_constant)]
 pub fn reduce_lmr_by(depth: usize, moves: usize) -> usize {
     // Obsidian function
     (0.99 + (depth as f32).ln() * (moves as f32).ln() / 3.14) as usize
@@ -82,11 +83,11 @@ pub fn quiescence(search_state: &mut SearchState, alpha: i32, beta: i32, ply: us
         }
     }
 
-    return SearchAnswer { move_list: vec![], node_count: nodes, eval: new_alpha };
+    SearchAnswer { move_list: vec![], node_count: nodes, eval: new_alpha }
 
 }
 
-pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
+pub fn pvs(search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
 
     let is_pv_node = beta - alpha > 1;
 
@@ -279,7 +280,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                 // --------------------------------------------------------
             
             if legal_moves == 1 {
-                let score: SearchAnswer = pvs(&mut search_state, -beta, -new_alpha, depth-1);
+                let score: SearchAnswer = pvs(search_state, -beta, -new_alpha, depth-1);
                 search_state.take_back(mv);
                 nodes += score.node_count;
 
@@ -291,7 +292,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                         
                         if mv.is_quiet() {
                             search_state.update_killer_move(mv);
-                            search_state.update_history(mv, history_bonus as i32);
+                            search_state.update_history(mv, history_bonus);
 
                             // apply malus to previous quiet moves
                             for prev_mv in &previous_quiet_moves {
@@ -327,7 +328,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                 // reduced + null-window
                 // ----------------------------------------------------
 
-                let mut score = pvs(&mut search_state, -new_alpha-1, -new_alpha, depth-1-reduction);
+                let mut score = pvs(search_state, -new_alpha-1, -new_alpha, depth-1-reduction);
                 nodes += score.node_count;
 
 
@@ -340,7 +341,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                 // Re-search at FULL DEPTH still using null window.
                 // ----------------------------------------------------
                 if reduction > 0 && -score.eval > new_alpha {
-                    score = pvs(&mut search_state, -new_alpha-1, -new_alpha, depth - 1);
+                    score = pvs(search_state, -new_alpha-1, -new_alpha, depth - 1);
                     nodes += score.node_count;
                 } 
 
@@ -352,7 +353,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
                 // ----------------------------------------------------
                 if -score.eval > new_alpha && -score.eval < beta  {
                     // research with window [alfa;beta]
-                    score = pvs(&mut search_state, -beta, -new_alpha, depth-1);
+                    score = pvs(search_state, -beta, -new_alpha, depth-1);
                     nodes += score.node_count;
 
                 }
@@ -375,7 +376,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
 
                         if mv.is_quiet() {
                             search_state.update_killer_move(mv);
-                            search_state.update_history(mv, history_bonus as i32);
+                            search_state.update_history(mv, history_bonus);
 
                             // apply malus to previous quiet moves
                             for prev_mv in &previous_quiet_moves {
@@ -411,8 +412,10 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
         }
     }
 
-    if best_move.is_some() && best_move.unwrap().is_quiet() {
-        search_state.update_history(best_move.unwrap(), history_bonus as i32);
+    if let Some(mv) = best_move {
+        if mv.is_quiet() {
+            search_state.update_history(best_move.unwrap(), history_bonus);
+        }
     }
 
     if search_state.should_quit(depth) {
@@ -435,7 +438,7 @@ pub fn pvs(mut search_state: &mut SearchState, alpha: i32, beta: i32, depth: usi
     );
 
     best_move_list.push(best_move);
-    return SearchAnswer { move_list: best_move_list, node_count: nodes, eval: new_alpha };
+    SearchAnswer { move_list: best_move_list, node_count: nodes, eval: new_alpha }
 }
 
 pub fn score_to_mate( score: i32 ) -> i32 {
@@ -446,7 +449,7 @@ pub fn score_to_mate( score: i32 ) -> i32 {
     - distance / 2
 }
 
-pub fn collect_pv(moves: &Vec<Option<Move>>) -> String {
+pub fn collect_pv(moves: &[Option<Move>]) -> String {
     moves
         .iter()
         .filter(|&&mv| mv.is_some() && mv.unwrap() != Move::create_null())
@@ -462,7 +465,7 @@ pub fn single_depth_search(search_state: &mut SearchState, depth: usize) -> Sear
     score
 }
 
-pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: usize, eval: i32) -> SearchAnswer {
+pub fn single_depth_search_aspirated(search_state: &mut SearchState, depth: usize, eval: i32) -> SearchAnswer {
     let mut aspiration_lower = 50;
     let mut aspiration_higher = 50;
 
@@ -470,39 +473,38 @@ pub fn single_depth_search_aspirated(mut search_state: &mut SearchState, depth: 
 
     for _ in 0..3 {
         //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
-        score = pvs(&mut search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
+        score = pvs(search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
         //println!("aspiration, score: {:?}", score.eval);
         search_state.nodes += score.node_count as u64;
-        if score.move_list.len() > 0 {
-            if score.move_list[0].is_some() {
-                return score;
-            }
+        
+        if !score.move_list.is_empty() && score.move_list[0].is_some() {
+            return score;
         }
 
         //println!("aspiration failed, score: {:?}", score.eval);
         if score.eval < eval {
-            aspiration_lower = aspiration_lower * 2;
+            aspiration_lower *= 2;
         }
         else {
-            aspiration_higher = aspiration_higher * 2;
+            aspiration_higher *= 2;
         }
     }
 
     //fallback
-    return single_depth_search(search_state, depth);
+    single_depth_search(search_state, depth)
 }
 
 
-pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_available: Option<usize>) {
+pub fn search(search_state: &mut SearchState, depth: Option<usize>, time_available: Option<usize>) {
 
     search_state.search_start = Instant::now();
 
-    if depth.is_some() {
+    if let Some(depth) = depth {
         search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(1000000)).unwrap());
-        if depth.unwrap() <= MIN_DEPTH {
-            search_state.reset_for_new_iteration(depth.unwrap(), Move::create_null());        
-            let mut score: SearchAnswer = single_depth_search(&mut search_state, depth.unwrap());
-            print_info_string(&score, search_state, depth.unwrap());
+        if depth <= MIN_DEPTH {
+            search_state.reset_for_new_iteration(depth, Move::create_null());        
+            let mut score: SearchAnswer = single_depth_search(search_state, depth);
+            print_info_string(&score, search_state, depth);
             println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
         } else {
             search_state.reset_for_new_iteration(MIN_DEPTH, Move::create_null());
@@ -512,17 +514,17 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
             print_info_string(&score, search_state, MIN_DEPTH);
             
             let mut curr_depth = MIN_DEPTH + 1;
-            search_state.reset_for_new_iteration(curr_depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+            search_state.reset_for_new_iteration(curr_depth, score.move_list.last().unwrap().unwrap());        
 
-            while curr_depth <= depth.unwrap()   {
+            while curr_depth <= depth {
             
-                score = single_depth_search_aspirated(&mut search_state, curr_depth, score.eval);
+                score = single_depth_search_aspirated(search_state, curr_depth, score.eval);
                 
                 print_info_string(&score, search_state, curr_depth);
                 
-                curr_depth = curr_depth + 1;
+                curr_depth += 1;
                 
-                search_state.reset_for_new_iteration(curr_depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+                search_state.reset_for_new_iteration(curr_depth, score.move_list.last().unwrap().unwrap());        
             }
 
 
@@ -552,19 +554,19 @@ pub fn search(mut search_state: &mut SearchState, depth: Option<usize>, time_ava
         
         let mut depth = MIN_DEPTH + 1;
 
-        search_state.reset_for_new_iteration(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+        search_state.reset_for_new_iteration(depth, score.move_list.last().unwrap().unwrap());        
 
         while now.elapsed().as_millis() < (time_avail/3) as u64 {
         
-            let new_score = single_depth_search_aspirated(&mut search_state, depth, score.eval);
-            if !search_state.should_quit(search_state.max_depth) && score.move_list.len() > 0 {
+            let new_score = single_depth_search_aspirated(search_state, depth, score.eval);
+            if !search_state.should_quit(search_state.max_depth) && !score.move_list.is_empty() {
                 score = new_score;
                 print_info_string(&score, search_state, depth);
             }
 
-            depth = depth + 1;
+            depth += 1;
             
-            search_state.reset_for_new_iteration(depth, score.move_list.get(score.move_list.len() - 1).unwrap().unwrap());        
+            search_state.reset_for_new_iteration(depth, score.move_list.last().unwrap().unwrap());        
         }
 
         println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));

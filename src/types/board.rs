@@ -334,7 +334,7 @@ impl BoardPosition {
         let king_sq =
             self.bitboards[KING_INDEX[self.side]].trailing_zeros() as u8;
 
-        if is_square_attacked(king_sq, &self) {
+        if is_square_attacked(king_sq, self) {
             self.side = 1 - self.side;
             self.take_back(move_to_make, old_hash);    
             return MoveSuccess::Attacked;
@@ -436,7 +436,7 @@ impl BoardPosition {
                 }
 
                 // define piece variable
-                let mut piece = 12 as usize;
+                let mut piece = 12;
 
                 // loop over all piece bitboards
                 for bb_piece in 0..12
