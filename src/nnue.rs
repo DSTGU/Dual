@@ -1,4 +1,4 @@
-use crate::shared::Piece;
+use crate::types::shared::Piece;
 
 pub const HIDDEN_SIZE: usize = 64;
 const SCALE: i32 = 400;

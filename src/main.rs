@@ -1,4 +1,3 @@
-mod shared;
 mod attacks;
 mod move_gen;
 mod perft;
@@ -11,28 +10,7 @@ mod nnue;
 
 use std::io;
 use std::thread;
-
-/**********************************\
- ==================================
-
-          Bit manipulations
-
- ==================================
-\**********************************/
-
-use shared::get_bit;
-use shared::pop_bit;
-
-use shared::print_bitboard;
-
-/**********************************\
- ==================================
-
-              Attacks
-
- ==================================
-\**********************************/
-
+use types::shared::{get_bit, pop_bit, print_bitboard, Piece, START_POSITION};
 use attacks::PAWN_ATTACKS;
 use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
@@ -40,7 +18,6 @@ use crate::bench::bench_engine;
 use crate::evaluate::evaltest;
 use crate::gui::{parse_go};
 use crate::types::search_state::SearchState;
-use crate::shared::{ Piece, START_POSITION};
 
 /**********************************\
  ==================================

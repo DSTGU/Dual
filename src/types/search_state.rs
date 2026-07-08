@@ -3,7 +3,8 @@ use coarsetime::{Duration, Instant};
 use crate::gui::parse_move;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{is_square_attacked};
-use crate::shared::{FIRST_KILLER_BONUS, KIWIPETE, MAX_HISTORY, MVV_LVA, Move, MoveSuccess, PV_MOVE_BONUS, Piece, SECOND_KILLER_BONUS, START_POSITION};
+use crate::types::shared::{KIWIPETE, Move, MoveSuccess, Piece, START_POSITION};
+use crate::types::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MVV_LVA, PV_MOVE_BONUS, SECOND_KILLER_BONUS};
 use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, compute_hash, get_zobrist_keys, score_to_tt};
 
 /// Search state structure - encapsulates all search-related state
@@ -352,7 +353,9 @@ impl Default for SearchState {
 #[cfg(test)]
 mod tests {
     use std::thread;
-    use crate::{search::search, shared::{START_POSITION}, types::search_state::{SearchState}};
+    use crate::search::search; 
+    use crate::types::shared::{START_POSITION};
+    use crate::types::search_state::{SearchState};
 
     #[test]
     fn assert_clearing_persistent_data_correctly() {

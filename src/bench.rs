@@ -1,8 +1,9 @@
 use coarsetime::{Duration, Instant};
 
 use crate::search::{collect_pv, single_depth_search_aspirated}; 
-use crate::shared::{ENDGAME_PERFT, KIWIPETE, MIN_DEPTH, Move, START_POSITION, SearchAnswer}; 
-use crate::types::{search_state::SearchState};
+use crate::types::shared::{ENDGAME_PERFT, KIWIPETE, Move, START_POSITION, SearchAnswer}; 
+use crate::types::consts::MIN_DEPTH;
+use crate::types::search_state::SearchState;
 
 
 pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {

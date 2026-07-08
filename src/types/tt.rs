@@ -6,8 +6,9 @@
 //! - Threefold repetition detection
 
 use std::sync::OnceLock;
-use crate::shared::{MATE_THRESHOLD, Move};
+use crate::types::shared::Move;
 use crate::types::board::BoardPosition;
+use crate::types::consts::MATE_THRESHOLD;
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND

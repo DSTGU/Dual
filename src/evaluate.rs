@@ -1,6 +1,6 @@
 use crate::nnue::NNUE;
 use crate::types::board::BoardPosition;
-use crate::shared::pop_bit;
+use crate::types::shared::pop_bit;
 
 const MG_PAWN_TABLE: [i32; 64] = [
 82,  82,  82,  82,  82,  82,  82,  82,
@@ -219,7 +219,7 @@ pub fn evaltest(board_position: &mut BoardPosition) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shared::{START_POSITION};
+    use crate::types::shared::{START_POSITION};
 
     #[test]
     fn test_mirror_sq() {

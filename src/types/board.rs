@@ -1,6 +1,6 @@
 use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
 use crate::nnue::{Accumulator, HIDDEN_SIZE, NNUE, Network, feature_index};
-use crate::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
+use crate::types::shared::{ASCII_PIECES, Castle, KING_INDEX, Move, MoveSuccess, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
 use crate::types::tt::{compute_hash, get_zobrist_keys};
 
 #[allow(non_camel_case_types)]

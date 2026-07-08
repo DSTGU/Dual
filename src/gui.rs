@@ -3,8 +3,8 @@ use crate::move_gen::{generate_moves};
 use crate::perft::perft;
 use crate::search::{search};
 use crate::types::search_state::SearchState;
-use crate::shared::{Move, coordinates_to_squares};
-use crate::shared::Piece::{B, N, Q, R};
+use crate::types::shared::{Move, coordinates_to_squares};
+use crate::types::shared::Piece::{B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 
@@ -74,7 +74,7 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
 #[cfg(test)]
 mod tests {
     use crate::gui::{parse_go};
-    use crate::shared::{START_POSITION};
+    use crate::types::shared::{START_POSITION};
     use crate::types::board::BoardPosition;
     use crate::types::search_state::{SearchState};
     use std::thread;

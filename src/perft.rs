@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 use crate::move_gen::{generate_moves};
 use crate::types::search_state::{SearchState};
-use crate::shared::{MoveSuccess};
+use crate::types::shared::{MoveSuccess};
 
 pub fn perft_driver(search_state: &mut SearchState, depth: usize) -> usize {
 
@@ -74,8 +74,12 @@ pub fn perft(search_state: &mut SearchState, depth: usize) {
 #[cfg(test)]
 mod tests{
     use std::thread;
-
-use crate::{move_gen::generate_moves, nnue::NNUE, perft::perft_driver, shared::{ENDGAME_PERFT, KIWIPETE, MoveSuccess, START_POSITION}, types::{search_state::SearchState, tt::compute_hash}};
+    use crate::move_gen::generate_moves;
+    use crate::nnue::NNUE;
+    use crate::perft::perft_driver;
+    use crate::types::shared::{ENDGAME_PERFT, KIWIPETE, MoveSuccess, START_POSITION};
+    use crate::types::search_state::SearchState;
+    use crate::types::tt::compute_hash;
 
     #[test]
     fn test_perft_kiwipete() {

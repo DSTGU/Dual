@@ -1,8 +1,7 @@
 use std::sync::{Once};
 use lazy_static::lazy_static;
 
-use crate::shared::set_bit;
-use crate::shared::pop_bit;
+use crate::types::shared::{set_bit, pop_bit};
 /**********************************\
  ==================================
 
