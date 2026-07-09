@@ -77,7 +77,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
         let new_board = new_board.unwrap();
 
-        search_state.make_move(new_board.hash);
+        search_state.make_move(board_position.hash);
         
             let res = quiescence(&new_board, search_state, -beta, -new_alpha, ply + 1);
             search_state.take_back();
@@ -206,7 +206,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
             if -search_answer.eval >= beta {
                 return SearchAnswer {
                     move_list: vec![],
-                    node_count: 1,
+                    node_count: search_answer.node_count,
                     eval: -search_answer.eval,
                 };
                 //return search_answer;
@@ -276,7 +276,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
         
         let new_board = new_board.unwrap();
 
-        search_state.make_move(new_board.hash);
+        search_state.make_move(board_position.hash);
 
         legal_moves += 1;
 
