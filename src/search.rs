@@ -100,7 +100,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
     
     let is_pv_node = beta - alpha > 1;
 
-    if search_state.should_quit(depth) {
+    if search_state.should_quit() {
        return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
     }
 
@@ -299,7 +299,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
 
                 if -score.eval > new_alpha {
                     if -score.eval >= beta {
-                        if search_state.should_quit(depth) {
+                        if search_state.should_quit() {
                             return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
                         }
                         
@@ -378,7 +378,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
                 if -score.eval > new_alpha {
                     if -score.eval >= beta {
                         
-                        if search_state.should_quit(depth) {
+                        if search_state.should_quit() {
                             return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
                         }
 
@@ -434,7 +434,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
         }
     }
 
-    if search_state.should_quit(depth) {
+    if search_state.should_quit() {
        return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
     }
 
@@ -576,7 +576,7 @@ pub fn search(board_position: &BoardPosition, search_state: &mut SearchState, de
         while now.elapsed().as_millis() < (time_avail/3) as u64 {
         
             let new_score = single_depth_search_aspirated(board_position, search_state, depth, score.eval);
-            if !search_state.should_quit(search_state.max_depth) && !score.move_list.is_empty() {
+            if !search_state.should_quit() && !score.move_list.is_empty() {
                 score = new_score;
                 print_info_string(&score, search_state, depth);
             }

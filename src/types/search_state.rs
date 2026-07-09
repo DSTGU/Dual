@@ -189,7 +189,7 @@ impl SearchState {
         Instant::now() > self.deadline
     }
 
-    pub fn should_quit(&mut self, depth: usize) -> bool {
+    pub fn should_quit(&mut self) -> bool {
         if self.should_quit {
             return true;
         }
