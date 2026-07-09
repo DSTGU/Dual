@@ -2,9 +2,9 @@ use crate::types::board::BoardPosition;
 use crate::move_gen::{generate_moves};
 use crate::perft::perft;
 use crate::search::{search};
-use crate::types::search_state::SearchState;
+use crate::types::search_state::{SearchState};
 use crate::types::shared::Color::{Black, White};
-use crate::types::shared::{Move, coordinates_to_squares};
+use crate::types::shared::{KIWIPETE, Move, START_POSITION, coordinates_to_squares};
 use crate::types::shared::Piece::{B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
@@ -38,7 +38,7 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 //     ((9.0 / ((figures - 1) as f32).powf(0.20)) + 1.5) as usize
 // }
 
-pub fn parse_go(command: &str, search_state: &mut SearchState) {
+pub fn parse_go(board_position: &BoardPosition, search_state: &mut SearchState, command: &str) {
     let mut depth = None; //depth_func(board_position.occupancies[2].count_ones());
     let words : Vec<&str> = command.split_ascii_whitespace().collect();
     let mut wtime : Option<usize> = None;
@@ -50,7 +50,7 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
     for i in 0..words.len()/2 {
         match words[2 * i + 1] {
             "depth" => depth = Some(words[2*i+2].parse().unwrap_or(6)),
-            "perft" => {perft(search_state, words[2*i+2].parse().unwrap_or(4)); return;},
+            "perft" => {perft(board_position, words[2*i+2].parse().unwrap_or(4)); return;},
             "wtime" => wtime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "btime" => btime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "winc" => winc = Some(words[2*i+2].parse().unwrap_or(1000)),
@@ -61,59 +61,117 @@ pub fn parse_go(command: &str, search_state: &mut SearchState) {
     }
 
     if movetime.is_some() {
-        search(search_state, depth, movetime);
+        search(board_position, search_state, depth, movetime);
         return;
     }
 
-    let time : Option<usize> = if search_state.board_position.side == Black { btime } else { wtime };
-    let inc: Option<usize> =  if search_state.board_position.side == Black { binc } else { winc };
+    let time : Option<usize> = if board_position.side == Black { btime } else { wtime };
+    let inc: Option<usize> =  if board_position.side == Black { binc } else { winc };
 
     let time_available : Option<usize> = time.map(|timeval| (timeval/20 + inc.unwrap_or(0)/2).min(timeval*3/4));
-    search(search_state, depth, time_available);
+    search(board_position, search_state, depth, time_available);
 }
+
+pub fn parse_ucinewgame(search_state: &mut SearchState) -> BoardPosition {
+    search_state.clear_persistent_data();
+    parse_position_command(search_state, "position startpos")
+}
+
+pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> BoardPosition {
+        let words : Vec<&str> = command.trim().split(" ").collect();
+
+        search_state.change_position();
+
+        if words.len() < 2 {
+            return BoardPosition::new(START_POSITION);
+        }
+
+        let mut board_position : BoardPosition;
+
+        match words[1] {
+            "fen" => {
+                board_position = BoardPosition::new(&command[13..]);
+                search_state.make_move(board_position.hash);
+                
+                if words.len() > 8 {
+                    for &i in words[9..].iter() {
+                        let mov = parse_move(&board_position, i);
+                        if let Some(x) = mov {
+                            let suggestion = board_position.make_move(x);
+                            
+                            if suggestion.is_none() {
+                                return board_position;
+                            }
+
+                            board_position = suggestion.unwrap();
+                            search_state.make_move(board_position.hash);
+                        }
+                    }
+                }
+            },
+            "startpos" => {
+                board_position = BoardPosition::new(START_POSITION);
+                search_state.make_move(board_position.hash);
+                
+                for &i in words[2..].iter() {
+                        let mov = parse_move(&board_position, i);
+                        if let Some(x) = mov {
+                            let suggestion = board_position.make_move(x);
+                            
+                            if suggestion.is_none() {
+                                return board_position;
+                            }
+
+                            board_position = suggestion.unwrap();
+                            search_state.make_move(board_position.hash);
+                        }
+                }
+            },
+            "kiwipete" => {
+                board_position = BoardPosition::new(KIWIPETE);
+                search_state.make_move(board_position.hash);
+                
+                for &i in words[2..].iter() {
+                        let mov = parse_move(&board_position, i);
+                        if let Some(x) = mov {
+                            let suggestion = board_position.make_move(x);
+                            
+                            if suggestion.is_none() {
+                                return board_position;
+                            }
+
+                            board_position = suggestion.unwrap();
+                            search_state.make_move(board_position.hash);
+                        }
+                }
+
+            },
+            _ => board_position = BoardPosition::new(START_POSITION),
+        }
+
+    search_state.ply = 0;
+
+    board_position
+}
+
 
 #[cfg(test)]
 mod tests {
-    use crate::gui::{parse_go};
+    use crate::gui::{parse_go, parse_position_command};
     use crate::types::shared::{START_POSITION};
     use crate::types::board::BoardPosition;
     use crate::types::search_state::{SearchState};
     use std::thread;
 
-    #[test]
-    fn test_position_startpos() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-                let board_pos: BoardPosition = BoardPosition::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 xdddddd");
-                let mut search_state = SearchState::new(START_POSITION);
-                search_state.parse_position_command("position startpos");
-                assert_eq!(board_pos, search_state.board_position);
-            })
-            .unwrap();
-        handler.join().unwrap();
-    }
-
-    #[test]
-    fn test_position_fen() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
-        let handler = builder.spawn(|| {
-            let board_pos = BoardPosition::new("r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
-            let mut search_state = SearchState::new(START_POSITION);
-            search_state.parse_position_command("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4");
-            assert_eq!(board_pos, search_state.board_position);
-        }).unwrap();
-        handler.join().unwrap();
-    }
 
     #[test]
     fn test_position_fen_moves() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder.spawn(|| {
             let board_pos = BoardPosition::new("r1bqkbnr/1p1ppppp/8/p1p5/3nP2P/5N2/PPPPQPP1/RNB1KB1R w KQkq - 2 5");
-            let mut search_state = SearchState::new(START_POSITION);
-            search_state.parse_position_command("position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4 moves d1e2 c6d4");
-            assert_eq!(board_pos, search_state.board_position);
+            let mut search_state = SearchState::new();
+            let created = parse_position_command(&mut search_state, "position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4 moves d1e2 c6d4");
+            assert_eq!(board_pos, created);
         }).unwrap();
         handler.join().unwrap();
     }
@@ -124,9 +182,9 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let board_pos = BoardPosition::new("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
-                let mut search_state = SearchState::new(START_POSITION);
-                search_state.parse_position_command("position startpos e2e4 d7d5");
-                assert_eq!(board_pos, search_state.board_position);
+                let mut search_state = SearchState::new();
+                let created = parse_position_command(&mut search_state,"position startpos e2e4 d7d5");
+                assert_eq!(board_pos, created);
             })
             .unwrap();
         handler.join().unwrap();
@@ -137,8 +195,9 @@ mod tests {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
-                let mut search_state = SearchState::new(START_POSITION);
-                parse_go("go depth 6", &mut search_state);
+                let mut search_state = SearchState::new();
+                let board_position = BoardPosition::new(START_POSITION);
+                parse_go(&board_position, &mut search_state,"go depth 6");
             })
             .unwrap();
         handler.join().unwrap();
