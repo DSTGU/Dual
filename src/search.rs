@@ -38,6 +38,10 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
     search_state.seldepth = search_state.seldepth.max(ply);
 
+    if search_state.is_trifold_repetition(board_position.hash) {
+        return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_SCORE };
+    }
+
     //PESTO eval
     let eval = nnue_evaluate(&board_position);
 
@@ -73,10 +77,6 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
         let new_board = new_board.unwrap();
 
-        if search_state.is_trifold_repetition(board_position.hash) {
-            return SearchAnswer { move_list: vec![], node_count: 0, eval: 0 };
-        }
-
         search_state.make_move(new_board.hash);
         
             let res = quiescence(&new_board, search_state, -beta, -new_alpha, ply + 1);
@@ -102,6 +102,10 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
 
     if search_state.should_quit(depth) {
        return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
+    }
+
+    if search_state.is_trifold_repetition(board_position.hash) {
+        return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_SCORE };
     }
     
     if depth == 0 {
@@ -271,10 +275,6 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
         }
         
         let new_board = new_board.unwrap();
-        
-        if search_state.is_trifold_repetition(new_board.hash) {
-            return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_SCORE };
-        }
 
         search_state.make_move(new_board.hash);
 
@@ -656,11 +656,12 @@ mod tests {
 
                 println!("{:?}", search_state.rep_table);
                 
-                search_state.reset_for_new_iteration(4);       
+                search_state.reset_for_new_iteration(3);       
                 
                 println!("{:?}", search_state.rep_table);
+                println!("{:?}", board_position.hash);
 
-                let score = single_depth_search(&board_position, &mut search_state, 4);
+                let score = single_depth_search(&board_position, &mut search_state, 3);
 
                 println!("{:?}", search_state.rep_table);
 

@@ -107,6 +107,8 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                             search_state.make_move(board_position.hash);
                         }
                     }
+
+                    search_state.rep_table.pop();
                 }
             },
             "startpos" => {
@@ -125,6 +127,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                             board_position = suggestion.unwrap();
                             search_state.make_move(board_position.hash);
                         }
+                        search_state.rep_table.pop();
                 }
             },
             "kiwipete" => {
@@ -143,6 +146,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                             board_position = suggestion.unwrap();
                             search_state.make_move(board_position.hash);
                         }
+                        search_state.rep_table.pop();
                 }
 
             },
