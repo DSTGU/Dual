@@ -1,15 +1,17 @@
 use coarsetime::{Duration, Instant};
 
 use crate::search::{collect_pv, single_depth_search_aspirated}; 
+use crate::types::board::BoardPosition;
 use crate::types::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION, SearchAnswer}; 
 use crate::types::consts::MIN_DEPTH;
 use crate::types::search_state::SearchState;
 
 
 pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
+    search_state.change_position();
     search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(100000)).unwrap());
-    search_state.change_position(fen);
-    //search_state.clear_tt();
+    let board_position = BoardPosition::new(fen);
+
 
     let now = Instant::now();
     let mut local_depth = MIN_DEPTH;
@@ -18,7 +20,7 @@ pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
     while local_depth <= depth {
             search_state.reset_for_new_iteration(depth);
 
-            score = single_depth_search_aspirated(search_state, local_depth, score.eval);
+            score = single_depth_search_aspirated(&board_position, search_state, local_depth, score.eval);
                         
             local_depth += 1;
     }

@@ -16,7 +16,10 @@ use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
 use crate::bench::bench_engine;
 use crate::evaluate::evaltest;
+use crate::gui::parse_position_command;
+use crate::gui::parse_ucinewgame;
 use crate::gui::{parse_go};
+use crate::types::board::BoardPosition;
 use crate::types::search_state::SearchState;
 
 /**********************************\
@@ -35,7 +38,8 @@ pub fn print_identification() {
 
 pub fn uci_loop() {
 
-    let mut search_state: SearchState = SearchState::new(START_POSITION);
+    let mut search_state: SearchState = SearchState::new();
+    let mut board_position: BoardPosition = BoardPosition::new(START_POSITION);
     loop {  
         // Read user input
         let mut input = String::new();
@@ -53,12 +57,12 @@ pub fn uci_loop() {
         match words[0] {
             "exit" => return,
             "quit" => return,
-            "go" => parse_go(command, &mut search_state),
-            "position" => search_state.parse_position_command(command),
-            "eval" => evaltest(&mut search_state.board_position),
-            "ucinewgame" => search_state.parse_position_command("position startpos"),
+            "go" => parse_go(&board_position, &mut search_state, command),
+            "position" => {board_position = parse_position_command(&mut search_state, command)},
+            "eval" => evaltest(&board_position),
+            "ucinewgame" => {board_position = parse_ucinewgame(&mut search_state)},
             "uci" => print_identification(),
-            "printboard" => search_state.board_position.print_board(),
+            "printboard" => board_position.print_board(),
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
             "bench" => bench_engine(&mut search_state),
