@@ -25,6 +25,8 @@ pub struct BoardPosition {
     pub hash: u64,
 
     pub accumulators: [Accumulator; 2],
+
+    pub fifty_mr: u8,
 }
     /*
     binary encoding
@@ -46,6 +48,7 @@ impl BoardPosition {
             castle: 0,
             hash: 0,
             accumulators: [Accumulator{ vals: [0; HIDDEN_SIZE]}; 2],
+            fifty_mr: 0
         };
 
         board_position.parse_fen(fen);
@@ -147,19 +150,19 @@ impl BoardPosition {
         }
 
         // Keeping this comment for better times, when the state regarding previous move is gonna be kept on a stack, not deduced
-        // fen_chars.next(); // skip space
+        fen_chars.next(); // skip space
 
-        // let mut word = String::new();
+        let mut word = String::new();
 
-        // while let Some(c) = fen_chars.next() {
-        //     if c.is_whitespace() {
-        //         break;
-        //     }
+        while let Some(c) = fen_chars.next() {
+            if c.is_whitespace() {
+                break;
+            }
 
-        //     word.push(c);
-        // }
+            word.push(c);
+        }
 
-        // self.fifty_mr = word.parse().unwrap_or(0);
+        self.fifty_mr = word.parse().unwrap_or(0);
 
         for piece in 0..=5 {
             self.occupancies[0] |= self.bitboards[piece];
@@ -275,11 +278,11 @@ impl BoardPosition {
         let promoted = move_to_make.is_promotion();
 
         // //handle 50mr
-        // if is_capture || piece == Piece::P || piece == Piece::p {
-        //     self.fifty_mr += 1;
-        // } else {
-        //     self.fifty_mr = 0;
-        // }
+        if is_capture || piece == Piece::P || piece == Piece::p {
+            new_board.fifty_mr = 0;
+        } else {
+            new_board.fifty_mr += 1;
+        }
 
         // Handle captures: 
         if is_capture && !is_enpassant {

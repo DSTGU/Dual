@@ -38,7 +38,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
     search_state.seldepth = search_state.seldepth.max(ply);
 
-    if search_state.is_trifold_repetition(board_position.hash) {
+    if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
         return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_SCORE };
     }
 
@@ -104,7 +104,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
        return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
     }
 
-    if search_state.is_trifold_repetition(board_position.hash) {
+    if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
         return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_SCORE };
     }
     
