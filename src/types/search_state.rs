@@ -81,13 +81,9 @@ impl SearchState {
         MVV_LVA[victim as usize % 6 + attacker as usize % 6 * 6]
     }
 
-    fn get_victim(&self, mv: Move) -> Piece {
-        mv.get_taken_piece()
-    }
-
     pub fn get_move_score(&self, board_position: &BoardPosition, mv: Move) -> i32 {
         if mv.is_capture() {
-            let victim = self.get_victim(mv);
+            let victim = board_position.get_victim(mv);
             let mvv = Self::get_mvv_lva(victim, board_position.get_piece(mv));
             
             return mvv;

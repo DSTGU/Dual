@@ -63,24 +63,18 @@ pub enum MoveCode {
 
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct Move(u32);
+pub struct Move(u16);
 
 impl Move {
     pub fn create(
         source_square: u8,
         target_square: u8,
-        move_code : MoveCode,
-        old_ep_square: u8,
-        old_castle: usize,
-        taken_piece: Piece,
+        move_code : MoveCode
     ) -> Move {
-        let value: u32 =
-            (source_square as u32) // 6 bits
-            | ((target_square as u32) << 6) // 6 bits
-            | ((move_code as u32) << 12) // 4 bits
-            | ((old_ep_square as u32) << 16) // 6 bits
-            | ((old_castle as u32) << 22) // 4 bits
-            | ((taken_piece as u32) << 26); // 4 bits
+        let value: u16 =
+            (source_square as u16) // 6 bits
+            | ((target_square as u16) << 6) // 6 bits
+            | ((move_code as u16) << 12); // 4 bits
         Move(value)
     }
 
@@ -143,18 +137,6 @@ impl Move {
     pub fn get_double_pawn_push(self) -> bool {
         MoveCode::DoublePush == self.get_move_code()
     }
-
-    pub fn get_old_ep_square(self) -> u8 {
-        ((self.0 >> 16) & 0x3F) as u8
-    }
-
-    pub fn get_old_castle(self) -> usize {
-        ((self.0 >> 22) & 0xF) as usize
-    }
-
-    pub fn get_taken_piece(self) -> Piece {
-        Piece::new((self.0 >> 26) as usize & 0xF)
-    }
  
 }
 
@@ -176,7 +158,7 @@ impl fmt::Debug for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Move {{ {}({})-{}({}): P={:?}{}{}{} oep: {}, oc:{} }}",
+            "Move {{ {}({})-{}({}): P={:?}{}{}{} }}",
             SQUARE_TO_COORDINATES[self.get_source_square() as usize],
             self.get_source_square(),
             SQUARE_TO_COORDINATES[self.get_target_square() as usize],
@@ -185,8 +167,6 @@ impl fmt::Debug for Move {
             if self.is_enpassant() { " EP" } else { "" },
             if self.get_castling() { " O-O" } else { "" },
             if self.get_double_pawn_push() { " dblPP" } else { "" },
-            self.get_old_ep_square(),
-            self.get_old_castle(),
         )
     }
 }
@@ -380,12 +360,9 @@ mod tests {
         let enpassant = 0;
         let castling = 0;
         let double_pawn_push = 0;
-        let old_ep_square = 37;
-        let old_castle = 11;
-        let taken = Piece::r;
 
 
-        let move_to_test = Move::create(source, target, MoveCode::QueenPromotionCapture, old_ep_square, old_castle, taken);
+        let move_to_test = Move::create(source, target, MoveCode::QueenPromotionCapture);
         assert_eq!(move_to_test.get_source_square(), source);
         assert_eq!(move_to_test.get_target_square(), target);
         assert_eq!(move_to_test.get_promoted_piece(White), promoted);
@@ -393,8 +370,6 @@ mod tests {
         assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
         assert_eq!(move_to_test.get_castling(), castling != 0);
         assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
-        assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
-        assert_eq!(move_to_test.get_old_castle(), old_castle);
     }
 
     #[test]
@@ -406,12 +381,9 @@ mod tests {
         let enpassant = 0;
         let castling = 1;
         let double_pawn_push = 0;
-        let old_ep_square = 37;
-        let old_castle = 15;
-        let taken = Piece::NONE;
 
 
-        let move_to_test = Move::create(source, target, MoveCode::KingCastle, old_ep_square, old_castle, taken);
+        let move_to_test = Move::create(source, target, MoveCode::KingCastle);
         assert_eq!(move_to_test.get_source_square(), source);
         assert_eq!(move_to_test.get_target_square(), target);
         assert_eq!(move_to_test.get_promoted_piece(White), promoted);
@@ -419,8 +391,6 @@ mod tests {
         assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
         assert_eq!(move_to_test.get_castling(), castling != 0);
         assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
-        assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
-        assert_eq!(move_to_test.get_old_castle(), old_castle);
     }
 
     #[test]
@@ -432,12 +402,8 @@ mod tests {
         let enpassant = 1;
         let castling = 0;
         let double_pawn_push = 0;
-        let old_ep_square = 37;
-        let old_castle = 15;
-        let taken = Piece::NONE;
 
-
-        let move_to_test = Move::create(source, target, MoveCode::EnPassant, old_ep_square, old_castle, taken);
+        let move_to_test = Move::create(source, target, MoveCode::EnPassant);
         assert_eq!(move_to_test.get_source_square(), source);
         assert_eq!(move_to_test.get_target_square(), target);
         assert_eq!(move_to_test.get_promoted_piece(White), promoted);
@@ -445,7 +411,5 @@ mod tests {
         assert_eq!(move_to_test.is_enpassant(), enpassant != 0);
         assert_eq!(move_to_test.get_castling(), castling != 0);
         assert_eq!(move_to_test.get_double_pawn_push(), double_pawn_push != 0);
-        assert_eq!(move_to_test.get_old_ep_square(), old_ep_square);
-        assert_eq!(move_to_test.get_old_castle(), old_castle);
     }
 }

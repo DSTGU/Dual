@@ -108,12 +108,11 @@ pub fn is_square_attacked(square: u8, board: &BoardPosition) -> bool {
 // Move generation helpers
 // ---------------------------------------------------------------------------
 #[inline(always)]
-fn push_move(moves: &mut Vec<Move>, source: u8, target: u8, move_code: MoveCode, current_enpassant: u8, current_castle: usize, taken_piece : Piece) {
+fn push_move(moves: &mut Vec<Move>, source: u8, target: u8, move_code: MoveCode) {
     let new_move = Move::create(
         source,
         target,
-        move_code,
-        current_enpassant, current_castle, taken_piece
+        move_code
     );
     moves.push(new_move);
 }
@@ -148,17 +147,17 @@ fn generate_pawn_moves(
             if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
                 // Promotion
                 for promo in promotion_codes() {
-                    push_move(moves, source as u8, target as u8, promo, board.enpassant, board.castle, Piece::NONE);
+                    push_move(moves, source as u8, target as u8, promo);
                 }
             } else {
                 if !quiescence {
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
                     
                     // Double push
                     if source >= start_rank_range.0 && source <= start_rank_range.1 {
                         let target2 = (target as isize + direction) as usize;
                         if target2 < 64 && !get_bit(all_occ, target2) {
-                            push_move(moves, source as u8, target2 as u8,MoveCode::DoublePush, board.enpassant, board.castle, Piece::NONE);
+                            push_move(moves, source as u8, target2 as u8,MoveCode::DoublePush);
                         }
                     }
                 }
@@ -173,10 +172,10 @@ fn generate_pawn_moves(
 
             if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
                 for promo in promotion_capture_codes() {
-                    push_move(moves, source as u8, cap_target as u8, promo, board.enpassant, board.castle, board.find_capture_at_square(cap_target));
+                    push_move(moves, source as u8, cap_target as u8, promo);
                 }
             } else {
-                push_move(moves, source as u8, cap_target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(cap_target));
+                push_move(moves, source as u8, cap_target as u8, MoveCode::Capture);
             }
         }
 
@@ -185,7 +184,7 @@ fn generate_pawn_moves(
             let ep_bit = PAWN_ATTACKS[side][source] & (1u64 << board.enpassant);
             if ep_bit != 0 {
                 let ep_target = ep_bit.trailing_zeros() as u8;
-                push_move(moves, source as u8, ep_target, MoveCode::EnPassant, board.enpassant, board.castle, Piece::NONE);
+                push_move(moves, source as u8, ep_target, MoveCode::EnPassant);
             }
         }
     }
@@ -212,10 +211,10 @@ fn generate_king_moves(
             pop_bit(&mut attacks, target);
 
             if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
+                push_move(moves, source as u8, target as u8, MoveCode::Capture);
             } else {
                 if !quiescence {
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
                 }
             }
         }
@@ -238,7 +237,7 @@ fn generate_castling_moves(
             && !is_square_attacked(60, board)
             && !is_square_attacked(61, board)
         {
-            push_move(moves, 60, 62, MoveCode::KingCastle, board.enpassant, board.castle, Piece::NONE);
+            push_move(moves, 60, 62, MoveCode::KingCastle);
         }
         // White queenside (O-O-O): king e1->c1, rook a1->d1
         if board.castle & 2 != 0
@@ -248,7 +247,7 @@ fn generate_castling_moves(
             && !is_square_attacked(60, board)
             && !is_square_attacked(59, board)
         {
-            push_move(moves, 60, 58, MoveCode::QueenCastle, board.enpassant, board.castle, Piece::NONE);
+            push_move(moves, 60, 58, MoveCode::QueenCastle);
         }
     } else {
         // Black kingside (O-O): king e8->g8, rook h8->f8
@@ -258,7 +257,7 @@ fn generate_castling_moves(
             && !is_square_attacked(4, board)
             && !is_square_attacked(5, board)
         {
-            push_move(moves, 4, 6, MoveCode::KingCastle, board.enpassant, board.castle, Piece::NONE);
+            push_move(moves, 4, 6, MoveCode::KingCastle);
         }
         // Black queenside (O-O-O): king e8->c8, rook a8->d8
         if board.castle & 8 != 0
@@ -268,7 +267,7 @@ fn generate_castling_moves(
             && !is_square_attacked(4, board)
             && !is_square_attacked(3, board)
         {
-            push_move(moves, 4, 2, MoveCode::QueenCastle, board.enpassant, board.castle, Piece::NONE);
+            push_move(moves, 4, 2, MoveCode::QueenCastle);
         }
     }
 }
@@ -294,10 +293,10 @@ fn generate_knight_moves(
             pop_bit(&mut attacks, target);
             
             if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
+                push_move(moves, source as u8, target as u8, MoveCode::Capture);
             } else {
                 if !quiescence {
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
                 }
             }
         }
@@ -325,10 +324,10 @@ fn generate_bishop_moves(
             pop_bit(&mut attacks, target);
 
             if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
+                push_move(moves, source as u8, target as u8, MoveCode::Capture);
             } else {
                 if !quiescence {   
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
                 }
             }
         }
@@ -356,10 +355,10 @@ fn generate_rook_moves(
             pop_bit(&mut attacks, target);
 
             if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
+                push_move(moves, source as u8, target as u8, MoveCode::Capture);
             } else {
                 if !quiescence {   
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
                 }
             }
         }
@@ -387,10 +386,10 @@ fn generate_queen_moves(
             pop_bit(&mut attacks, target);
 
             if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture, board.enpassant, board.castle, board.find_capture_at_square(target));
+                push_move(moves, source as u8, target as u8, MoveCode::Capture);
             } else {
                 if !quiescence {
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove, board.enpassant, board.castle, Piece::NONE);
+                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
                 }
             }
         }

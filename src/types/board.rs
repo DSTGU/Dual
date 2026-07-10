@@ -180,6 +180,10 @@ impl BoardPosition {
         self.mailbox[mv.get_source_square() as usize]
     }
 
+    pub fn get_victim(&self, mv: Move) -> Piece {
+        self.mailbox[mv.get_target_square() as usize]
+    }
+
     pub fn has_pieces(&self) -> bool {
         self.bitboards[Piece::B as usize] > 0 ||
         self.bitboards[Piece::R as usize] > 0 ||
