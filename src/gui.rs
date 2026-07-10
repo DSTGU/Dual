@@ -39,37 +39,33 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 // }
 
 pub fn parse_go(board_position: &BoardPosition, search_state: &mut SearchState, command: &str) {
-    let mut depth = None; //depth_func(board_position.occupancies[2].count_ones());
+    search_state.clear_data();
+    search_state.stop_condition.reset();
+
     let words : Vec<&str> = command.split_ascii_whitespace().collect();
-    let mut wtime : Option<usize> = None;
-    let mut btime : Option<usize> = None;
-    let mut winc : Option<usize> = None;
-    let mut binc : Option<usize> = None;
-    let mut movetime : Option<usize> = None;
+    let mut wtime : Option<u64> = None;
+    let mut btime : Option<u64> = None;
+    let mut winc : Option<u64> = None;
+    let mut binc : Option<u64> = None;
 
     for i in 0..words.len()/2 {
         match words[2 * i + 1] {
-            "depth" => depth = Some(words[2*i+2].parse().unwrap_or(6)),
+            "depth" => search_state.stop_condition.depth = Some(words[2*i+2].parse().unwrap_or(6)),
             "perft" => {perft(board_position, words[2*i+2].parse().unwrap_or(4)); return;},
             "wtime" => wtime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "btime" => btime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "winc" => winc = Some(words[2*i+2].parse().unwrap_or(1000)),
             "binc" => binc = Some(words[2*i+2].parse().unwrap_or(1000)),
-            "movetime" => movetime = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "softnodes" => search_state.stop_condition.soft_nodecount = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "movetime" => search_state.stop_condition.movetime_deadline = Some(words[2*i+2].parse().unwrap_or(1000)),
             _ => ()
         }
     }
 
-    if movetime.is_some() {
-        search(board_position, search_state, depth, movetime);
-        return;
-    }
+    search_state.stop_condition.our_time_ms = if board_position.side == Black { btime } else { wtime };
+    search_state.stop_condition.our_inc_ms =  if board_position.side == Black { binc } else { winc };
 
-    let time : Option<usize> = if board_position.side == Black { btime } else { wtime };
-    let inc: Option<usize> =  if board_position.side == Black { binc } else { winc };
-
-    let time_available : Option<usize> = time.map(|timeval| (timeval/20 + inc.unwrap_or(0)/2).min(timeval*3/4));
-    search(board_position, search_state, depth, time_available);
+    search(board_position, search_state);
 }
 
 pub fn parse_ucinewgame(search_state: &mut SearchState) -> BoardPosition {
@@ -79,8 +75,6 @@ pub fn parse_ucinewgame(search_state: &mut SearchState) -> BoardPosition {
 
 pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> BoardPosition {
         let words : Vec<&str> = command.trim().split(" ").collect();
-
-        search_state.change_position();
 
         if words.len() < 2 {
             return BoardPosition::new(START_POSITION);
