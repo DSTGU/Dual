@@ -212,11 +212,6 @@ impl TranspositionTable {
         let idx = Self::index(hash);
         let entry = &mut self.entries[idx];
 
-        // Replacement strategy:
-        // 1. Always replace if entry is empty or from different position
-        // 2. Replace if new search is deeper
-        // 3. Replace if same depth but from older search
-
         if entry.hash == 0
             || entry.matches(hash) && matches_replacement_strength(depth, flag) >= matches_replacement_strength(entry.depth, entry.flag) // || (flag == TTFlag::Exact && entry.flag != TTFlag::Exact)
             || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 3) > 0 {

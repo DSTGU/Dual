@@ -207,6 +207,20 @@ impl Piece {
     }
 }
 
+impl<T> Index<Piece> for [T] {
+    type Output = T;
+
+    fn index(&self, index: Piece) -> &Self::Output {
+        &self[index as usize]
+    }
+}
+
+impl<T> IndexMut<Piece> for [T] {
+    fn index_mut(&mut self, index: Piece) -> &mut Self::Output {
+        &mut self[index as usize]
+    }
+}
+
 pub enum Castle { Wk = 1, Wq = 2, Bk = 4, Bq = 8 }
 
 impl BitAnd<Castle> for usize {

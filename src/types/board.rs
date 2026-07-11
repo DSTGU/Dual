@@ -180,10 +180,6 @@ impl BoardPosition {
         self.mailbox[mv.get_source_square() as usize]
     }
 
-    pub fn get_victim(&self, mv: Move) -> Piece {
-        self.mailbox[mv.get_target_square() as usize]
-    }
-
     pub fn has_pieces(&self) -> bool {
         self.bitboards[Piece::B as usize] > 0 ||
         self.bitboards[Piece::R as usize] > 0 ||
@@ -259,8 +255,12 @@ impl BoardPosition {
     }
 
     #[inline(always)]
-    pub fn find_capture_at_square(&self, square: usize) -> Piece {
-        self.mailbox[square]
+    pub fn get_victim(&self, mv: Move) -> Piece {
+        if mv.is_enpassant() {
+            return self.mailbox[mv.get_source_square() as usize].flip_color();
+        }
+            
+        self.mailbox[mv.get_target_square() as usize]
     }
 
     /// Apply `move_to_make` to `board` and return the resulting position, or
