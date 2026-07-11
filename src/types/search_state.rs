@@ -46,7 +46,7 @@ impl StopCondition {
                 return true;
             }
             
-            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/20 + our_inc * 3/4 } else { our_time/20 }; 
+            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/17 + our_inc} else { our_time/17 }; 
 
             if elapsed > our_time_plusinc {
                 return true;
@@ -76,7 +76,7 @@ impl StopCondition {
                 return true;
             }
             
-            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/20 + our_inc * 3/4 } else { our_time/20 } / 3; 
+            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/17 + our_inc } else { our_time/17 } / 3; 
 
             if elapsed > our_time_plusinc {
                 return true;
