@@ -1,5 +1,3 @@
-use coarsetime::{Duration, Instant};
-
 use crate::search::{collect_pv, single_depth_search_aspirated}; 
 use crate::types::board::BoardPosition;
 use crate::types::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION, SearchAnswer}; 
@@ -8,24 +6,23 @@ use crate::types::search_state::SearchState;
 
 
 pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
-    search_state.change_position();
-    search_state.set_deadline(Instant::now().checked_add(Duration::from_secs(100000)).unwrap());
     let board_position = BoardPosition::new(fen);
+    search_state.clear_data();
+    search_state.stop_condition.depth = Some(depth);
 
-
-    let now = Instant::now();
     let mut local_depth = MIN_DEPTH;
     let mut score = SearchAnswer{eval: 0, move_list: vec![], node_count: 0};
+    search_state.reset_for_new_iteration(MIN_DEPTH);
 
-    while local_depth <= depth {
-            search_state.reset_for_new_iteration(depth);
-
-            score = single_depth_search_aspirated(&board_position, search_state, local_depth, score.eval);
+    while !search_state.stop_condition.should_soft_quit(local_depth, search_state.nodes) {
+        local_depth += 1;
+        
+        search_state.reset_for_new_iteration(local_depth);
+        score = single_depth_search_aspirated(&board_position, search_state, local_depth, score.eval);
                         
-            local_depth += 1;
     }
 
-    let time = now.elapsed().as_micros();
+    let time = search_state.stop_condition.started_search.elapsed().as_micros();
     if time == 0 {
         println!("Eval: {}, Depth: {}, Seldepth: {}, nodes: {}, time: 0ms, nps: infinite knps", score.eval, search_state.max_depth, search_state.seldepth, search_state.nodes);
         println!("PV: {}", collect_pv(&score.move_list));

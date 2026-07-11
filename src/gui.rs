@@ -38,38 +38,33 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 //     ((9.0 / ((figures - 1) as f32).powf(0.20)) + 1.5) as usize
 // }
 
-pub fn parse_go(board_position: &BoardPosition, search_state: &mut SearchState, command: &str) {
-    let mut depth = None; //depth_func(board_position.occupancies[2].count_ones());
+pub fn parse_go(board_position: &BoardPosition, search_state: &mut SearchState, command: &str) {        
+    search_state.stop_condition.reset();
+
     let words : Vec<&str> = command.split_ascii_whitespace().collect();
-    let mut wtime : Option<usize> = None;
-    let mut btime : Option<usize> = None;
-    let mut winc : Option<usize> = None;
-    let mut binc : Option<usize> = None;
-    let mut movetime : Option<usize> = None;
+    let mut wtime : Option<u64> = None;
+    let mut btime : Option<u64> = None;
+    let mut winc : Option<u64> = None;
+    let mut binc : Option<u64> = None;
 
     for i in 0..words.len()/2 {
         match words[2 * i + 1] {
-            "depth" => depth = Some(words[2*i+2].parse().unwrap_or(6)),
+            "depth" => search_state.stop_condition.depth = Some(words[2*i+2].parse().unwrap_or(6)),
             "perft" => {perft(board_position, words[2*i+2].parse().unwrap_or(4)); return;},
             "wtime" => wtime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "btime" => btime = Some(words[2*i+2].parse().unwrap_or(1000)),
             "winc" => winc = Some(words[2*i+2].parse().unwrap_or(1000)),
             "binc" => binc = Some(words[2*i+2].parse().unwrap_or(1000)),
-            "movetime" => movetime = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "softnodes" => search_state.stop_condition.soft_nodecount = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "movetime" => search_state.stop_condition.movetime_deadline = Some(words[2*i+2].parse().unwrap_or(1000)),
             _ => ()
         }
     }
 
-    if movetime.is_some() {
-        search(board_position, search_state, depth, movetime);
-        return;
-    }
+    search_state.stop_condition.our_time_ms = if board_position.side == Black { btime } else { wtime };
+    search_state.stop_condition.our_inc_ms =  if board_position.side == Black { binc } else { winc };
 
-    let time : Option<usize> = if board_position.side == Black { btime } else { wtime };
-    let inc: Option<usize> =  if board_position.side == Black { binc } else { winc };
-
-    let time_available : Option<usize> = time.map(|timeval| (timeval/20 + inc.unwrap_or(0)/2).min(timeval*3/4));
-    search(board_position, search_state, depth, time_available);
+    search(board_position, search_state);
 }
 
 pub fn parse_ucinewgame(search_state: &mut SearchState) -> BoardPosition {
@@ -78,9 +73,9 @@ pub fn parse_ucinewgame(search_state: &mut SearchState) -> BoardPosition {
 }
 
 pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> BoardPosition {
-        let words : Vec<&str> = command.trim().split(" ").collect();
+        search_state.clear_data();
 
-        search_state.change_position();
+        let words : Vec<&str> = command.trim().split(" ").collect();
 
         if words.len() < 2 {
             return BoardPosition::new(START_POSITION);
@@ -91,6 +86,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
         match words[1] {
             "fen" => {
                 board_position = BoardPosition::new(&command[13..]);
+                // Push the initial position hash to rep_table (game history)
                 search_state.make_move(board_position.hash);
                 
                 if words.len() > 8 {
@@ -104,15 +100,15 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                             }
 
                             board_position = suggestion.unwrap();
+                            // Push each game position hash to rep_table (game history)
                             search_state.make_move(board_position.hash);
                         }
                     }
-
-                    search_state.rep_table.pop();
                 }
             },
             "startpos" => {
                 board_position = BoardPosition::new(START_POSITION);
+                // Push the initial position hash to rep_table (game history)
                 search_state.make_move(board_position.hash);
                 
                 for &i in words[2..].iter() {
@@ -125,13 +121,14 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                             }
 
                             board_position = suggestion.unwrap();
+                            // Push each game position hash to rep_table (game history)
                             search_state.make_move(board_position.hash);
                         }
-                        search_state.rep_table.pop();
                 }
             },
             "kiwipete" => {
                 board_position = BoardPosition::new(KIWIPETE);
+                // Push the initial position hash to rep_table (game history)
                 search_state.make_move(board_position.hash);
                 
                 for &i in words[2..].iter() {
@@ -144,18 +141,23 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                             }
 
                             board_position = suggestion.unwrap();
+                            // Push each game position hash to rep_table (game history)
                             search_state.make_move(board_position.hash);
                         }
-                        search_state.rep_table.pop();
                 }
 
             },
             _ => board_position = BoardPosition::new(START_POSITION),
         }
 
-    search_state.ply = 0;
+        // The rep_table now contains all game positions visited, from the initial
+        // position through every intermediate position up to (and including) the
+        // current position. Pop the current position since it is the starting point
+        // for search, not part of the history to detect repetitions against.
+        search_state.rep_table.pop();
+        search_state.ply = 0;
 
-    board_position
+        board_position
 }
 
 

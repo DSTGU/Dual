@@ -1,13 +1,115 @@
-use coarsetime::{Duration, Instant};
+use coarsetime::{Instant};
 
 use crate::types::board::BoardPosition;
 use crate::types::shared::{Move, Piece};
-use crate::types::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MIN_DEPTH, MVV_LVA, SECOND_KILLER_BONUS};
+use crate::types::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MVV_LVA, SECOND_KILLER_BONUS};
 use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, score_to_tt};
+
+
+pub struct StopCondition {
+    pub movetime_deadline: Option<u64>,
+    pub our_time_ms: Option<u64>,
+    pub our_inc_ms: Option<u64>,
+    pub depth: Option<usize>,
+    hard_nodecount: Option<u64>,
+    pub soft_nodecount: Option<u64>,
+    pub started_search: Instant,
+    drop_everything_and_quit: bool 
+}
+
+impl Default for StopCondition {
+    fn default() -> Self {
+        StopCondition { movetime_deadline: None,
+            our_time_ms: None,
+            our_inc_ms: None,
+            depth: None, 
+            hard_nodecount: None, 
+            soft_nodecount: None, 
+            started_search: Instant::now(),
+            drop_everything_and_quit: false 
+        }
+    }
+}
+
+impl StopCondition {
+    fn passed_deadline(&self) -> bool {
+        let elapsed = self.started_search.elapsed().as_millis();
+        
+        if let Some(movetime_deadline) = self.movetime_deadline {
+            if elapsed > movetime_deadline {
+                return true;
+            }
+        }
+
+        if let Some(our_time) = self.our_time_ms {
+            if elapsed >= our_time * 3 / 4 {
+                return true;
+            }
+            
+            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/20 + our_inc * 3/4 } else { our_time/20 }; 
+
+            if elapsed > our_time_plusinc {
+                return true;
+            }
+        }
+
+        false
+    }
+    
+    pub fn should_soft_quit(&self, depth: usize, nodes: u64) -> bool {
+        if let Some(max_depth) = self.depth {
+            if max_depth == depth {
+                return true;
+            }
+        }
+
+        if let Some(max_nodes) = self.soft_nodecount {
+            if max_nodes == nodes {
+                return true;
+            }
+        }
+
+        let elapsed = self.started_search.elapsed().as_millis();
+
+        if let Some(our_time) = self.our_time_ms {
+            if elapsed >= our_time * 3 / 4 {
+                return true;
+            }
+            
+            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/20 + our_inc * 3/4 } else { our_time/20 } / 3; 
+
+            if elapsed > our_time_plusinc {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn should_hard_quit(&mut self, nodes: u64) -> bool {
+        if self.drop_everything_and_quit {
+            return true;
+        }
+
+
+
+        if self.passed_deadline() {
+            self.drop_everything_and_quit = true;
+            return true;
+        }
+
+        false
+    }
+
+    pub fn reset(&mut self) {
+        self.drop_everything_and_quit = false;
+        self.started_search = Instant::now();
+    }
+}
 
 /// Search state structure - encapsulates all search-related state
 pub struct SearchState {
-    pub max_depth: usize,
+    pub max_depth: usize, // Of the search iteration, not in general
     pub seldepth: usize,
     killer_moves: [[Move; 256]; 2],
     //only public for test purposes
@@ -16,8 +118,7 @@ pub struct SearchState {
     tt: TranspositionTable,
     pub rep_table: RepetitionTable,
     pub nodes: u64,
-    deadline: Instant, // change to more universal stop_condition struct
-    pub search_start: Instant,
+    pub stop_condition: StopCondition, // change to more universal stop_condition struct
     should_quit: bool,
     pub ply: usize,
 }
@@ -33,21 +134,21 @@ impl SearchState {
             tt: TranspositionTable::new(),
             rep_table: RepetitionTable::new(),
             nodes: 0,
-            deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
-            search_start: Instant::now(),
+            stop_condition: StopCondition::default(),
+            //deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
             should_quit: false,
             ply: 0,
         }
     }
 
     // This function was moved here to preserve TT between nodes
-    pub fn change_position(&mut self) {
+    pub fn clear_data(&mut self) {
         self.max_depth = 0;
         self.seldepth = 0;
         self.killer_moves = [[Move::create_null(); 256]; 2];
         self.rep_table.clear();
         self.nodes = 0;
-        self.deadline = Instant::now().checked_add(Duration::from_secs(1)).unwrap();
+        self.stop_condition = StopCondition::default();
         self.should_quit = false;
         self.ply = 0;
     }
@@ -181,28 +282,6 @@ impl SearchState {
             })
     }
 
-    pub fn passed_deadline(&self) -> bool {
-        Instant::now() > self.deadline
-    }
-
-    pub fn should_quit(&mut self) -> bool {
-        if self.should_quit {
-            return true;
-        }
-
-        if self.max_depth > MIN_DEPTH && self.passed_deadline() {
-            self.should_quit = true;
-            return true;
-        }
-
-        false
-    }
-
-    pub fn set_deadline(&mut self, deadline: Instant) {
-        self.deadline = deadline;
-        self.should_quit = false;
-    }
-
 }
 
 impl Default for SearchState {
@@ -227,22 +306,23 @@ use crate::types::shared::{START_POSITION};
         let handler = builder
             .spawn(|| {
                 let mut search_state = SearchState::new();
+                search_state.stop_condition.depth = Some(4);
                 let mut board_position = BoardPosition::new(START_POSITION);
                 let empty_history = [[[0; 64]; 64]; 2];
-                search(&board_position, &mut search_state, Some(4), None);
+                search(&board_position, &mut search_state);
                 assert_ne!(search_state.history_moves, empty_history);
 
                 board_position = parse_position_command(&mut search_state, "position startpos moves e2e4 e7e5");
                 assert_ne!(search_state.history_moves, empty_history);
 
-                search(&board_position, &mut search_state, Some(4), None);
+                search(&board_position, &mut search_state);
                 assert_ne!(search_state.history_moves, empty_history);
 
                 parse_ucinewgame(&mut search_state);
                 board_position = parse_position_command(&mut search_state,"position kiwipete");
                 assert_eq!(search_state.history_moves, empty_history);
 
-                search(&board_position, &mut search_state, Some(4), None);
+                search(&board_position, &mut search_state);
                 assert_ne!(search_state.history_moves, empty_history);
 
             })
