@@ -34,20 +34,65 @@ pub fn reduce_lmr_by(depth: usize, moves: usize) -> usize {
     (0.99 + (depth as f32).ln() * (moves as f32).ln() / 3.14) as usize
 }
 
-pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> SearchAnswer {
+pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> i32 {
 
     search_state.seldepth = search_state.seldepth.max(ply);
 
     if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
-        return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_SCORE };
+        search_state.nodes += 1;
+        return DRAW_SCORE;
     }
+
+    // // ------------------------------------------------------------
+    // // QS TT probe
+    // // ------------------------------------------------------------
+    // let probe = search_state.probe_tt(board_position.hash);
+    
+    // if let Some(entry) = probe {
+
+    //     if !search_state.is_twofold_repetition(board_position.hash) {
+    //         let score = score_from_tt(entry.score, search_state.ply);
+    //         match entry.flag {
+
+    //             TTFlag::Exact => {
+    //                 return SearchAnswer {
+    //                     move_list: vec![Some(entry.best_move)],
+    //                     node_count: 1,
+    //                     eval: score,
+    //                 };
+    //             }
+
+    //             TTFlag::Alpha => {
+    //                 if score <= alpha {
+    //                     return SearchAnswer {
+    //                         move_list: vec![],
+    //                         node_count: 1,
+    //                         eval: score,
+    //                     };
+    //                 }
+    //             }
+
+    //             TTFlag::Beta => {
+    //                 if score >= beta {
+    //                     return SearchAnswer {
+    //                         move_list: vec![Some(entry.best_move)],
+    //                         node_count: 1,
+    //                         eval: score,
+    //                     };
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     //PESTO eval
     let eval = nnue_evaluate(&board_position);
 
     if eval >= beta
     {
-        return SearchAnswer { move_list: vec![], node_count: 0, eval: beta };
+        search_state.nodes += 1;
+        return beta;
+        //return SearchAnswer { move_list: vec![], node_count: 0, eval: beta };
     }
 
     let mut new_alpha = alpha;
@@ -59,7 +104,6 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
     let move_list = generate_moves(&board_position, true);
     let filtered_move_list = sort_move_list(board_position, search_state, move_list);
-    let mut nodes = 1;
 
     for mv in filtered_move_list {
 
@@ -81,18 +125,20 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
         
             let res = quiescence(&new_board, search_state, -beta, -new_alpha, ply + 1);
             search_state.take_back();
-            nodes += res.node_count;
 
-            if -res.eval >= beta {
-                return SearchAnswer { move_list: vec![], node_count: nodes, eval: beta };
+            if -res >= beta {
+                search_state.nodes += 1;
+                return beta;
             }
 
-            if -res.eval > new_alpha {
-                new_alpha = -res.eval;
+            if -res > new_alpha {
+                new_alpha = -res;
             }
         }
 
-    SearchAnswer { move_list: vec![], node_count: nodes, eval: new_alpha }
+    search_state.nodes += 1;
+    new_alpha
+    //SearchAnswer { move_list: vec![], node_count: nodes, eval: new_alpha }
 
 }
 
@@ -109,7 +155,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
     }
     
     if depth == 0 {
-        return quiescence(board_position, search_state, alpha, beta, search_state.ply);
+        return SearchAnswer { move_list: vec![], node_count: 1, eval: quiescence(board_position, search_state, alpha, beta, search_state.ply) };
     }
 
     let mut new_alpha = alpha;

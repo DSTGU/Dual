@@ -213,7 +213,7 @@ impl TranspositionTable {
         let entry = &mut self.entries[idx];
 
         if entry.hash == 0
-            || entry.matches(hash) && matches_replacement_strength(depth, flag) >= matches_replacement_strength(entry.depth, entry.flag) // || (flag == TTFlag::Exact && entry.flag != TTFlag::Exact)
+            || entry.matches(hash) && matches_replacement_strength(depth, flag) >= matches_replacement_strength(entry.depth, entry.flag)
             || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 3) > 0 {
             *entry = TTEntry {
                 hash,
@@ -227,14 +227,14 @@ impl TranspositionTable {
     }
 }
 
-    #[inline]
-    pub fn matches_replacement_strength(depth: u8, flag: TTFlag) -> u8 {
-        depth + if flag == TTFlag::Exact {
-            1
-        } else {
-            0
-        }
+#[inline]
+pub fn matches_replacement_strength(depth: u8, flag: TTFlag) -> u8 {
+    depth + if flag == TTFlag::Exact {
+        1
+    } else {
+        0
     }
+}
 
 impl Default for TranspositionTable {
     fn default() -> Self {
