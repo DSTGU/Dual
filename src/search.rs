@@ -142,7 +142,30 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
 }
 
-pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
+pub trait NodeType {
+    const PV: bool;
+    const ROOT: bool;
+}
+
+struct Root;
+impl NodeType for Root {
+    const PV: bool = true;
+    const ROOT: bool = true;
+}
+
+struct PV;
+impl NodeType for PV {
+    const PV: bool = true;
+    const ROOT: bool = false;
+}
+
+struct NonPV;
+impl NodeType for NonPV {
+    const PV: bool = false;
+    const ROOT: bool = false;
+}
+
+pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
     
     let is_pv_node = beta - alpha > 1;
 
@@ -247,7 +270,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
         {
             let r = 2 + depth / 4; // NMP Reduction
             let null_board = board_position.make_null_move();
-            let search_answer = pvs(&null_board, search_state, -beta, -(beta - 1), (depth - r - 1).max(0));
+            let search_answer = pvs::<NonPV>(&null_board, search_state, -beta, -(beta - 1), (depth - r - 1).max(0));
 
             if -search_answer.eval >= beta {
                 return SearchAnswer {
@@ -339,7 +362,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
                 // --------------------------------------------------------
             
             if legal_moves == 1 {
-                let score: SearchAnswer = pvs(&new_board, search_state, -beta, -new_alpha, depth-1);
+                let score: SearchAnswer = pvs::<PV>(&new_board, search_state, -beta, -new_alpha, depth-1);
                 search_state.take_back();
                 nodes += score.node_count;
 
@@ -389,7 +412,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
                 // reduced + null-window
                 // ----------------------------------------------------
 
-                let mut score = pvs(&new_board, search_state, -new_alpha-1, -new_alpha, depth-1-reduction);
+                let mut score = pvs::<NonPV>(&new_board, search_state, -new_alpha-1, -new_alpha, depth-1-reduction);
                 nodes += score.node_count;
 
 
@@ -402,7 +425,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
                 // Re-search at FULL DEPTH still using null window.
                 // ----------------------------------------------------
                 if reduction > 0 && -score.eval > new_alpha {
-                    score = pvs(&new_board, search_state, -new_alpha-1, -new_alpha, depth - 1);
+                    score = pvs::<NonPV>(&new_board, search_state, -new_alpha-1, -new_alpha, depth - 1);
                     nodes += score.node_count;
                 } 
 
@@ -414,7 +437,7 @@ pub fn pvs(board_position: &BoardPosition, search_state: &mut SearchState, alpha
                 // ----------------------------------------------------
                 if -score.eval > new_alpha && -score.eval < beta  {
                     // research with window [alfa;beta]
-                    score = pvs(&new_board, search_state, -beta, -new_alpha, depth-1);
+                    score = pvs::<PV>(&new_board, search_state, -beta, -new_alpha, depth-1);
                     nodes += score.node_count;
 
                 }
@@ -523,7 +546,7 @@ pub fn collect_pv(moves: &[Option<Move>]) -> String {
 }
 
 pub fn single_depth_search(board_position: &BoardPosition, search_state: &mut SearchState, depth: usize) -> SearchAnswer {
-    let score = pvs(board_position, search_state, -MATE_SCORE, MATE_SCORE, depth);
+    let score = pvs::<Root>(board_position, search_state, -MATE_SCORE, MATE_SCORE, depth);
     search_state.nodes += score.node_count as u64;
     score
 }
@@ -536,7 +559,7 @@ pub fn single_depth_search_aspirated(board_position: &BoardPosition, search_stat
 
     for _ in 0..3 {
         //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
-        score = pvs(board_position, search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
+        score = pvs::<Root>(board_position, search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
         //println!("aspiration, score: {:?}", score.eval);
         search_state.nodes += score.node_count as u64;
         
