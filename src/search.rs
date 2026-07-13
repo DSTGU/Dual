@@ -167,7 +167,7 @@ impl NodeType for NonPV {
 
 pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
     
-    let is_pv_node = beta - alpha > 1;
+    let is_pv_node_deprecated = beta - alpha > 1;
 
     if search_state.stop_condition.should_hard_quit(1) {
        return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
@@ -190,7 +190,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     
     if let Some(entry) = probe {
 
-        if entry.depth as usize >= depth && !search_state.is_twofold_repetition(board_position.hash) {
+        if !NODE::ROOT && entry.depth as usize >= depth && !search_state.is_twofold_repetition(board_position.hash) {
             let score = score_from_tt(entry.score, search_state.ply);
             match entry.flag {
 
@@ -247,7 +247,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // "Position is so good that even after margin reduction
     //  we still exceed beta."
     // ------------------------------------------------------------
-    if !is_pv_node
+    if !is_pv_node_deprecated
        && depth <= 6
        && !is_in_check
        && static_eval - (150*depth) as i32 >= beta {
@@ -265,7 +265,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         if !is_in_check &&
         board_position.has_pieces() &&
         static_eval > beta &&
-        !is_pv_node &&
+        !is_pv_node_deprecated &&
         depth >= 3
         {
             let r = 2 + depth / 4; // NMP Reduction
@@ -306,7 +306,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // "Quiet move cannot raise alpha enough."
         // --------------------------------------------------------
 
-        if !is_pv_node && 
+        if !is_pv_node_deprecated && 
             depth <= 5 &&
             legal_moves > 1 &&
             mv.is_quiet() &&
@@ -323,7 +323,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         if depth >= 3 &&
            legal_moves > 1 &&
            mv.is_quiet() &&
-           !is_pv_node {
+           !is_pv_node_deprecated {
            //and not inCheck
            //and not givesCheck:
 
