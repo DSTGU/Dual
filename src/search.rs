@@ -167,8 +167,6 @@ impl NodeType for NonPV {
 
 pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
     
-    let is_pv_node_deprecated = beta - alpha > 1;
-
     if search_state.stop_condition.should_hard_quit(1) {
        return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
     }
@@ -247,7 +245,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // "Position is so good that even after margin reduction
     //  we still exceed beta."
     // ------------------------------------------------------------
-    if !is_pv_node_deprecated
+    if !NODE::PV
        && depth <= 6
        && !is_in_check
        && static_eval - (150*depth) as i32 >= beta {
@@ -262,11 +260,12 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // ------------------------------------------------------------
     // Null Move Pruning 
     // ------------------------------------------------------------
-        if !is_in_check &&
+        if 
         board_position.has_pieces() &&
         static_eval > beta &&
-        !is_pv_node_deprecated &&
+        !is_in_check &&
         depth >= 3
+        // !NODE::PV &&
         {
             let r = 2 + depth / 4; // NMP Reduction
             let null_board = board_position.make_null_move();
@@ -306,7 +305,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // "Quiet move cannot raise alpha enough."
         // --------------------------------------------------------
 
-        if !is_pv_node_deprecated && 
+        if !NODE::PV && 
             depth <= 5 &&
             legal_moves > 1 &&
             mv.is_quiet() &&
@@ -322,8 +321,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         let mut reduction = 0;
         if depth >= 3 &&
            legal_moves > 1 &&
-           mv.is_quiet() &&
-           !is_pv_node_deprecated {
+           mv.is_quiet() {
+           // !NODE::PV {
            //and not inCheck
            //and not givesCheck:
 
