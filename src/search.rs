@@ -176,7 +176,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     }
     
     if depth == 0 {
-        return SearchAnswer { move_list: vec![], node_count: 1, eval: quiescence(board_position, search_state, alpha, beta, search_state.ply) };
+        return SearchAnswer { move_list: vec![], node_count: 0, eval: quiescence(board_position, search_state, alpha, beta, search_state.ply) };
     }
 
     let mut new_alpha = alpha;
