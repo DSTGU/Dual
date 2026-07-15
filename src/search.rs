@@ -304,37 +304,18 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         //
         // "Quiet move cannot raise alpha enough."
         // --------------------------------------------------------
-
+        
         if !NODE::PV && 
-            depth <= 5 &&
-            legal_moves > 1 &&
-            mv.is_quiet() &&
-            !is_in_check {
-                if static_eval + 150 * depth as i32 <= alpha {
-                    continue;
-                }
+        depth <= 5 &&
+        legal_moves > 1 &&
+        mv.is_quiet() &&
+        !is_in_check {
+            if static_eval + 150 * depth as i32 <= alpha {
+                continue;
             }
-
-        // --------------------------------------------------------
-        // LMR (Late Move Reductions)
-        // --------------------------------------------------------
-        let mut reduction = 0;
-        if depth >= 3 &&
-           legal_moves > 1 &&
-           mv.is_quiet() {
-           // !NODE::PV {
-           //and not inCheck
-           //and not givesCheck:
-
-            reduction = reduce_lmr_by(depth, legal_moves);
-                            //improving);
-
-            // Often reduce less for good-history moves
-            //reduction -= historyBonus(move)
-
-            reduction = reduction.clamp(0, depth - 1);
         }
-
+        
+        let mut score: SearchAnswer = SearchAnswer { move_list: vec![], node_count: 0, eval: MATE_SCORE };
 
         let new_board = board_position.make_move(mv);
         
@@ -348,143 +329,86 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
         legal_moves += 1;
 
-                // --------------------------------------------------------
-                // PVS SEARCH LOGIC
-                //
-                // First move:
-                //   full window
-                //
-                // Later moves:
-                //   null window first
-                //
-                // LMR usually applies ONLY to the null-window search.
-                // --------------------------------------------------------
-            
-            if legal_moves == 1 {
-                let score: SearchAnswer = pvs::<PV>(&new_board, search_state, -beta, -new_alpha, depth-1);
-                search_state.take_back();
+        // --------------------------------------------------------
+        // LMR (Late Move Reductions)
+        // --------------------------------------------------------
+        if depth >= 3 &&
+           legal_moves > 1 &&
+           mv.is_quiet() {
+           // !NODE::PV {
+           //and not inCheck
+           //and not givesCheck:
+
+            let mut reduction = reduce_lmr_by(depth, legal_moves);
+
+            // Often reduce less for good-history moves
+            //reduction -= historyBonus(move)
+
+            reduction = reduction.clamp(0, depth - 1);
+
+            score = pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1-reduction );
+            nodes += score.node_count;
+
+            if -score.eval > new_alpha {
+                score = pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1 );
                 nodes += score.node_count;
-
-                if -score.eval > new_alpha {
-                    if -score.eval >= beta {
-                        if search_state.stop_condition.should_hard_quit(nodes as u64) {
-                            return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
-                        }
-                        
-                        if mv.is_quiet() {
-                            search_state.update_killer_move(mv);
-                            search_state.update_history(board_position, mv, history_bonus);
-
-                            // apply malus to previous quiet moves
-                            for prev_mv in &previous_quiet_moves {
-                                search_state.update_history(
-                                    board_position,
-                                    *prev_mv,
-                                    -history_bonus,
-                                );
-                            }
-                        }
-
-                        search_state.store_tt(
-                            depth as u8,
-                            -score.eval,
-                            TTFlag::Beta,
-                            mv,
-                            board_position.hash,
-                        );
-
-                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: -score.eval };
-                    }
-
-                    new_alpha = -score.eval;
-                    best_move = Some(mv);
-                    best_move_list = score.move_list;
-                }
-
-                if mv.is_quiet() {
-                    previous_quiet_moves.push(mv);
-                }
-
-            } else {
-                // ----------------------------------------------------
-                // First try:
-                // reduced + null-window
-                // ----------------------------------------------------
-
-                let mut score = pvs::<NonPV>(&new_board, search_state, -new_alpha-1, -new_alpha, depth-1-reduction);
-                nodes += score.node_count;
-
-
-                // ----------------------------------------------------
-                // Case 1:
-                // Reduced search failed high
-                //
-                // The move may actually be good.
-                //
-                // Re-search at FULL DEPTH still using null window.
-                // ----------------------------------------------------
-                if reduction > 0 && -score.eval > new_alpha {
-                    score = pvs::<NonPV>(&new_board, search_state, -new_alpha-1, -new_alpha, depth - 1);
-                    nodes += score.node_count;
-                } 
-
-                // ----------------------------------------------------
-                // Case 2:
-                // Null-window search indicates possible PV move
-                //
-                // Need full-window re-search.
-                // ----------------------------------------------------
-                if -score.eval > new_alpha && -score.eval < beta  {
-                    // research with window [alfa;beta]
-                    score = pvs::<PV>(&new_board, search_state, -beta, -new_alpha, depth-1);
-                    nodes += score.node_count;
-
-                }
-
-                search_state.take_back();
-
-                if -score.eval > new_alpha {
-                    if -score.eval >= beta {
-                        
-                        if search_state.stop_condition.should_hard_quit(nodes as u64) {
-                            return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
-                        }
-
-                        search_state.store_tt(
-                            depth as u8,
-                            -score.eval,
-                            TTFlag::Beta,
-                            mv,
-                            board_position.hash
-                        );
-
-                        if mv.is_quiet() {
-                            search_state.update_killer_move(mv);
-                            search_state.update_history(board_position, mv, history_bonus);
-
-                            // apply malus to previous quiet moves
-                            for prev_mv in &previous_quiet_moves {
-                                search_state.update_history(
-                                        board_position,
-                                    *prev_mv,
-                                    -history_bonus,
-                                );
-                            }
-                        }
-
-                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: -score.eval };
-                    }
-
-                    new_alpha = -score.eval;
-                    best_move = Some(mv);
-                    best_move_list = score.move_list;
-                }
-
-                if mv.is_quiet() {
-                    previous_quiet_moves.push(mv);
-                }
-
             }
+
+        }
+        // Fulldepth
+        else if !NODE::PV || legal_moves >= 2 {
+            score = pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1 );
+            nodes += score.node_count;
+
+        }
+        // PVS
+        if NODE::PV && ( legal_moves == 1 || -score.eval > new_alpha) {
+            score = pvs::<PV>( &new_board, search_state, -beta , -new_alpha , depth-1 );
+            nodes += score.node_count;
+        }
+
+        search_state.take_back();
+
+        if -score.eval > new_alpha {
+            if -score.eval >= beta {
+                
+                if search_state.stop_condition.should_hard_quit(nodes as u64) {
+                    return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
+                }
+
+                search_state.store_tt(
+                    depth as u8,
+                    -score.eval,
+                    TTFlag::Beta,
+                    mv,
+                    board_position.hash
+                );
+
+                if mv.is_quiet() {
+                    search_state.update_killer_move(mv);
+                    search_state.update_history(board_position, mv, history_bonus);
+
+                    // apply malus to previous quiet moves
+                    for prev_mv in &previous_quiet_moves {
+                        search_state.update_history(
+                                board_position,
+                            *prev_mv,
+                            -history_bonus,
+                        );
+                    }
+                }
+
+                return SearchAnswer { move_list: vec![], node_count: nodes, eval: -score.eval };
+            }
+
+            new_alpha = -score.eval;
+            best_move = Some(mv);
+            best_move_list = score.move_list;
+        }
+
+        if mv.is_quiet() {
+            previous_quiet_moves.push(mv);
+        }
     }
 
     if legal_moves == 0 {

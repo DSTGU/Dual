@@ -87,6 +87,7 @@ impl StopCondition {
     }
 
     pub fn should_hard_quit(&mut self, nodes: u64) -> bool {
+        
         if self.drop_everything_and_quit {
             return true;
         }
