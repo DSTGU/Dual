@@ -1,4 +1,4 @@
-Begginer chess engine
+Amateur chess engine
 
 Currently features:
  - Quiescence search
@@ -13,20 +13,29 @@ Currently features:
  - Aspiration windows
  - NNUE
 
-Estimated current rating: ~2800
+Estimated current rating for dev: ~2950
+Estimated current rating for release: 2750
 For more info see releases tab.
 
-Future plans:
+Todo for 1.0.0:
+ - Net improvement and optimisations (fused updates, manual simd)
+ - Train a bigger net with current data
  - Add actual config including tt
- - Tuning
- - Test Correction/Continuation/Countermove history
- - SEE
- - Capture history
- - Move back to copymake + 50MR
- - Razoring
+ - Look into QS improvements
+
+Todo for 1.1.0:
+ - SEE (move ordering + pruning)
  - LMP
- - Net improvement and optimisations (hm, fused, manual simd)
+ - Razoring
  - True engine selfplay datagen
+ - Experiment with different net architectures (namely: hm, maybe buckets)
+
+Future plans:
+ - Test Correction/Continuation/Countermove history
+ - Capture history
+ - Tuning
+ - Some other easy improvements from furypasta
+ - Make stronger in general :>
 
 No ranking or tournament results as of now
 

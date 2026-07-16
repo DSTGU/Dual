@@ -10,7 +10,7 @@ mod nnue;
 
 use std::io;
 use std::thread;
-use types::shared::{get_bit, pop_bit, print_bitboard, Piece, START_POSITION};
+use types::shared::{get_bit, pop_bit, print_bitboard, Piece};
 use attacks::PAWN_ATTACKS;
 use attacks::KNIGHT_ATTACKS;
 use attacks::KING_ATTACKS;
