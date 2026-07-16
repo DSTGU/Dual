@@ -39,7 +39,7 @@ pub fn print_identification() {
 pub fn uci_loop() {
 
     let mut search_state: SearchState = SearchState::new();
-    let mut board_position: BoardPosition = BoardPosition::new(START_POSITION);
+    let mut board_position: BoardPosition = parse_position_command(&mut search_state, "position startpos");
     loop {  
         // Read user input
         let mut input = String::new();
@@ -59,7 +59,7 @@ pub fn uci_loop() {
             "quit" => return,
             "go" => parse_go(&board_position, &mut search_state, command),
             "position" => {board_position = parse_position_command(&mut search_state, command)},
-            "eval" => evaltest(&board_position),
+            "eval" => evaltest(&board_position, &search_state),
             "ucinewgame" => {board_position = parse_ucinewgame(&mut search_state)},
             "uci" => print_identification(),
             "printboard" => board_position.print_board(),

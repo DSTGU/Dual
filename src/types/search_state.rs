@@ -1,6 +1,7 @@
 use coarsetime::{Instant};
 
 use crate::types::board::BoardPosition;
+use crate::types::network_state::NetworkState;
 use crate::types::shared::{Move, Piece};
 use crate::types::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MVV_LVA, SECOND_KILLER_BONUS};
 use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, score_to_tt};
@@ -11,7 +12,7 @@ pub struct StopCondition {
     pub our_time_ms: Option<u64>,
     pub our_inc_ms: Option<u64>,
     pub depth: Option<usize>,
-    hard_nodecount: Option<u64>,
+    _hard_nodecount: Option<u64>,
     pub soft_nodecount: Option<u64>,
     pub started_search: Instant,
     drop_everything_and_quit: bool 
@@ -23,7 +24,7 @@ impl Default for StopCondition {
             our_time_ms: None,
             our_inc_ms: None,
             depth: None, 
-            hard_nodecount: None, 
+            _hard_nodecount: None, 
             soft_nodecount: None, 
             started_search: Instant::now(),
             drop_everything_and_quit: false 
@@ -86,7 +87,7 @@ impl StopCondition {
         false
     }
 
-    pub fn should_hard_quit(&mut self, nodes: u64) -> bool {
+    pub fn should_hard_quit(&mut self, _nodes: u64) -> bool {
         
         if self.drop_everything_and_quit {
             return true;
@@ -119,9 +120,10 @@ pub struct SearchState {
     tt: TranspositionTable,
     pub rep_table: RepetitionTable,
     pub nodes: u64,
-    pub stop_condition: StopCondition, // change to more universal stop_condition struct
+    pub stop_condition: StopCondition,
     should_quit: bool,
     pub ply: usize,
+    pub network_state: NetworkState
 }
 
 impl SearchState {
@@ -139,6 +141,7 @@ impl SearchState {
             //deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
             should_quit: false,
             ply: 0,
+            network_state: NetworkState::default()
         }
     }
 
@@ -166,16 +169,17 @@ impl SearchState {
         self.tt.increment_age();
     }
 
-    pub fn make_move(&mut self, board_hash: u64) {
-        self.rep_table.push(board_hash); 
+    pub fn make_move(&mut self, mv: Move, board_position: &BoardPosition) {
+        self.rep_table.push(board_position.hash); 
         self.ply += 1;
+        self.network_state.apply_move(mv, board_position);
     }
 
     pub fn take_back(&mut self) {
         //take back manages the hash        
         self.rep_table.pop();
         self.ply -= 1;
-
+        self.network_state.undo_move();
     }
 
     #[inline(always)]

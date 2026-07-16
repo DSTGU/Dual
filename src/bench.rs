@@ -1,12 +1,13 @@
+use crate::gui::parse_position_command;
 use crate::search::{collect_pv, single_depth_search_aspirated}; 
-use crate::types::board::BoardPosition;
 use crate::types::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION, SearchAnswer}; 
 use crate::types::consts::MIN_DEPTH;
 use crate::types::search_state::SearchState;
 
 
 pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
-    let board_position = BoardPosition::new(fen);
+    //let board_position = BoardPosition::new(fen);
+    let board_position = parse_position_command(search_state, &("position fen ".to_owned() + fen));
     search_state.clear_data();
     search_state.stop_condition.depth = Some(depth);
 

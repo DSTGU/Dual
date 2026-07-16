@@ -1,3 +1,4 @@
+use crate::nnue::NNUE;
 use crate::types::board::BoardPosition;
 use crate::move_gen::{generate_moves};
 use crate::perft::perft;
@@ -87,7 +88,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
             "fen" => {
                 board_position = BoardPosition::new(&command[13..]);
                 // Push the initial position hash to rep_table (game history)
-                search_state.make_move(board_position.hash);
+                search_state.rep_table.push(board_position.hash);
                 
                 if words.len() > 8 {
                     for &i in words[9..].iter() {
@@ -99,9 +100,9 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            board_position = suggestion.unwrap();
                             // Push each game position hash to rep_table (game history)
-                            search_state.make_move(board_position.hash);
+                            search_state.make_move(x, &board_position);
+                            board_position = suggestion.unwrap();
                         }
                     }
                 }
@@ -109,7 +110,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
             "startpos" => {
                 board_position = BoardPosition::new(START_POSITION);
                 // Push the initial position hash to rep_table (game history)
-                search_state.make_move(board_position.hash);
+                search_state.rep_table.push(board_position.hash);
                 
                 for &i in words[2..].iter() {
                         let mov = parse_move(&board_position, i);
@@ -120,16 +121,16 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            board_position = suggestion.unwrap();
                             // Push each game position hash to rep_table (game history)
-                            search_state.make_move(board_position.hash);
+                            search_state.make_move(x, &board_position);
+                            board_position = suggestion.unwrap();
                         }
                 }
             },
             "kiwipete" => {
                 board_position = BoardPosition::new(KIWIPETE);
                 // Push the initial position hash to rep_table (game history)
-                search_state.make_move(board_position.hash);
+                search_state.rep_table.push(board_position.hash);
                 
                 for &i in words[2..].iter() {
                         let mov = parse_move(&board_position, i);
@@ -140,9 +141,9 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            board_position = suggestion.unwrap();
                             // Push each game position hash to rep_table (game history)
-                            search_state.make_move(board_position.hash);
+                            search_state.make_move(x, &board_position);
+                            board_position = suggestion.unwrap();
                         }
                 }
 
@@ -156,6 +157,8 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
         // for search, not part of the history to detect repetitions against.
         search_state.rep_table.pop();
         search_state.ply = 0;
+
+        search_state.network_state.start_board(&board_position, &NNUE);
 
         board_position
 }
