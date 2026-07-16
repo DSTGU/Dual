@@ -86,7 +86,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     // }
 
     //PESTO eval
-    let eval = nnue_evaluate(&board_position);
+    let eval = nnue_evaluate(&board_position, search_state);
 
     if eval >= beta
     {
@@ -121,7 +121,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
         let new_board = new_board.unwrap();
 
-        search_state.make_move(board_position.hash);
+        search_state.make_move(mv, board_position);
         
             let res = quiescence(&new_board, search_state, -beta, -new_alpha, ply + 1);
             search_state.take_back();
@@ -236,7 +236,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     } else if probe.is_some() && probe.unwrap().flag == TTFlag::Exact {
         score_from_tt(probe.unwrap().score, search_state.ply)
     } else {
-        nnue_evaluate(board_position)
+        nnue_evaluate(board_position, search_state)
     };
 
     // ------------------------------------------------------------
@@ -325,7 +325,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         
         let new_board = new_board.unwrap();
 
-        search_state.make_move(board_position.hash);
+        search_state.make_move(mv, board_position);
 
         legal_moves += 1;
 
@@ -430,7 +430,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
     }
 
-    let flag = if new_alpha <= alpha {
+    let flag: TTFlag = if new_alpha <= alpha {
         TTFlag::Alpha
     } else if new_alpha >= beta {
         TTFlag::Beta
