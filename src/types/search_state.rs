@@ -179,6 +179,7 @@ impl SearchState {
         //take back manages the hash        
         self.rep_table.pop();
         self.ply -= 1;
+        self.network_state.undo_move();
     }
 
     #[inline(always)]

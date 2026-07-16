@@ -100,9 +100,9 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            board_position = suggestion.unwrap();
                             // Push each game position hash to rep_table (game history)
                             search_state.make_move(x, &board_position);
+                            board_position = suggestion.unwrap();
                         }
                     }
                 }
@@ -121,9 +121,9 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            board_position = suggestion.unwrap();
                             // Push each game position hash to rep_table (game history)
                             search_state.make_move(x, &board_position);
+                            board_position = suggestion.unwrap();
                         }
                 }
             },
@@ -141,9 +141,9 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            board_position = suggestion.unwrap();
                             // Push each game position hash to rep_table (game history)
                             search_state.make_move(x, &board_position);
+                            board_position = suggestion.unwrap();
                         }
                 }
 
