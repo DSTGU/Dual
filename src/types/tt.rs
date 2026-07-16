@@ -212,15 +212,24 @@ impl TranspositionTable {
         let idx = Self::index(hash);
         let entry = &mut self.entries[idx];
 
-        if entry.hash == 0
-            || entry.matches(hash) && matches_replacement_strength(depth, flag) >= matches_replacement_strength(entry.depth, entry.flag)
-            || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 3) > 0 {
+        if entry.hash == 0 || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 3) > 0 {
             *entry = TTEntry {
                 hash,
                 depth,
                 score,
                 flag,
                 best_move,
+                age: self.age,
+            };
+        } else if entry.matches(hash) && matches_replacement_strength(depth, flag) >= matches_replacement_strength(entry.depth, entry.flag) {
+            let mv = if best_move.is_null() { entry.best_move } else {best_move};
+
+            *entry = TTEntry {
+                hash,
+                depth,
+                score,
+                flag,
+                best_move: mv,
                 age: self.age,
             };
         }
