@@ -9,6 +9,7 @@ pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
     //let board_position = BoardPosition::new(fen);
     let board_position = parse_position_command(search_state, &("position fen ".to_owned() + fen));
     search_state.clear_data();
+    search_state.clear_persistent_data();
     search_state.stop_condition.depth = Some(depth);
 
     let mut local_depth = MIN_DEPTH;
@@ -36,10 +37,10 @@ pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {
 pub fn bench_engine(search_state: &mut SearchState) {
 
     println!("Startpos:");
-    test_position(search_state, START_POSITION, 11);
+    test_position(search_state, START_POSITION, 13);
     println!("Kiwipete:");
-    test_position(search_state, KIWIPETE, 11);
+    test_position(search_state, KIWIPETE, 15);
     println!("Endgame pos");
-    test_position(search_state, ENDGAME_PERFT, 20);
+    test_position(search_state, ENDGAME_PERFT, 25);
 
 }
