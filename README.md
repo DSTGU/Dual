@@ -18,7 +18,6 @@ Estimated current rating for release: 2750
 For more info see releases tab.
 
 Todo for 1.0.0:
- - Net improvement and optimisations (fused updates, manual simd)
  - Add actual config including tt
  - Look into QS improvements
 
@@ -27,14 +26,35 @@ Todo for 1.1.0:
  - LMP
  - Razoring
  - True engine selfplay datagen
- - Experiment with different net architectures (namely: hm, maybe buckets)
+ - Net improvement and optimisations (fused updates, manual simd)
+ - Correct tt format (with static eval and buckets)
 
 Future plans:
- - Test Correction/Continuation/Countermove history
+ - Correction/Continuation/Countermove history
  - Capture history
  - Tuning
  - Some other easy improvements from furypasta
+ - Experiment with different net architectures (namely: hm, maybe buckets)
+ - Movegen improvements
  - Make stronger in general :>
+
+Perf analisis (accurate as of 750759a):
+
+PVS time:
+25.8%: Sorting movelist
+14.6%: Movegen
+13.6%: Board makemove
+12.7%: Searchstate makemove (nnue update)
+9.4%: Static evaluation
+rest: Elves
+
+QS time:
+32.6%: Static evaluation
+19.7%: Movegen
+18.0%: Movelist ordering
+13.0%: Searchstate makemove (nnue update)
+11.6%: Board makemove
+rest: Elves
 
 No ranking or tournament results as of now
 
