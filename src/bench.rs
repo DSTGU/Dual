@@ -1,8 +1,8 @@
 use crate::gui::parse_position_command;
 use crate::search::{collect_pv, single_depth_search_aspirated}; 
-use crate::types::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION, SearchAnswer}; 
-use crate::types::consts::MIN_DEPTH;
-use crate::types::search_state::SearchState;
+use crate::primitives::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION, SearchAnswer}; 
+use crate::primitives::consts::MIN_DEPTH;
+use crate::search_objs::search_state::SearchState;
 
 
 pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) {

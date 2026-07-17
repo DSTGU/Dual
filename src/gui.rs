@@ -1,12 +1,12 @@
-use crate::nnue::NNUE;
-use crate::types::board::BoardPosition;
-use crate::move_gen::{generate_moves};
-use crate::perft::perft;
+use crate::evaluation::nnue::NNUE;
+use crate::primitives::board::BoardPosition;
+use crate::movegen::move_gen::{generate_moves};
+use crate::movegen::perft::perft;
 use crate::search::{search};
-use crate::types::search_state::{SearchState};
-use crate::types::shared::Color::{Black, White};
-use crate::types::shared::{KIWIPETE, Move, START_POSITION, coordinates_to_squares};
-use crate::types::shared::Piece::{B, N, Q, R};
+use crate::search_objs::search_state::{SearchState};
+use crate::primitives::shared::Color::{Black, White};
+use crate::primitives::shared::{KIWIPETE, Move, START_POSITION, coordinates_to_squares};
+use crate::primitives::shared::Piece::{B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 
@@ -152,9 +152,9 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
 #[cfg(test)]
 mod tests {
     use crate::gui::{parse_go, parse_position_command};
-    use crate::types::shared::{START_POSITION};
-    use crate::types::board::BoardPosition;
-    use crate::types::search_state::{SearchState};
+    use crate::primitives::shared::{START_POSITION};
+    use crate::primitives::board::BoardPosition;
+    use crate::search_objs::search_state::{SearchState};
     use std::thread;
 
 

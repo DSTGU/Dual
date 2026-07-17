@@ -1,6 +1,6 @@
-use crate::nnue::{Accumulator, NNUE, Network, feature_index};
-use crate::types::board::{BoardPosition};
-use crate::types::shared::{Color::{self, White}, Move, Piece};
+use crate::evaluation::nnue::{Accumulator, NNUE, Network, feature_index};
+use crate::primitives::board::{BoardPosition};
+use crate::primitives::shared::{Color::{self, White}, Move, Piece};
 
 pub struct NetworkState {
     pub accumulators: Vec<[Accumulator; 2]>,

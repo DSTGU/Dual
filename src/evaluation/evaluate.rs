@@ -1,5 +1,5 @@
-use crate::types::board::BoardPosition;
-use crate::types::search_state::SearchState;
+use crate::primitives::board::BoardPosition;
+use crate::search_objs::search_state::SearchState;
 
 pub fn nnue_evaluate(board_position: &BoardPosition, search_state: &SearchState) -> i32 {
     search_state.network_state.evaluate(board_position.side)
@@ -12,11 +12,10 @@ pub fn evaltest(board_position: &BoardPosition, search_state: &SearchState) {
 #[cfg(test)]
 mod tests {
     use std::thread;
-
-use crate::evaluate::nnue_evaluate;
+    use crate::evaluation::evaluate::nnue_evaluate;
     use crate::gui::parse_position_command;
-    use crate::types::search_state::SearchState;
-    use crate::types::shared::{Move, MoveCode};
+    use crate::search_objs::search_state::SearchState;
+    use crate::primitives::shared::{Move, MoveCode};
 
 
     #[test]

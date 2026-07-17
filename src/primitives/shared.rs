@@ -1,7 +1,7 @@
 use std::{fmt, mem};
 use std::ops::{BitAnd, Index, IndexMut};
 
-use crate::types::shared::Color::White;
+use crate::primitives::shared::Color::White;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[repr(u8)]
@@ -363,7 +363,7 @@ pub const KING_INDEX: [usize; 2] = [Piece::K as usize, Piece::k as usize];
 
 #[cfg(test)]
 mod tests {
-    use crate::types::shared::{Color::White, Move, MoveCode, Piece};
+    use crate::primitives::shared::{Color::White, Move, MoveCode, Piece};
 
     #[test]
     fn move_constructor_test_promotion() {

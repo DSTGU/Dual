@@ -1,26 +1,24 @@
-mod attacks;
-mod move_gen;
-mod perft;
 mod gui;
+mod movegen;
 mod search;
-mod evaluate;
-mod types;
+mod search_objs;
+mod evaluation;
+mod primitives;
 mod bench;
-mod nnue;
 
 use std::io;
 use std::thread;
-use types::shared::{get_bit, pop_bit, print_bitboard, Piece};
-use attacks::PAWN_ATTACKS;
-use attacks::KNIGHT_ATTACKS;
-use attacks::KING_ATTACKS;
+use primitives::shared::{get_bit, pop_bit, print_bitboard, Piece};
+use movegen::attacks::PAWN_ATTACKS;
+use movegen::attacks::KNIGHT_ATTACKS;
+use movegen::attacks::KING_ATTACKS;
 use crate::bench::bench_engine;
-use crate::evaluate::evaltest;
+use crate::evaluation::evaluate::evaltest;
 use crate::gui::parse_position_command;
 use crate::gui::parse_ucinewgame;
 use crate::gui::{parse_go};
-use crate::types::board::BoardPosition;
-use crate::types::search_state::SearchState;
+use crate::primitives::board::BoardPosition;
+use crate::search_objs::search_state::SearchState;
 
 /**********************************\
  ==================================

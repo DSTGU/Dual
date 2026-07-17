@@ -1,11 +1,11 @@
 use coarsetime::{Instant};
 
-use crate::types::board::BoardPosition;
-use crate::types::network_state::NetworkState;
-use crate::types::shared::{Move, Piece};
-use crate::types::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MVV_LVA, SECOND_KILLER_BONUS};
-use crate::types::tt::{RepetitionTable, TTEntry, TTFlag, TranspositionTable, score_to_tt};
-
+use crate::primitives::board::BoardPosition;
+use crate::primitives::shared::{Move, Piece};
+use crate::primitives::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MVV_LVA, SECOND_KILLER_BONUS};
+use crate::search_objs::move_stack::MoveStack;
+use crate::search_objs::tt::{TTEntry, TTFlag, TranspositionTable, score_to_tt};
+use crate::evaluation::network_state::NetworkState;
 
 pub struct StopCondition {
     pub movetime_deadline: Option<u64>,
@@ -118,7 +118,7 @@ pub struct SearchState {
     pub history_moves: [[[i32; 64]; 64]; 2],
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
     tt: TranspositionTable,
-    pub rep_table: RepetitionTable,
+    pub rep_table: MoveStack,
     pub nodes: u64,
     pub stop_condition: StopCondition,
     should_quit: bool,
@@ -135,7 +135,7 @@ impl SearchState {
             history_moves: [[[0; 64]; 64]; 2],
             //capt_history_moves: [[[0; 64]; 12]; 12],
             tt: TranspositionTable::new(),
-            rep_table: RepetitionTable::new(),
+            rep_table: MoveStack::new(),
             nodes: 0,
             stop_condition: StopCondition::default(),
             //deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
@@ -301,7 +301,7 @@ mod tests {
     use std::thread;
     use crate::gui::{parse_position_command, parse_ucinewgame};
     use crate::search::search; 
-    use crate::types::search_state::{SearchState};
+    use crate::search_objs::search_state::{SearchState};
 
     #[test]
     fn test_clearing_persistent_data_correctly() {

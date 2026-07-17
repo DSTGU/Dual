@@ -1,6 +1,6 @@
 use std::time::SystemTime;
-use crate::move_gen::{generate_moves};
-use crate::types::board::BoardPosition;
+use crate::movegen::move_gen::{generate_moves};
+use crate::primitives::board::BoardPosition;
 
 pub fn perft_driver(board_position: &BoardPosition, depth: usize) -> usize {
 
@@ -73,10 +73,10 @@ pub fn perft(board_position: &BoardPosition, depth: usize) {
 #[cfg(test)]
 mod tests{
     use std::thread;
-    use crate::move_gen::generate_moves;
-    use crate::perft::perft_driver;
-    use crate::types::board::BoardPosition;
-    use crate::types::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION};
+    use crate::movegen::move_gen::generate_moves;
+    use crate::movegen::perft::perft_driver;
+    use crate::primitives::board::BoardPosition;
+    use crate::primitives::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION};
 
     #[test]
     fn test_perft_kiwipete() {

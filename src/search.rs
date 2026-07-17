@@ -1,14 +1,14 @@
 use std::{vec};
 use coarsetime::{Instant};
 
-use crate::evaluate::{nnue_evaluate};
-use crate::move_gen::{generate_moves, is_square_attacked};
-use crate::types::board::{BoardPosition};
-use crate::types::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
-use crate::types::search_state::SearchState;
-use crate::types::shared::Color::White;
-use crate::types::shared::{Move, Piece, SearchAnswer, move_to_alg};
-use crate::types::tt::{TTFlag, score_from_tt};
+use crate::evaluation::evaluate::{nnue_evaluate};
+use crate::movegen::move_gen::{generate_moves, is_square_attacked};
+use crate::primitives::board::{BoardPosition};
+use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
+use crate::primitives::shared::Color::White;
+use crate::primitives::shared::{Move, Piece, SearchAnswer, move_to_alg};
+use crate::search_objs::tt::{TTFlag, score_from_tt};
+use crate::search_objs::search_state::SearchState;
 
 pub fn sort_move_list(board_position : &BoardPosition, search_state: &mut SearchState, move_list: Vec<Move>) -> Vec<Move> {
     let mut scored_moves: Vec<(Move, i32)> = move_list
@@ -558,7 +558,7 @@ mod tests {
     use std::thread;
     use crate::gui::parse_position_command;
     use crate::search::{search, single_depth_search};
-    use crate::types::search_state::SearchState;
+    use crate::search_objs::search_state::SearchState;
 
 
     #[test]

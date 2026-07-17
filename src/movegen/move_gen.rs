@@ -1,10 +1,10 @@
-use crate::types::board::BoardPosition;
-use crate::types::shared::Color::{self, White};
+use crate::primitives::board::BoardPosition;
+use crate::primitives::shared::Color::{self, White};
 use crate::{
     get_bit, pop_bit, Piece, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS,
 };
-use crate::attacks::{get_bishop_attacks, get_queen_attacks, get_rook_attacks};
-use crate::types::shared::{Move, MoveCode};
+use crate::movegen::attacks::{get_bishop_attacks, get_queen_attacks, get_rook_attacks};
+use crate::primitives::shared::{Move, MoveCode};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -446,9 +446,9 @@ pub fn generate_moves(board: &BoardPosition, quiescence: bool) -> Vec<Move> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::board::BoardPosition;
-    use crate::move_gen::is_square_attacked;
-    use crate::types::shared::{coordinates_to_squares, print_bitboard};
+    use crate::primitives::board::BoardPosition;
+    use crate::movegen::move_gen::is_square_attacked;
+    use crate::primitives::shared::{coordinates_to_squares, print_bitboard};
     use std::thread;
 
     pub fn run_through_attacks(board_position: &BoardPosition) -> u64 {

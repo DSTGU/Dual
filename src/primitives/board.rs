@@ -1,7 +1,7 @@
-use crate::move_gen::{CASTLING_RIGHTS, is_square_attacked};
-use crate::types::shared::Color::{Black, White};
-use crate::types::shared::{ASCII_PIECES, Castle, Color, KING_INDEX, Move, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
-use crate::types::tt::{compute_hash, get_zobrist_keys};
+use crate::movegen::move_gen::{CASTLING_RIGHTS, is_square_attacked};
+use crate::primitives::shared::Color::{Black, White};
+use crate::primitives::shared::{ASCII_PIECES, Castle, Color, KING_INDEX, Move, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
+use crate::primitives::hash::{compute_hash, get_zobrist_keys};
 
 #[allow(non_camel_case_types)]
 #[allow(unused_variables)]
