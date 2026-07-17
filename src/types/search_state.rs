@@ -300,9 +300,7 @@ impl Default for SearchState {
 mod tests {
     use std::thread;
     use crate::gui::{parse_position_command, parse_ucinewgame};
-use crate::search::search; 
-    use crate::types::board::BoardPosition;
-use crate::types::shared::{START_POSITION};
+    use crate::search::search; 
     use crate::types::search_state::{SearchState};
 
     #[test]
@@ -311,13 +309,14 @@ use crate::types::shared::{START_POSITION};
         let handler = builder
             .spawn(|| {
                 let mut search_state = SearchState::new();
+                let mut board_position = parse_position_command(&mut search_state, "position startpos");
                 search_state.stop_condition.depth = Some(4);
-                let mut board_position = BoardPosition::new(START_POSITION);
                 let empty_history = [[[0; 64]; 64]; 2];
                 search(&board_position, &mut search_state);
                 assert_ne!(search_state.history_moves, empty_history);
 
                 board_position = parse_position_command(&mut search_state, "position startpos moves e2e4 e7e5");
+                search_state.stop_condition.depth = Some(4);
                 assert_ne!(search_state.history_moves, empty_history);
 
                 search(&board_position, &mut search_state);
@@ -325,6 +324,7 @@ use crate::types::shared::{START_POSITION};
 
                 parse_ucinewgame(&mut search_state);
                 board_position = parse_position_command(&mut search_state,"position kiwipete");
+                search_state.stop_condition.depth = Some(6);
                 assert_eq!(search_state.history_moves, empty_history);
 
                 search(&board_position, &mut search_state);

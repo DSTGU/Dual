@@ -87,9 +87,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
         match words[1] {
             "fen" => {
                 board_position = BoardPosition::new(&command[13..]);
-                // Push the initial position hash to rep_table (game history)
-                search_state.rep_table.push(board_position.hash);
-                
+
                 if words.len() > 8 {
                     for &i in words[9..].iter() {
                         let mov = parse_move(&board_position, i);
@@ -100,7 +98,6 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            // Push each game position hash to rep_table (game history)
                             search_state.make_move(x, &board_position);
                             board_position = suggestion.unwrap();
                         }
@@ -109,8 +106,6 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
             },
             "startpos" => {
                 board_position = BoardPosition::new(START_POSITION);
-                // Push the initial position hash to rep_table (game history)
-                search_state.rep_table.push(board_position.hash);
                 
                 for &i in words[2..].iter() {
                         let mov = parse_move(&board_position, i);
@@ -121,7 +116,6 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            // Push each game position hash to rep_table (game history)
                             search_state.make_move(x, &board_position);
                             board_position = suggestion.unwrap();
                         }
@@ -129,8 +123,6 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
             },
             "kiwipete" => {
                 board_position = BoardPosition::new(KIWIPETE);
-                // Push the initial position hash to rep_table (game history)
-                search_state.rep_table.push(board_position.hash);
                 
                 for &i in words[2..].iter() {
                         let mov = parse_move(&board_position, i);
@@ -141,7 +133,6 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            // Push each game position hash to rep_table (game history)
                             search_state.make_move(x, &board_position);
                             board_position = suggestion.unwrap();
                         }
@@ -151,13 +142,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
             _ => board_position = BoardPosition::new(START_POSITION),
         }
 
-        // The rep_table now contains all game positions visited, from the initial
-        // position through every intermediate position up to (and including) the
-        // current position. Pop the current position since it is the starting point
-        // for search, not part of the history to detect repetitions against.
-        search_state.rep_table.pop();
         search_state.ply = 0;
-
         search_state.network_state.start_board(&board_position, &NNUE);
 
         board_position
