@@ -19,7 +19,6 @@ For more info see releases tab.
 
 Todo for 1.0.0:
  - Net improvement and optimisations (fused updates, manual simd)
- - Train a bigger net with current data
  - Add actual config including tt
  - Look into QS improvements
 
