@@ -31,7 +31,7 @@ use crate::search_objs::search_state::SearchState;
 \**********************************/
 
 pub fn print_identification() {
-    println!("id name Dual v0.3.2");
+    println!("id name Dual v0.4.0");
     println!("id author Tomasz Stawowy");
     println!("option name Hash type spin default 256 min 0 max 1024");
     println!("uciok");
