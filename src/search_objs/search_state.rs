@@ -3,111 +3,10 @@ use coarsetime::{Instant};
 use crate::primitives::board::BoardPosition;
 use crate::primitives::shared::{Move, Piece};
 use crate::primitives::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MVV_LVA, SECOND_KILLER_BONUS};
+use crate::search_objs::config::EngineConfig;
 use crate::search_objs::move_stack::MoveStack;
 use crate::search_objs::tt::{TTEntry, TTFlag, TranspositionTable, score_to_tt};
 use crate::evaluation::network_state::NetworkState;
-
-pub struct StopCondition {
-    pub movetime_deadline: Option<u64>,
-    pub our_time_ms: Option<u64>,
-    pub our_inc_ms: Option<u64>,
-    pub depth: Option<usize>,
-    _hard_nodecount: Option<u64>,
-    pub soft_nodecount: Option<u64>,
-    pub started_search: Instant,
-    drop_everything_and_quit: bool 
-}
-
-impl Default for StopCondition {
-    fn default() -> Self {
-        StopCondition { movetime_deadline: None,
-            our_time_ms: None,
-            our_inc_ms: None,
-            depth: None, 
-            _hard_nodecount: None, 
-            soft_nodecount: None, 
-            started_search: Instant::now(),
-            drop_everything_and_quit: false 
-        }
-    }
-}
-
-impl StopCondition {
-    fn passed_deadline(&self) -> bool {
-        let elapsed = self.started_search.elapsed().as_millis();
-        
-        if let Some(movetime_deadline) = self.movetime_deadline {
-            if elapsed > movetime_deadline {
-                return true;
-            }
-        }
-
-        if let Some(our_time) = self.our_time_ms {
-            if elapsed >= our_time * 3 / 4 {
-                return true;
-            }
-            
-            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/17 + our_inc} else { our_time/17 }; 
-
-            if elapsed > our_time_plusinc {
-                return true;
-            }
-        }
-
-        false
-    }
-    
-    pub fn should_soft_quit(&self, depth: usize, nodes: u64) -> bool {
-        if let Some(max_depth) = self.depth {
-            if max_depth == depth {
-                return true;
-            }
-        }
-
-        if let Some(max_nodes) = self.soft_nodecount {
-            if max_nodes == nodes {
-                return true;
-            }
-        }
-
-        let elapsed = self.started_search.elapsed().as_millis();
-
-        if let Some(our_time) = self.our_time_ms {
-            if elapsed >= our_time * 3 / 4 {
-                return true;
-            }
-            
-            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/17 + our_inc } else { our_time/17 } / 3; 
-
-            if elapsed > our_time_plusinc {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn should_hard_quit(&mut self, _nodes: u64) -> bool {
-        
-        if self.drop_everything_and_quit {
-            return true;
-        }
-
-
-
-        if self.passed_deadline() {
-            self.drop_everything_and_quit = true;
-            return true;
-        }
-
-        false
-    }
-
-    pub fn reset(&mut self) {
-        self.drop_everything_and_quit = false;
-        self.started_search = Instant::now();
-    }
-}
 
 /// Search state structure - encapsulates all search-related state
 pub struct SearchState {
@@ -123,25 +22,27 @@ pub struct SearchState {
     pub stop_condition: StopCondition,
     should_quit: bool,
     pub ply: usize,
-    pub network_state: NetworkState
+    pub network_state: NetworkState,
+    pub engine_config: EngineConfig
 }
 
 impl SearchState {
-    pub fn new() -> Self {
+    pub fn new(config: &EngineConfig) -> Self {
         Self {
             max_depth: 0,
             seldepth: 0,
             killer_moves: [[Move::create_null(); 256]; 2],
             history_moves: [[[0; 64]; 64]; 2],
             //capt_history_moves: [[[0; 64]; 12]; 12],
-            tt: TranspositionTable::new(),
+            tt: TranspositionTable::new(config.hash),
             rep_table: MoveStack::new(),
             nodes: 0,
             stop_condition: StopCondition::default(),
             //deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
             should_quit: false,
             ply: 0,
-            network_state: NetworkState::default()
+            network_state: NetworkState::default(),
+            engine_config: config.clone()
         }
     }
 
@@ -252,6 +153,9 @@ impl SearchState {
 
     #[inline(always)]
     pub fn probe_tt(&self, hash: u64) -> Option<&TTEntry> {
+        if self.engine_config.hash == 0 {
+            return None
+        }
         self.tt.probe(hash)
     }
 
@@ -265,6 +169,10 @@ impl SearchState {
         best_move: Move,
         hash: u64
     ) {
+        if self.engine_config.hash == 0 {
+            return;
+        }
+
         self.tt.store(
             hash,
             depth,
@@ -276,6 +184,10 @@ impl SearchState {
 
     #[inline(always)]
     pub fn tt_move(&mut self, hash: u64) -> Option<Move> {
+        if self.engine_config.hash == 0 {
+            return None;
+        }
+
         self.tt
             .probe(hash)
             .and_then(|e| {
@@ -289,9 +201,106 @@ impl SearchState {
 
 }
 
-impl Default for SearchState {
+
+pub struct StopCondition {
+    pub movetime_deadline: Option<u64>,
+    pub our_time_ms: Option<u64>,
+    pub our_inc_ms: Option<u64>,
+    pub depth: Option<usize>,
+    _hard_nodecount: Option<u64>,
+    pub soft_nodecount: Option<u64>,
+    pub started_search: Instant,
+    drop_everything_and_quit: bool 
+}
+
+impl Default for StopCondition {
     fn default() -> Self {
-        Self::new()
+        StopCondition { movetime_deadline: None,
+            our_time_ms: None,
+            our_inc_ms: None,
+            depth: None, 
+            _hard_nodecount: None, 
+            soft_nodecount: None, 
+            started_search: Instant::now(),
+            drop_everything_and_quit: false 
+        }
+    }
+}
+
+impl StopCondition {
+    fn passed_deadline(&self) -> bool {
+        let elapsed = self.started_search.elapsed().as_millis();
+        
+        if let Some(movetime_deadline) = self.movetime_deadline {
+            if elapsed > movetime_deadline {
+                return true;
+            }
+        }
+
+        if let Some(our_time) = self.our_time_ms {
+            if elapsed >= our_time * 3 / 4 {
+                return true;
+            }
+            
+            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/17 + our_inc} else { our_time/17 }; 
+
+            if elapsed > our_time_plusinc {
+                return true;
+            }
+        }
+
+        false
+    }
+    
+    pub fn should_soft_quit(&self, depth: usize, nodes: u64) -> bool {
+        if let Some(max_depth) = self.depth {
+            if max_depth == depth {
+                return true;
+            }
+        }
+
+        if let Some(max_nodes) = self.soft_nodecount {
+            if max_nodes == nodes {
+                return true;
+            }
+        }
+
+        let elapsed = self.started_search.elapsed().as_millis();
+
+        if let Some(our_time) = self.our_time_ms {
+            if elapsed >= our_time * 3 / 4 {
+                return true;
+            }
+            
+            let our_time_plusinc = if let Some(our_inc) = self.our_inc_ms { our_time/17 + our_inc } else { our_time/17 } / 3; 
+
+            if elapsed > our_time_plusinc {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn should_hard_quit(&mut self, _nodes: u64) -> bool {
+        
+        if self.drop_everything_and_quit {
+            return true;
+        }
+
+
+
+        if self.passed_deadline() {
+            self.drop_everything_and_quit = true;
+            return true;
+        }
+
+        false
+    }
+
+    pub fn reset(&mut self) {
+        self.drop_everything_and_quit = false;
+        self.started_search = Instant::now();
     }
 }
 
@@ -301,14 +310,15 @@ mod tests {
     use std::thread;
     use crate::gui::{parse_position_command, parse_ucinewgame};
     use crate::search::search; 
-    use crate::search_objs::search_state::{SearchState};
+    use crate::search_objs::config::EngineConfig;
+use crate::search_objs::search_state::{SearchState};
 
     #[test]
     fn test_clearing_persistent_data_correctly() {
         let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
-                let mut search_state = SearchState::new();
+                let mut search_state = SearchState::new(&EngineConfig::thin());
                 let mut board_position = parse_position_command(&mut search_state, "position startpos");
                 search_state.stop_condition.depth = Some(4);
                 let empty_history = [[[0; 64]; 64]; 2];
@@ -333,8 +343,6 @@ mod tests {
             })
             .unwrap();
         handler.join().unwrap();
-
-
 
     }
 }

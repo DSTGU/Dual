@@ -14,7 +14,8 @@ mod tests {
     use std::thread;
     use crate::evaluation::evaluate::nnue_evaluate;
     use crate::gui::parse_position_command;
-    use crate::search_objs::search_state::SearchState;
+    use crate::search_objs::config::EngineConfig;
+use crate::search_objs::search_state::SearchState;
     use crate::primitives::shared::{Move, MoveCode};
 
 
@@ -25,7 +26,7 @@ mod tests {
             .spawn(|| {
 
         let command = "position startpos";
-        let mut search_state = SearchState::new();
+        let mut search_state = SearchState::new(&EngineConfig::thin());
         let board_position = parse_position_command(&mut search_state, command);
         let mv = Move::create(62 , 53 , MoveCode::QuietMove); // Nf3
         let board_after_move = board_position.make_move(mv).unwrap();
