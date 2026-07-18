@@ -15,9 +15,11 @@ use movegen::attacks::KING_ATTACKS;
 use crate::bench::bench_engine;
 use crate::evaluation::evaluate::evaltest;
 use crate::gui::parse_position_command;
+use crate::gui::parse_setoption;
 use crate::gui::parse_ucinewgame;
 use crate::gui::{parse_go};
 use crate::primitives::board::BoardPosition;
+use crate::search_objs::config::EngineConfig;
 use crate::search_objs::search_state::SearchState;
 
 /**********************************\
@@ -36,7 +38,8 @@ pub fn print_identification() {
 
 pub fn uci_loop() {
 
-    let mut search_state: SearchState = SearchState::new();
+    let mut engine_config: EngineConfig = EngineConfig::default();
+    let mut search_state: SearchState = SearchState::new(&engine_config);
     let mut board_position: BoardPosition = parse_position_command(&mut search_state, "position startpos");
     loop {  
         // Read user input
@@ -60,6 +63,10 @@ pub fn uci_loop() {
             "eval" => evaltest(&board_position, &search_state),
             "ucinewgame" => {board_position = parse_ucinewgame(&mut search_state)},
             "uci" => print_identification(),
+            "setoption" => {
+                parse_setoption(&mut engine_config, command);
+                search_state = SearchState::new(&engine_config);
+            }
             "printboard" => board_position.print_board(),
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),

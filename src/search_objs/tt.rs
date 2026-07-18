@@ -10,7 +10,7 @@ use crate::primitives::consts::MATE_THRESHOLD;
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND
-pub const TT_SIZE: usize = 1 << 20; // ~1 million entries, ~24MB
+// pub const TT_SIZE: usize = 1 << 20; // ~1 million entries, ~24MB
 
 /// Transposition table entry types
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -55,13 +55,20 @@ impl TTEntry {
 pub struct TranspositionTable {
     entries: Vec<TTEntry>,
     age: u8,
+    tt_size: usize
 }
 
 impl TranspositionTable {
-    pub fn new() -> Self {
+    pub fn new(hash_size: usize) -> Self {
+        let nr_entries = (1024*1024*hash_size/size_of::<TTEntry>()) as u64;
+        let nr_entries_pow2 = 1 << (64 - nr_entries.leading_zeros() - 1);
+
+        println!("{} - {}", nr_entries, nr_entries_pow2);
+
         Self {
-            entries: vec![TTEntry::empty(); TT_SIZE],
-            age: 0
+            entries: vec![TTEntry::empty(); nr_entries_pow2],
+            age: 0,
+            tt_size: nr_entries_pow2
         }
     }
 
@@ -79,14 +86,14 @@ impl TranspositionTable {
 
     /// Get index into the table from hash
     #[inline(always)]
-    fn index(hash: u64) -> usize {
-        (hash as usize) & (TT_SIZE - 1)
+    fn index(&self, hash: u64) -> usize {
+        (hash as usize) & (self.tt_size - 1)
     }
 
     /// Probe the transposition table
     #[inline]
     pub fn probe(&self, hash: u64) -> Option<&TTEntry> {
-        let idx = Self::index(hash);
+        let idx = self.index(hash);
         let entry = &self.entries[idx];
 
         if entry.matches(hash) {
@@ -99,7 +106,7 @@ impl TranspositionTable {
     /// Store an entry in the transposition table
     #[inline]
     pub fn store(&mut self, hash: u64, depth: u8, score: i32, flag: TTFlag, best_move: Move) {
-        let idx = Self::index(hash);
+        let idx = self.index(hash);
         let entry = &mut self.entries[idx];
 
         if entry.hash == 0 || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 3) > 0 {
@@ -132,12 +139,6 @@ pub fn matches_replacement_strength(depth: u8, flag: TTFlag) -> u8 {
         1
     } else {
         0
-    }
-}
-
-impl Default for TranspositionTable {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

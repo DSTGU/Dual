@@ -558,7 +558,8 @@ mod tests {
     use std::thread;
     use crate::gui::parse_position_command;
     use crate::search::{search, single_depth_search};
-    use crate::search_objs::search_state::SearchState;
+    use crate::search_objs::config::EngineConfig;
+use crate::search_objs::search_state::SearchState;
 
 
     #[test]
@@ -567,7 +568,7 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let command = "position fen Q6K/8/8/8/8/8/7R/1k6 w - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
-                let mut search_state = SearchState::new();
+                let mut search_state = SearchState::new(&EngineConfig::thin());
                 
                 let board_position = parse_position_command(&mut search_state, command);
                 search_state.reset_for_new_iteration(4);       
@@ -590,7 +591,7 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let command = "position fen q6k/8/8/8/8/8/7r/1K6 b - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
-                let mut search_state = SearchState::new();
+                let mut search_state = SearchState::new(&EngineConfig::thin());
                 
                 println!("{:?}", search_state.rep_table);
                 
@@ -624,7 +625,7 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let command = "position fen q6k/8/8/8/8/8/7r/2K5 w - - 0 1 moves c1b1 a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
-                let mut search_state = SearchState::new();
+                let mut search_state = SearchState::new(&EngineConfig::thin());
                 let board_position = parse_position_command(&mut search_state, command);
                 search_state.reset_for_new_iteration(4);       
                 let score = single_depth_search(&board_position, &mut search_state, 4);
@@ -645,7 +646,7 @@ mod tests {
         let handler = builder
             .spawn(|| {
                 let command1 = "position fen 8/7p/P1N2k2/1BBp2p1/4b1K1/6P1/r7/8 b - - 1 49";
-                let mut search_state = SearchState::new();
+                let mut search_state = SearchState::new(&EngineConfig::thin());
                 search_state.stop_condition.depth = Some(8);
                 let board_position = parse_position_command(&mut search_state, command1);
                 search(&board_position, &mut search_state); 
