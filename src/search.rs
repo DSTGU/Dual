@@ -10,11 +10,11 @@ use crate::primitives::shared::{Move, Piece, SearchAnswer, move_to_alg};
 use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::SearchState;
 
-pub fn sort_move_list(board_position : &BoardPosition, search_state: &mut SearchState, move_list: Vec<Move>) -> Vec<Move> {
+pub fn sort_move_list(board_position : &BoardPosition, search_state: &mut SearchState, move_list: Vec<Move>, tt_move: Move) -> Vec<Move> {
     let mut scored_moves: Vec<(Move, i32)> = move_list
         .into_iter()
         .map(|m| {
-            let score = if Some(m) == search_state.tt_move(board_position.hash) {
+            let score = if m == tt_move {
                 i32::MAX
             } else {
                 search_state.get_move_score(board_position, m)
@@ -46,10 +46,14 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     // // ------------------------------------------------------------
     // // QS TT probe
     // // ------------------------------------------------------------
-    // let probe = search_state.probe_tt(board_position.hash);
+    let probe = search_state.probe_tt(board_position.hash);
+    let tt_move = if let Some(entry) = probe {
+        entry.best_move
+    } else {
+        Move::create_null()
+    };
     
     // if let Some(entry) = probe {
-
     //     if !search_state.is_twofold_repetition(board_position.hash) {
     //         let score = score_from_tt(entry.score, search_state.ply);
     //         match entry.flag {
@@ -103,7 +107,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     }
 
     let move_list = generate_moves(&board_position, true);
-    let filtered_move_list = sort_move_list(board_position, search_state, move_list);
+    let filtered_move_list = sort_move_list(board_position, search_state, move_list, tt_move);
 
     for mv in filtered_move_list {
 
@@ -185,6 +189,11 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // TT probe
     // ------------------------------------------------------------
     let probe = search_state.probe_tt(board_position.hash);
+    let tt_move = if let Some(entry) = probe {
+        entry.best_move
+    } else {
+        Move::create_null()
+    };
     
     if let Some(entry) = probe {
 
@@ -286,7 +295,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // Move generation / ordering
     // ------------------------------------------------------------
     let move_list = generate_moves(board_position, false);
-    let move_list = sort_move_list(board_position, search_state, move_list);
+    let move_list = sort_move_list(board_position, search_state, move_list, tt_move);
 
     // Move, eval (alpha), nodes
     let mut nodes = 1;

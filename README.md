@@ -18,7 +18,6 @@ Estimated current rating for release: 2750
 For more info see releases tab.
 
 Todo for 1.0.0:
- - Add actual config including tt
  - Look into QS improvements
 
 Todo for 1.1.0:

@@ -181,24 +181,6 @@ impl SearchState {
             best_move, // or .into()
         );
     }
-
-    #[inline(always)]
-    pub fn tt_move(&mut self, hash: u64) -> Option<Move> {
-        if self.engine_config.hash == 0 {
-            return None;
-        }
-
-        self.tt
-            .probe(hash)
-            .and_then(|e| {
-                if !e.best_move.is_null() {
-                    Some(e.best_move)
-                } else {
-                    None
-                }
-            })
-    }
-
 }
 
 
