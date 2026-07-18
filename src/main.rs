@@ -66,6 +66,7 @@ pub fn uci_loop() {
             "setoption" => {
                 parse_setoption(&mut engine_config, command);
                 search_state = SearchState::new(&engine_config);
+                board_position = parse_position_command(&mut search_state, "position startpos");
             }
             "printboard" => board_position.print_board(),
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),

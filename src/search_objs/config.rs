@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct EngineConfig {
     pub hash: usize // In megabytes
 }

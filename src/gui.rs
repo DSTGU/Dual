@@ -180,7 +180,7 @@ mod tests {
     use crate::primitives::shared::{START_POSITION};
     use crate::primitives::board::BoardPosition;
     use crate::search_objs::config::EngineConfig;
-use crate::search_objs::search_state::{SearchState};
+    use crate::search_objs::search_state::{SearchState};
     use std::thread;
 
 

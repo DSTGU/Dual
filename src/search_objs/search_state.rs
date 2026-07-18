@@ -23,6 +23,7 @@ pub struct SearchState {
     should_quit: bool,
     pub ply: usize,
     pub network_state: NetworkState,
+    pub engine_config: EngineConfig
 }
 
 impl SearchState {
@@ -41,6 +42,7 @@ impl SearchState {
             should_quit: false,
             ply: 0,
             network_state: NetworkState::default(),
+            engine_config: config.clone()
         }
     }
 
@@ -151,6 +153,9 @@ impl SearchState {
 
     #[inline(always)]
     pub fn probe_tt(&self, hash: u64) -> Option<&TTEntry> {
+        if self.engine_config.hash == 0 {
+            return None
+        }
         self.tt.probe(hash)
     }
 
@@ -164,6 +169,10 @@ impl SearchState {
         best_move: Move,
         hash: u64
     ) {
+        if self.engine_config.hash == 0 {
+            return;
+        }
+
         self.tt.store(
             hash,
             depth,
@@ -175,6 +184,10 @@ impl SearchState {
 
     #[inline(always)]
     pub fn tt_move(&mut self, hash: u64) -> Option<Move> {
+        if self.engine_config.hash == 0 {
+            return None;
+        }
+
         self.tt
             .probe(hash)
             .and_then(|e| {

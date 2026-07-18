@@ -61,7 +61,7 @@ pub struct TranspositionTable {
 impl TranspositionTable {
     pub fn new(hash_size: usize) -> Self {
         let nr_entries = (1024*1024*hash_size/size_of::<TTEntry>()) as u64;
-        let nr_entries_pow2 = 1 << (64 - nr_entries.leading_zeros() - 1);
+        let nr_entries_pow2 = if hash_size == 0 { 0 } else { 1 << (64 - nr_entries.leading_zeros() - 1) }; // Biggest smaller pow2
 
         println!("{} - {}", nr_entries, nr_entries_pow2);
 
