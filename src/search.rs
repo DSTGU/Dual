@@ -7,6 +7,7 @@ use crate::primitives::board::{BoardPosition};
 use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
 use crate::primitives::shared::Color::White;
 use crate::primitives::shared::{Move, Piece, SearchAnswer, move_to_alg};
+use crate::search_objs::see::see_a_move;
 use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::SearchState;
 
@@ -116,6 +117,16 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
         // if eval + captured_value + DELTA_PRUNING_MARGIN < new_alpha {
         //     continue;
         // }
+
+            // Late Move Pruning (LMP)
+            // if move_count >= 3 && !td.board.is_direct_check(mv) {
+            //     break;
+            // }
+
+        // Static Exchange Evaluation Pruning (SEE Pruning)
+        if see_a_move(board_position, mv) < 0 {
+            continue;
+        }
 
         let new_board = board_position.make_move(mv);
 
