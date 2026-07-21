@@ -14,6 +14,7 @@ use movegen::attacks::KNIGHT_ATTACKS;
 use movegen::attacks::KING_ATTACKS;
 use crate::bench::bench_engine;
 use crate::evaluation::evaluate::evaltest;
+use crate::gui::parse_move;
 use crate::gui::parse_position_command;
 use crate::gui::parse_setoption;
 use crate::gui::parse_ucinewgame;
@@ -21,6 +22,7 @@ use crate::gui::{parse_go};
 use crate::primitives::board::BoardPosition;
 use crate::search_objs::config::EngineConfig;
 use crate::search_objs::search_state::SearchState;
+use crate::search_objs::see::see_a_move;
 
 /**********************************\
  ==================================
@@ -73,6 +75,7 @@ pub fn uci_loop() {
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
             "bench" => bench_engine(&mut search_state),
+            "see" => println!("See: {}", see_a_move(&board_position, parse_move(&board_position, words[1]).expect("Good Job. You've crashed the engine"))),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
         }
