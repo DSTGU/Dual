@@ -304,6 +304,19 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                 continue;
             }
         }
+
+        // if !NODE::ROOT {
+        //     // Static Exchange Evaluation Pruning (SEE Pruning)
+        //     let threshold = if mv.is_quiet() {
+        //         (-12 * depth * depth + 56 * depth).min(0)
+        //     } else {
+        //         (-7 * depth * depth - 36 * depth - 39 * history / 1024 + 14).min(0)
+        //     };
+
+        //     if !is_in_check && see_a_move(board_position, mv) < threshold {
+        //         continue;
+        //     }
+        // }
         
         let mut score: SearchAnswer = SearchAnswer { move_list: vec![], node_count: 0, eval: MATE_SCORE };
 

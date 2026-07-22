@@ -3,6 +3,7 @@ use crate::primitives::board::BoardPosition;
 use crate::primitives::consts::{FIRST_KILLER_BONUS, SECOND_KILLER_BONUS};
 use crate::primitives::shared::Move;
 use crate::search_objs::search_state::SearchState;
+use crate::search_objs::see::see_a_move;
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub enum Stage {
@@ -13,7 +14,7 @@ pub enum Stage {
     //GenerateNoisy,
     //GoodNoisy,
     //Quiet,
-    //BadNoisy,
+    BadNoisy,
 }
 
 
@@ -26,8 +27,8 @@ pub struct MovePicker {
     list: Vec<MoveEntry>,
     tt_move: Move,
     stage: Stage,
-    //bad_noisy: Vec<Move>,
-    //bad_noisy_idx: usize,
+    bad_noisy: Vec<Move>,
+    bad_noisy_idx: usize,
     //noisy_count: usize,
 }
 
@@ -38,6 +39,8 @@ impl MovePicker {
             list: vec![],
             tt_move,
             stage:  Stage::HashMove,
+            bad_noisy: vec![],
+            bad_noisy_idx: 0
         }
     }
 
@@ -70,10 +73,10 @@ impl MovePicker {
             while !self.list.is_empty() {
                 let entry = self.get_best_entry();
 
-                // if !td.board.see(entry.mv, threshold) {
-                //     self.bad_noisy.push(entry.mv);
-                //     continue;
-                // }
+                if see_a_move(board_position, entry.mv) < 0 {
+                    self.bad_noisy.push(entry.mv);
+                    continue;
+                }
 
                 // if NODE::ROOT {
                 //     self.score_noisy(td);
@@ -90,11 +93,13 @@ impl MovePicker {
 
             if quiescence {
                 return None;
+                // Currently no need to check bad noisy in quiescence (they are always pruned)
+                //self.stage = Stage::BadNoisy;
+            } else {   
+                self.list = generate_move_entries::<QuietMovegen>(board_position);
+                self.score_moves(board_position, search_state);
+                self.stage = Stage::Quiet;
             }
-
-            self.list = generate_move_entries::<QuietMovegen>(board_position);
-            self.score_moves(board_position, search_state);
-            self.stage = Stage::Quiet;
         }
 
         if self.stage == Stage::Quiet {
@@ -102,25 +107,28 @@ impl MovePicker {
             while !self.list.is_empty() {
                 let entry = self.get_best_entry();
 
-                // if !td.board.see(entry.mv, threshold) {
-                //     self.bad_noisy.push(entry.mv);
-                //     continue;
-                // }
-
-                // if NODE::ROOT {
-                //     self.score_noisy(td);
-                // }
-
-                //self.noisy_count += 1;
-
                 let new_board= board_position.make_move(entry.mv);
                     
                 if new_board.is_some() {
                     return Some((entry.mv, new_board.unwrap()));
                 }
             }
+
+            self.stage = Stage::BadNoisy;
         }
 
+        if self.stage == Stage::BadNoisy {
+            while self.bad_noisy_idx < self.bad_noisy.len() {
+
+                let mv = self.bad_noisy[self.bad_noisy_idx];
+                let new_board= board_position.make_move(mv);
+                
+                self.bad_noisy_idx += 1;
+                if new_board.is_some() {
+                    return Some((mv, new_board.unwrap()));
+                }
+            }
+        }
 
         //println!("No more moves. Returning None");
         None
