@@ -362,6 +362,24 @@ impl BoardPosition {
         Some(new_board)
     }
 
+    // Is legal but not checking if is actually legal, but if it can be tried:
+    // moves on a legal trajectory of a piece which is placed on the source square
+    // pub fn is_safe_to_try(&self, mv: Move) -> bool {
+    //     let piece = self.mailbox[mv.get_source_square() as usize];
+
+    //     if piece == Piece::NONE || piece.get_side() != self.side {
+    //         return false;
+    //     }
+
+    //     // Note - get_piece_attacks checks for if a piece CAN BE AN ATTACKER OF A GIVEN SQUARE
+    //     // Therefore source and target swapped
+    //     if get_piece_attacks(self, mv.get_target_square(), piece) & 1 << mv.get_source_square() == 0  {
+    //         return false;
+    //     }
+
+    //     true
+    // }
+
     // print board
     pub fn format_board(&self) -> String
     {

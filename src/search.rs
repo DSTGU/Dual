@@ -2,7 +2,8 @@ use std::{vec};
 use coarsetime::{Instant};
 
 use crate::evaluation::evaluate::{nnue_evaluate};
-use crate::movegen::move_gen::{generate_moves, is_square_attacked};
+use crate::movegen::move_gen::{is_square_attacked};
+use crate::movepicker::MovePicker;
 use crate::primitives::board::{BoardPosition};
 use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
 use crate::primitives::shared::Color::White;
@@ -10,24 +11,6 @@ use crate::primitives::shared::{Move, Piece, SearchAnswer, move_to_alg};
 use crate::search_objs::see::see_a_move;
 use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::SearchState;
-
-pub fn sort_move_list(board_position : &BoardPosition, search_state: &mut SearchState, move_list: Vec<Move>, tt_move: Move) -> Vec<Move> {
-    let mut scored_moves: Vec<(Move, i32)> = move_list
-        .into_iter()
-        .map(|m| {
-            let score = if m == tt_move {
-                i32::MAX
-            } else {
-                search_state.get_move_score(board_position, m)
-            };
-
-            (m, score)
-        })
-        .collect();
-
-    scored_moves.sort_unstable_by_key(|&(_, score)| -score);
-    scored_moves.into_iter().map(|(mv, _)| mv).collect()
-}
 
 #[allow(clippy::approx_constant)]
 pub fn reduce_lmr_by(depth: usize, moves: usize) -> usize {
@@ -107,10 +90,9 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
         new_alpha = eval;
     }
 
-    let move_list = generate_moves(&board_position, true);
-    let filtered_move_list = sort_move_list(board_position, search_state, move_list, tt_move);
+    let mut move_picker = MovePicker::new(tt_move);
 
-    for mv in filtered_move_list {
+    while let Some((mv, new_board)) = move_picker.next(board_position, search_state, true) {
 
         // let captured_value = DELTA_VALUES[mv.get_taken_piece() as usize % 6];
         // // Delta pruning
@@ -127,14 +109,6 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
         if see_a_move(board_position, mv) < 0 {
             continue;
         }
-
-        let new_board = board_position.make_move(mv);
-
-        if new_board.is_none() {
-            continue;
-        }
-
-        let new_board = new_board.unwrap();
 
         search_state.make_move(mv, board_position);
         
@@ -301,13 +275,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             }
         }
 
-
-    // ------------------------------------------------------------
-    // Move generation / ordering
-    // ------------------------------------------------------------
-    let move_list = generate_moves(board_position, false);
-    let move_list = sort_move_list(board_position, search_state, move_list, tt_move);
-
     // Move, eval (alpha), nodes
     let mut nodes = 1;
 
@@ -318,7 +285,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     let mut previous_quiet_moves = vec![]; // malus purposes
     let history_bonus = 300 * depth as i32 - 250;
     
-    for &mv in move_list.iter() {
+
+    let mut move_picker = MovePicker::new(tt_move);
+
+    while let Some((mv, new_board)) = move_picker.next(board_position, search_state, false) {
         // --------------------------------------------------------
         // Futility pruning
         //
@@ -336,14 +306,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         }
         
         let mut score: SearchAnswer = SearchAnswer { move_list: vec![], node_count: 0, eval: MATE_SCORE };
-
-        let new_board = board_position.make_move(mv);
-        
-        if new_board.is_none() {
-            continue;  
-        }
-        
-        let new_board = new_board.unwrap();
 
         search_state.make_move(mv, board_position);
 

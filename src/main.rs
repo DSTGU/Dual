@@ -5,6 +5,7 @@ mod search_objs;
 mod evaluation;
 mod primitives;
 mod bench;
+mod movepicker;
 
 use std::io;
 use std::thread;

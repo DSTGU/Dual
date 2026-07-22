@@ -18,15 +18,14 @@ Estimated current rating for release: 2750
 For more info see releases tab.
 
 Todo for 1.0.0:
- - Look into QS improvements
-
-Todo for 1.1.0:
  - SEE (move ordering + pruning)
  - LMP
  - Razoring
  - True engine selfplay datagen
  - Net improvement and optimisations (fused updates, manual simd)
  - Correct tt format (with static eval and buckets)
+ - Legal movegen?
+ - Staged movegen
 
 Future plans:
  - Correction/Continuation/Countermove history
