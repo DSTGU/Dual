@@ -629,12 +629,12 @@ use crate::search_objs::search_state::SearchState;
             .spawn(|| {
                 let command1 = "position fen 8/7p/P1N2k2/1BBp2p1/4b1K1/6P1/r7/8 b - - 1 49";
                 let mut search_state = SearchState::new(&EngineConfig::thin());
-                search_state.stop_condition.depth = Some(8);
                 let board_position = parse_position_command(&mut search_state, command1);
+                search_state.stop_condition.depth = Some(12);
                 search(&board_position, &mut search_state); 
                 let command2 = "position fen 8/7p/P1N2k2/1BBp2p1/4b1K1/6P1/r7/8 b - - 1 49 moves h7h5 g4h5";
                 let board_position = parse_position_command(&mut search_state, command2);
-                search_state.stop_condition.depth = Some(3);
+                search_state.stop_condition.depth = Some(5);
                 search(&board_position, &mut search_state); 
             })
             .unwrap();

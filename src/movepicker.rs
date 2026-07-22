@@ -1,4 +1,4 @@
-use crate::movegen::move_gen::generate_moves;
+use crate::movegen::move_gen::{NoisyMovegen, QuietMovegen, generate_move_entries};
 use crate::primitives::board::BoardPosition;
 use crate::primitives::consts::{FIRST_KILLER_BONUS, SECOND_KILLER_BONUS};
 use crate::primitives::shared::Move;
@@ -8,7 +8,8 @@ use crate::search_objs::search_state::SearchState;
 pub enum Stage {
     HashMove,
     Movegen,
-    Rest
+    Noisy,
+    Quiet,
     //GenerateNoisy,
     //GoodNoisy,
     //Quiet,
@@ -17,8 +18,8 @@ pub enum Stage {
 
 
 pub struct MoveEntry {
-    mv: Move,
-    score: i32
+    pub mv: Move,
+    pub score: i32
 }
 
 pub struct MovePicker {
@@ -58,12 +59,13 @@ impl MovePicker {
         }
 
         if self.stage == Stage::Movegen {
-            self.list = generate_moves(board_position, quiescence).iter().map(|mv| MoveEntry{mv: *mv, score: 0}).collect();
+            //TODO: switch
+            self.list = generate_move_entries::<NoisyMovegen>(board_position);
             self.score_moves(board_position, search_state);
-            self.stage = Stage::Rest;
+            self.stage = Stage::Noisy;
         }
         
-        if self.stage == Stage::Rest {
+        if self.stage == Stage::Noisy {
 
             while !self.list.is_empty() {
                 let entry = self.get_best_entry();
@@ -86,7 +88,39 @@ impl MovePicker {
                 }
             }
 
+            if quiescence {
+                return None;
+            }
+
+            self.list = generate_move_entries::<QuietMovegen>(board_position);
+            self.score_moves(board_position, search_state);
+            self.stage = Stage::Quiet;
         }
+
+        if self.stage == Stage::Quiet {
+
+            while !self.list.is_empty() {
+                let entry = self.get_best_entry();
+
+                // if !td.board.see(entry.mv, threshold) {
+                //     self.bad_noisy.push(entry.mv);
+                //     continue;
+                // }
+
+                // if NODE::ROOT {
+                //     self.score_noisy(td);
+                // }
+
+                //self.noisy_count += 1;
+
+                let new_board= board_position.make_move(entry.mv);
+                    
+                if new_board.is_some() {
+                    return Some((entry.mv, new_board.unwrap()));
+                }
+            }
+        }
+
 
         //println!("No more moves. Returning None");
         None

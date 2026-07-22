@@ -1,5 +1,7 @@
+use crate::movepicker::MoveEntry;
 use crate::primitives::board::BoardPosition;
 use crate::primitives::shared::Color::{self, White};
+
 use crate::{
     get_bit, pop_bit, Piece, KING_ATTACKS, KNIGHT_ATTACKS, PAWN_ATTACKS,
 };
@@ -27,6 +29,24 @@ pub const CASTLING_RIGHTS: [u8; 64] = [
 // Pre-computed target squares for castling rook moves (source, target).
 // Index: 0 = white kingside, 1 = white queenside, 2 = black kingside, 3 = black queenside.
 // h1=63, f1=61, a1=56, d1=59, h8=7, f8=5, a8=0, d8=3
+
+pub trait MovegenType {
+    const NOISY: bool;
+    const QUIET: bool;
+}
+
+pub struct QuietMovegen;
+impl MovegenType for QuietMovegen {
+    const NOISY: bool = false;
+    const QUIET: bool = true;
+}
+
+pub struct NoisyMovegen;
+impl MovegenType for NoisyMovegen {
+    const NOISY: bool = true;
+    const QUIET: bool = false;
+}
+
 
 // ---------------------------------------------------------------------------
 // is_square_attacked
@@ -122,11 +142,10 @@ fn push_move(moves: &mut Vec<Move>, source: u8, target: u8, move_code: MoveCode)
 // ---------------------------------------------------------------------------
 
 /// Generate all pawn moves for `side`.
-fn generate_pawn_moves(
+fn generate_pawn_moves<Type: MovegenType>(
     board: &BoardPosition,
     side: Color,
     moves: &mut Vec<Move>,
-    quiescence: bool
 ) {
     let piece = if side == White { Piece::P } else { Piece::p };
     let promo_rank_range: (usize, usize) = if side == White { (8, 15) } else { (48, 55) };
@@ -143,80 +162,79 @@ fn generate_pawn_moves(
         let target = (source as isize + direction) as usize;
 
         // Quiet moves (single push)
-        if target < 64 && !get_bit(all_occ, target) {
+        if Type::QUIET && target < 64 && !get_bit(all_occ, target) {
             if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
                 // Promotion
                 for promo in promotion_codes() {
                     push_move(moves, source as u8, target as u8, promo);
                 }
             } else {
-                if !quiescence {
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
+                push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
                     
-                    // Double push
-                    if source >= start_rank_range.0 && source <= start_rank_range.1 {
-                        let target2 = (target as isize + direction) as usize;
-                        if target2 < 64 && !get_bit(all_occ, target2) {
-                            push_move(moves, source as u8, target2 as u8,MoveCode::DoublePush);
-                        }
+                // Double push
+                if source >= start_rank_range.0 && source <= start_rank_range.1 {
+                    let target2 = (target as isize + direction) as usize;
+                    if target2 < 64 && !get_bit(all_occ, target2) {
+                        push_move(moves, source as u8, target2 as u8,MoveCode::DoublePush);
                     }
                 }
             }
         }
 
         // Captures
-        let mut attacks = PAWN_ATTACKS[side][source] & opp_occ;
-        while attacks != 0 {
-            let cap_target = attacks.trailing_zeros() as usize;
-            pop_bit(&mut attacks, cap_target);
-
-            if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
-                for promo in promotion_capture_codes() {
-                    push_move(moves, source as u8, cap_target as u8, promo);
+        if Type::NOISY {
+            let mut attacks = PAWN_ATTACKS[side][source] & opp_occ;
+            while attacks != 0 {
+                let cap_target = attacks.trailing_zeros() as usize;
+                pop_bit(&mut attacks, cap_target);
+                
+                if source >= promo_rank_range.0 && source <= promo_rank_range.1 {
+                    for promo in promotion_capture_codes() {
+                        push_move(moves, source as u8, cap_target as u8, promo);
+                    }
+                } else {
+                    push_move(moves, source as u8, cap_target as u8, MoveCode::Capture);
                 }
-            } else {
-                push_move(moves, source as u8, cap_target as u8, MoveCode::Capture);
             }
-        }
-
-        // En passant
-        if board.enpassant != 0 {
-            let ep_bit = PAWN_ATTACKS[side][source] & (1u64 << board.enpassant);
-            if ep_bit != 0 {
-                let ep_target = ep_bit.trailing_zeros() as u8;
-                push_move(moves, source as u8, ep_target, MoveCode::EnPassant);
+            
+            // En passant
+            if board.enpassant != 0 {
+                let ep_bit = PAWN_ATTACKS[side][source] & (1u64 << board.enpassant);
+                if ep_bit != 0 {
+                    let ep_target = ep_bit.trailing_zeros() as u8;
+                    push_move(moves, source as u8, ep_target, MoveCode::EnPassant);
+                }
             }
         }
     }
 }
 
 /// Generate all king moves (non-castling) for `side`.
-fn generate_king_moves(
+fn generate_king_moves<Type : MovegenType>(
     board: &BoardPosition,
     side: Color,
     moves: &mut Vec<Move>,
-    quiescence: bool
 ) {
     let piece = if side == White { Piece::K } else { Piece::k };
-    let our_occ = board.occupancies[side];
+    let filter = if Type::NOISY {
+        board.occupancies[side.invert()]
+    } else {
+        !board.occupancies[2] // Quiet - avoid all pieces
+    };
+
+    let move_code = if Type::NOISY { MoveCode::Capture } else { MoveCode::QuietMove };
 
     let mut bb = board.bitboards[piece as usize];
     while bb != 0 {
         let source = bb.trailing_zeros() as usize;
         pop_bit(&mut bb, source);
 
-        let mut attacks = KING_ATTACKS[source] & !our_occ;
+        let mut attacks = KING_ATTACKS[source] & filter;
+
         while attacks != 0 {
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
-
-            if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture);
-            } else {
-                if !quiescence {
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
-                }
-            }
+            push_move(moves, source as u8, target as u8, move_code);
         }
     }
 }
@@ -273,125 +291,115 @@ fn generate_castling_moves(
 }
 
 /// Generate all knight moves for `side`.
-fn generate_knight_moves(
+fn generate_knight_moves<Type:MovegenType>(
     board: &BoardPosition,
     side: Color,
     moves: &mut Vec<Move>,
-    quiescence: bool
 ) {
     let piece = if side == White { Piece::N } else { Piece::n };
-    let our_occ = board.occupancies[side];
+    let filter = if Type::NOISY {
+        board.occupancies[side.invert()]
+    } else {
+        !board.occupancies[2] // Quiet - avoid all pieces
+    };
+
+    let move_code = if Type::NOISY { MoveCode::Capture } else { MoveCode::QuietMove };
 
     let mut bb = board.bitboards[piece as usize];
     while bb != 0 {
-        let source = bb.trailing_zeros() as usize;
+        let source: usize = bb.trailing_zeros() as usize;
         pop_bit(&mut bb, source);
 
-        let mut attacks = KNIGHT_ATTACKS[source] & !our_occ;
+        let mut attacks = KNIGHT_ATTACKS[source] & filter;
         while attacks != 0 {
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
-            
-            if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture);
-            } else {
-                if !quiescence {
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
-                }
-            }
+            push_move(moves, source as u8, target as u8, move_code);
         }
     }
 }
 
 /// Generate all bishop moves for `side`.
-fn generate_bishop_moves(
+fn generate_bishop_moves<Type : MovegenType>(
     board: &BoardPosition,
     side: Color,
     moves: &mut Vec<Move>,
-    quiescence: bool
 ) {
     let piece = if side == White { Piece::B } else { Piece::b };
-    let our_occ = board.occupancies[side];
+    let filter = if Type::NOISY {
+        board.occupancies[side.invert()]
+    } else {
+        !board.occupancies[2] // Quiet - avoid all pieces
+    };
+
+    let move_code = if Type::NOISY { MoveCode::Capture } else { MoveCode::QuietMove };
 
     let mut bb = board.bitboards[piece as usize];
     while bb != 0 {
         let source = bb.trailing_zeros() as usize;
         pop_bit(&mut bb, source);
 
-        let mut attacks = get_bishop_attacks(source, board.occupancies[2]) & !our_occ;
+        let mut attacks = get_bishop_attacks(source, board.occupancies[2]) & filter;
         while attacks != 0 {
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
-
-            if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture);
-            } else {
-                if !quiescence {   
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
-                }
-            }
+            push_move(moves, source as u8, target as u8, move_code);
         }
     }
 }
 
 /// Generate all rook moves for `side`.
-fn generate_rook_moves(
+fn generate_rook_moves<Type:MovegenType>(
     board: &BoardPosition,
     side: Color,
     moves: &mut Vec<Move>,
-    quiescence: bool
 ) {
     let piece = if side == White { Piece::R } else { Piece::r };
-    let our_occ = board.occupancies[side];
+    let filter = if Type::NOISY {
+        board.occupancies[side.invert()]
+    } else {
+        !board.occupancies[2] // Quiet - avoid all pieces
+    };
 
+    let move_code = if Type::NOISY { MoveCode::Capture } else { MoveCode::QuietMove };
     let mut bb = board.bitboards[piece as usize];
     while bb != 0 {
         let source = bb.trailing_zeros() as usize;
         pop_bit(&mut bb, source);
 
-        let mut attacks = get_rook_attacks(source, board.occupancies[2]) & !our_occ;
+        let mut attacks = get_rook_attacks(source, board.occupancies[2]) & filter;
         while attacks != 0 {
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
-
-            if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture);
-            } else {
-                if !quiescence {   
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
-                }
-            }
+            push_move(moves, source as u8, target as u8, move_code);
         }
     }
 }
 
 /// Generate all queen moves for `side`.
-fn generate_queen_moves(
+fn generate_queen_moves<Type:MovegenType>(
     board: &BoardPosition,
     side: Color,
     moves: &mut Vec<Move>,
-    quiescence: bool
 ) {
     let piece = if side == White { Piece::Q } else { Piece::q };
-    let our_occ = board.occupancies[side];
+    let filter = if Type::NOISY {
+        board.occupancies[side.invert()]
+    } else {
+        !board.occupancies[2] // Quiet - avoid all pieces
+    };
 
+    let move_code = if Type::NOISY { MoveCode::Capture } else { MoveCode::QuietMove };
     let mut bb = board.bitboards[piece as usize];
     while bb != 0 {
         let source = bb.trailing_zeros() as usize;
         pop_bit(&mut bb, source);
 
-        let mut attacks = get_queen_attacks(source, board.occupancies[2]) & !our_occ;
+        let mut attacks = get_queen_attacks(source, board.occupancies[2]) & filter;
         while attacks != 0 {
             let target = attacks.trailing_zeros() as usize;
             pop_bit(&mut attacks, target);
-
-            if get_bit(board.occupancies[side.invert()], target) {
-                push_move(moves, source as u8, target as u8, MoveCode::Capture);
-            } else {
-                if !quiescence {
-                    push_move(moves, source as u8, target as u8, MoveCode::QuietMove);
-                }
-            }
+            push_move(moves, source as u8, target as u8, move_code);
         }
     }
 }
@@ -421,20 +429,36 @@ fn promotion_capture_codes() -> [MoveCode; 4] {
 // ---------------------------------------------------------------------------
 
 /// Generate all pseudo-legal moves for the side to move.
-pub fn generate_moves(board: &BoardPosition, quiescence: bool) -> Vec<Move> {
+pub fn generate_moves<Type: MovegenType>(board: &BoardPosition, list: &mut Vec<Move>) {
     let side = board.side;
     // Typical legal positions have ~35 moves; 64 avoids most reallocations.
-    let mut moves = Vec::with_capacity(if quiescence { 64 } else { 16 });
 
-    generate_pawn_moves(board, side, &mut moves, quiescence);
-    generate_king_moves(board, side, &mut moves, quiescence);
-    if !quiescence {
-        generate_castling_moves(board, side, &mut moves);
+
+    generate_pawn_moves::<Type>(board, side, list);
+    generate_king_moves::<Type>(board, side, list);
+    if Type::QUIET {
+        generate_castling_moves(board, side, list);
     }
-    generate_knight_moves(board, side, &mut moves, quiescence);
-    generate_bishop_moves(board, side, &mut moves, quiescence);
-    generate_rook_moves(board, side, &mut moves, quiescence);
-    generate_queen_moves(board, side, &mut moves, quiescence);
+    generate_knight_moves::<Type>(board, side, list);
+    generate_bishop_moves::<Type>(board, side, list);
+    generate_rook_moves::<Type>(board, side, list);
+    generate_queen_moves::<Type>(board, side, list);
+}
+
+// fix eventually
+pub fn generate_move_entries<Type: MovegenType>(board: &BoardPosition) -> Vec<MoveEntry>
+{
+    let mut list = Vec::with_capacity(256);
+    generate_moves::<Type>(board, &mut list);
+    list.iter().map(|mv| MoveEntry{mv: *mv, score: 0}).collect()
+
+}
+
+pub fn generate_all_moves(board: &BoardPosition) -> Vec<Move> {
+    let mut moves = Vec::with_capacity(256);
+
+    generate_moves::<NoisyMovegen>(board, &mut moves);
+    generate_moves::<QuietMovegen>(board, &mut moves);
 
     moves
 }

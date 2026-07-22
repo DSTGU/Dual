@@ -1,5 +1,5 @@
 use std::time::SystemTime;
-use crate::movegen::move_gen::{generate_moves};
+use crate::movegen::move_gen::{generate_all_moves};
 use crate::primitives::board::BoardPosition;
 
 pub fn perft_driver(board_position: &BoardPosition, depth: usize) -> usize {
@@ -9,7 +9,7 @@ pub fn perft_driver(board_position: &BoardPosition, depth: usize) -> usize {
     }
 
     //print_board(&search_state.board_position);
-    let movelist = generate_moves(board_position, false);
+    let movelist = generate_all_moves(board_position);
     
     let mut movecount = 0;
     
@@ -38,7 +38,7 @@ pub fn perft(board_position: &BoardPosition, depth: usize) {
     }
 
     let now = SystemTime::now();
-    let movelist = generate_moves(board_position, false);
+    let movelist = generate_all_moves(board_position);
 
     let mut movecount = 0;
 
@@ -73,7 +73,7 @@ pub fn perft(board_position: &BoardPosition, depth: usize) {
 #[cfg(test)]
 mod tests{
     use std::thread;
-    use crate::movegen::move_gen::generate_moves;
+    use crate::movegen::move_gen::{generate_all_moves};
     use crate::movegen::perft::perft_driver;
     use crate::primitives::board::BoardPosition;
     use crate::primitives::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION};
@@ -127,7 +127,7 @@ mod tests{
             return 1;
         }
         
-        let movelist = generate_moves(board_position, false);
+        let movelist = generate_all_moves(board_position);
         
         let mut movecount = 0;
 
