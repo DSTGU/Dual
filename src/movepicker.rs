@@ -3,7 +3,7 @@ use crate::primitives::board::BoardPosition;
 use crate::primitives::consts::{FIRST_KILLER_BONUS, SECOND_KILLER_BONUS};
 use crate::primitives::shared::Move;
 use crate::search_objs::search_state::SearchState;
-use crate::search_objs::see::see_a_move;
+use crate::search_objs::see::{see_a_move_premoved};
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub enum Stage {
@@ -73,11 +73,6 @@ impl MovePicker {
             while !self.list.is_empty() {
                 let entry = self.get_best_entry();
 
-                if see_a_move(board_position, entry.mv) < 0 {
-                    self.bad_noisy.push(entry.mv);
-                    continue;
-                }
-
                 // if NODE::ROOT {
                 //     self.score_noisy(td);
                 // }
@@ -87,7 +82,13 @@ impl MovePicker {
                 let new_board= board_position.make_move(entry.mv);
                     
                 if new_board.is_some() {
-                    return Some((entry.mv, new_board.unwrap()));
+                    let new_board = new_board.unwrap();
+                    if see_a_move_premoved(board_position, entry.mv, &new_board) < 0 {
+                        self.bad_noisy.push(entry.mv);
+                        continue;
+                    }
+
+                    return Some((entry.mv, new_board));
                 }
             }
 

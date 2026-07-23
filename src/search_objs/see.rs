@@ -24,16 +24,19 @@ pub fn see(board_position: &BoardPosition, square: u8) -> i32 {
     result
 }
 
-pub fn see_a_move(board_position: &BoardPosition, mv: Move) -> i32 {
+pub fn see_a_move_premoved(board_position: &BoardPosition, mv: Move, new_board: &BoardPosition) -> i32 {
+    let piece = board_position.mailbox[mv.get_target_square() as usize];
+    return value(piece) - see(&new_board, mv.get_target_square());
+}
 
+pub fn see_a_move_threshold(board_position: &BoardPosition, mv: Move, new_board: &BoardPosition, threshold: i32) -> bool {
     let piece = board_position.mailbox[mv.get_target_square() as usize];
 
-    let new_board = board_position.make_move(mv);
-    if let Some(new_board) = new_board {
-        return value(piece) - see(&new_board, mv.get_target_square());
+    if value(piece) + threshold < 0 {
+        return false;
     }
-    
-    -10000
+
+    return value(piece) - see(&new_board, mv.get_target_square()) > threshold;
 }
 
 // pub fn see(board_position: &BoardPosition, mv: Move) -> i32 {
