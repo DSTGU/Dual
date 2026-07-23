@@ -305,18 +305,21 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             }
         }
 
-        // if !NODE::ROOT {
-        //     // Static Exchange Evaluation Pruning (SEE Pruning)
-        //     let threshold = if mv.is_quiet() {
-        //         (-12 * depth * depth + 56 * depth).min(0)
-        //     } else {
-        //         (-7 * depth * depth - 36 * depth - 39 * history / 1024 + 14).min(0)
-        //     };
+        // Static Exchange Evaluation Pruning (SEE Pruning)
+        if !NODE::ROOT && !is_in_check {
+            let threshold= -120 - 50 * depth as i32;
+            // Try out a history term
+            // let threshold: i32 = if mv.is_quiet() {
+            //     (-12 * depth as i32 * depth as i32 + 56 * depth as i32 + 27).min(0)
+            // } else {
+            //     (-7 * depth as i32 * depth as i32 - 36 * depth as i32 + 14).min(0)
+            // };
 
-        //     if !is_in_check && see_a_move(board_position, mv) < threshold {
-        //         continue;
-        //     }
-        // }
+
+            if see_a_move(board_position, mv) < threshold {
+                continue;
+            }
+        }
         
         let mut score: SearchAnswer = SearchAnswer { move_list: vec![], node_count: 0, eval: MATE_SCORE };
 
