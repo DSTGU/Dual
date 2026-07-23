@@ -225,13 +225,15 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     let our_king = if board_position.side == White { Piece::K } else {Piece::k};
     let is_in_check = is_square_attacked(board_position.bitboards[our_king as usize].trailing_zeros() as u8, &board_position);
 
-    let static_eval =  if is_in_check {
-        -MATE_SCORE
-    } else if probe.is_some() && probe.unwrap().flag == TTFlag::Exact {
-        score_from_tt(probe.unwrap().score, search_state.ply)
-    } else {
-        nnue_evaluate(board_position, search_state)
-    };
+    // let static_eval =  if is_in_check {
+    //     -MATE_SCORE
+    // } else if probe.is_some() && probe.unwrap().flag == TTFlag::Exact {
+    //     score_from_tt(probe.unwrap().score, search_state.ply)
+    // } else {
+    //     nnue_evaluate(board_position, search_state)
+    // };
+
+    let static_eval = nnue_evaluate(board_position, search_state);
 
     // ------------------------------------------------------------
     // Reverse Futility Pruning (beta pruning)
