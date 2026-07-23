@@ -3,7 +3,7 @@ use crate::primitives::board::BoardPosition;
 use crate::primitives::consts::{FIRST_KILLER_BONUS, SECOND_KILLER_BONUS};
 use crate::primitives::shared::Move;
 use crate::search_objs::search_state::SearchState;
-use crate::search_objs::see::{see_a_move_premoved};
+use crate::search_objs::see::{see_a_move_threshold};
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub enum Stage {
@@ -83,7 +83,7 @@ impl MovePicker {
                     
                 if new_board.is_some() {
                     let new_board = new_board.unwrap();
-                    if see_a_move_premoved(board_position, entry.mv, &new_board) < 0 {
+                    if !see_a_move_threshold(board_position, entry.mv, &new_board, 0) {
                         self.bad_noisy.push(entry.mv);
                         continue;
                     }

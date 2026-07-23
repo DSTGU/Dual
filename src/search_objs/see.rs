@@ -12,31 +12,79 @@ pub fn value(pc: Piece) -> i32 {
     }
 }
 
-pub fn see(board_position: &BoardPosition, square: u8) -> i32 {
+// pub fn see(board_position: &BoardPosition, square: u8) -> i32 {
 
-    let mut result = 0;
-    let (mv, new_board_option): (Move, Option<BoardPosition>) = get_least_valuable_attacker(board_position, square);
+//     let mut result = 0;
+//     let (mv, new_board_option): (Move, Option<BoardPosition>) = get_least_valuable_attacker(board_position, square);
+
+//     if let Some(new_board) = new_board_option {
+//         result = 0.max(value(board_position.mailbox[mv.get_target_square() as usize]) - see(&new_board, square));
+//     }
     
-    if let Some(new_board) = new_board_option {
-        result = 0.max(value(board_position.mailbox[mv.get_target_square() as usize]) - see(&new_board, square));
+//     result
+// }
+
+pub fn see_thresholded(
+    board_position: &BoardPosition,
+    square: u8,
+    threshold: i32,
+) -> bool {
+    // SEE is always >= 0.
+    if threshold <= 0 {
+        return true;
     }
-    
-    result
-}
 
-pub fn see_a_move_premoved(board_position: &BoardPosition, mv: Move, new_board: &BoardPosition) -> i32 {
-    let piece = board_position.mailbox[mv.get_target_square() as usize];
-    return value(piece) - see(&new_board, mv.get_target_square());
-}
+    let (mv, new_board_option) = get_least_valuable_attacker(board_position, square);
 
-pub fn see_a_move_threshold(board_position: &BoardPosition, mv: Move, new_board: &BoardPosition, threshold: i32) -> bool {
-    let piece = board_position.mailbox[mv.get_target_square() as usize];
+    let Some(new_board) = new_board_option else {
+        return false;
+    };
 
-    if value(piece) + threshold < 0 {
+    let gain = value(board_position.mailbox[square as usize]);
+
+    // Even taking the piece for free isn't enough.
+    if gain < threshold {
         return false;
     }
 
-    return value(piece) - see(&new_board, mv.get_target_square()) > threshold;
+    // We need:
+    //
+    // gain - see(new_board) >= threshold
+    //
+    // which is equivalent to
+    //
+    // see(new_board) <= gain - threshold
+    //
+    // Since
+    //
+    // see(new_board) >= x
+    //
+    // is exactly what this function answers,
+    // negate the recursive query.
+    !see_thresholded(
+        &new_board,
+        square,
+        gain - threshold + 1,
+    )
+}
+
+pub fn see_a_move_threshold(
+    board_position: &BoardPosition,
+    mv: Move,
+    new_board: &BoardPosition,
+    threshold: i32,
+) -> bool {
+    let gain = value(board_position.mailbox[mv.get_target_square() as usize]);
+
+    if gain < threshold {
+        return false;
+    }
+
+    !see_thresholded(
+        new_board,
+        mv.get_target_square(),
+        gain - threshold + 1,
+    )
 }
 
 // pub fn see(board_position: &BoardPosition, mv: Move) -> i32 {

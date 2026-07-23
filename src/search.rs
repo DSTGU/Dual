@@ -8,7 +8,7 @@ use crate::primitives::board::{BoardPosition};
 use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
 use crate::primitives::shared::Color::White;
 use crate::primitives::shared::{Move, Piece, SearchAnswer, move_to_alg};
-use crate::search_objs::see::{see_a_move_premoved};
+use crate::search_objs::see::{see_a_move_threshold};
 use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::SearchState;
 
@@ -106,7 +106,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
             // }
 
         // Static Exchange Evaluation Pruning (SEE Pruning)
-        if see_a_move_premoved(board_position, mv, &new_board) < 0 {
+        if !see_a_move_threshold(board_position, mv, &new_board, 0) {
             continue;
         }
 
@@ -316,7 +316,11 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             // };
 
 
-            if see_a_move_premoved(board_position, mv, &new_board) < threshold {
+            // if see_a_move_premoved(board_position, mv, &new_board) < threshold {
+            //     continue;
+            // }
+
+            if !see_a_move_threshold(board_position, mv, &new_board, threshold) {
                 continue;
             }
         }
