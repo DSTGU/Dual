@@ -18,7 +18,6 @@ Estimated current rating for release: 2750
 For more info see releases tab.
 
 Todo for 1.0.0:
- - SEE (move ordering + pruning)
  - LMP
  - Razoring
  - True engine selfplay datagen

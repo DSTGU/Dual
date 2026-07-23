@@ -34,7 +34,7 @@ pub fn see_thresholded(
         return true;
     }
 
-    let (mv, new_board_option) = get_least_valuable_attacker(board_position, square);
+    let (_mv, new_board_option) = get_least_valuable_attacker(board_position, square);
 
     let Some(new_board) = new_board_option else {
         return false;
