@@ -2,31 +2,15 @@ use std::{vec};
 use coarsetime::{Instant};
 
 use crate::evaluation::evaluate::{nnue_evaluate};
-use crate::movegen::move_gen::{generate_moves, is_square_attacked};
+use crate::movegen::move_gen::{is_square_attacked};
+use crate::movepicker::MovePicker;
 use crate::primitives::board::{BoardPosition};
 use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
 use crate::primitives::shared::Color::White;
 use crate::primitives::shared::{Move, Piece, SearchAnswer, move_to_alg};
+use crate::search_objs::see::{see_a_move_threshold};
 use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::SearchState;
-
-pub fn sort_move_list(board_position : &BoardPosition, search_state: &mut SearchState, move_list: Vec<Move>, tt_move: Move) -> Vec<Move> {
-    let mut scored_moves: Vec<(Move, i32)> = move_list
-        .into_iter()
-        .map(|m| {
-            let score = if m == tt_move {
-                i32::MAX
-            } else {
-                search_state.get_move_score(board_position, m)
-            };
-
-            (m, score)
-        })
-        .collect();
-
-    scored_moves.sort_unstable_by_key(|&(_, score)| -score);
-    scored_moves.into_iter().map(|(mv, _)| mv).collect()
-}
 
 #[allow(clippy::approx_constant)]
 pub fn reduce_lmr_by(depth: usize, moves: usize) -> usize {
@@ -106,10 +90,9 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
         new_alpha = eval;
     }
 
-    let move_list = generate_moves(&board_position, true);
-    let filtered_move_list = sort_move_list(board_position, search_state, move_list, tt_move);
+    let mut move_picker = MovePicker::new(tt_move);
 
-    for mv in filtered_move_list {
+    while let Some((mv, new_board)) = move_picker.next(board_position, search_state, true) {
 
         // let captured_value = DELTA_VALUES[mv.get_taken_piece() as usize % 6];
         // // Delta pruning
@@ -117,13 +100,15 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
         //     continue;
         // }
 
-        let new_board = board_position.make_move(mv);
+            // Late Move Pruning (LMP)
+            // if move_count >= 3 && !td.board.is_direct_check(mv) {
+            //     break;
+            // }
 
-        if new_board.is_none() {
+        // Static Exchange Evaluation Pruning (SEE Pruning)
+        if !see_a_move_threshold(board_position, mv, &new_board, 0) {
             continue;
         }
-
-        let new_board = new_board.unwrap();
 
         search_state.make_move(mv, board_position);
         
@@ -290,13 +275,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             }
         }
 
-
-    // ------------------------------------------------------------
-    // Move generation / ordering
-    // ------------------------------------------------------------
-    let move_list = generate_moves(board_position, false);
-    let move_list = sort_move_list(board_position, search_state, move_list, tt_move);
-
     // Move, eval (alpha), nodes
     let mut nodes = 1;
 
@@ -307,7 +285,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     let mut previous_quiet_moves = vec![]; // malus purposes
     let history_bonus = 300 * depth as i32 - 250;
     
-    for &mv in move_list.iter() {
+
+    let mut move_picker = MovePicker::new(tt_move);
+
+    while let Some((mv, new_board)) = move_picker.next(board_position, search_state, false) {
         // --------------------------------------------------------
         // Futility pruning
         //
@@ -323,16 +304,28 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                 continue;
             }
         }
-        
-        let mut score: SearchAnswer = SearchAnswer { move_list: vec![], node_count: 0, eval: MATE_SCORE };
 
-        let new_board = board_position.make_move(mv);
-        
-        if new_board.is_none() {
-            continue;  
+        // Static Exchange Evaluation Pruning (SEE Pruning)
+        if !NODE::ROOT && !is_in_check {
+            let threshold= -120 - 50 * depth as i32;
+            // Try out a history term
+            // let threshold: i32 = if mv.is_quiet() {
+            //     (-12 * depth as i32 * depth as i32 + 56 * depth as i32 + 27).min(0)
+            // } else {
+            //     (-7 * depth as i32 * depth as i32 - 36 * depth as i32 + 14).min(0)
+            // };
+
+
+            // if see_a_move_premoved(board_position, mv, &new_board) < threshold {
+            //     continue;
+            // }
+
+            if !see_a_move_threshold(board_position, mv, &new_board, threshold) {
+                continue;
+            }
         }
         
-        let new_board = new_board.unwrap();
+        let mut score: SearchAnswer = SearchAnswer { move_list: vec![], node_count: 0, eval: MATE_SCORE };
 
         search_state.make_move(mv, board_position);
 
@@ -656,12 +649,12 @@ use crate::search_objs::search_state::SearchState;
             .spawn(|| {
                 let command1 = "position fen 8/7p/P1N2k2/1BBp2p1/4b1K1/6P1/r7/8 b - - 1 49";
                 let mut search_state = SearchState::new(&EngineConfig::thin());
-                search_state.stop_condition.depth = Some(8);
                 let board_position = parse_position_command(&mut search_state, command1);
+                search_state.stop_condition.depth = Some(12);
                 search(&board_position, &mut search_state); 
                 let command2 = "position fen 8/7p/P1N2k2/1BBp2p1/4b1K1/6P1/r7/8 b - - 1 49 moves h7h5 g4h5";
                 let board_position = parse_position_command(&mut search_state, command2);
-                search_state.stop_condition.depth = Some(3);
+                search_state.stop_condition.depth = Some(5);
                 search(&board_position, &mut search_state); 
             })
             .unwrap();

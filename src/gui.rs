@@ -1,6 +1,6 @@
 use crate::evaluation::nnue::NNUE;
+use crate::movegen::move_gen::generate_all_moves;
 use crate::primitives::board::BoardPosition;
-use crate::movegen::move_gen::{generate_moves};
 use crate::movegen::perft::perft;
 use crate::search::{search};
 use crate::search_objs::config::EngineConfig;
@@ -11,7 +11,7 @@ use crate::primitives::shared::Piece::{B, N, Q, R};
 
 pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 
-    let legal_moves = generate_moves(board, false);
+    let legal_moves = generate_all_moves(board);
 
     let src = coordinates_to_squares(&move_to_parse[0..2]);
     let target = coordinates_to_squares(&move_to_parse[2..4]);

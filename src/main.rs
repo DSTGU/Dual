@@ -5,6 +5,7 @@ mod search_objs;
 mod evaluation;
 mod primitives;
 mod bench;
+mod movepicker;
 
 use std::io;
 use std::thread;
@@ -73,6 +74,7 @@ pub fn uci_loop() {
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
             "bench" => bench_engine(&mut search_state),
+            //"see" => println!("See: {}", see_a_move(&board_position, parse_move(&board_position, words[1]).expect("Good Job. You've crashed the engine"))),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
         }

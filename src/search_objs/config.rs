@@ -11,6 +11,7 @@ impl Default for EngineConfig {
 
 impl EngineConfig {
     // Use for tests that don't require massive data stores
+    #[allow(dead_code)]
     pub fn thin() -> Self {
         EngineConfig { hash: 16 }
     }

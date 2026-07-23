@@ -1,7 +1,7 @@
 use std::sync::{Once};
 use lazy_static::lazy_static;
 
-use crate::primitives::shared::{set_bit, pop_bit};
+use crate::primitives::{board::BoardPosition, shared::{Move, MoveCode, Piece, pop_bit, set_bit}};
 /**********************************\
  ==================================
 
@@ -683,4 +683,53 @@ pub fn get_rook_attacks(square: usize, occupancy: u64) -> u64 {
 
 pub fn get_queen_attacks(square: usize, occupancy: u64) -> u64 {
     get_rook_attacks(square,occupancy) | get_bishop_attacks(square,occupancy)
+}
+
+
+// Function for taking from which squares can a given piece attack a given square for that bp
+// That's why pawns are inverted
+pub fn get_piece_attacks(board_position: &BoardPosition, square: u8, piece: Piece) -> u64 {
+
+    match piece {
+        Piece::P => PAWN_ATTACKS[1][square as usize],
+        Piece::p => PAWN_ATTACKS[0][square as usize],
+        Piece::K | Piece::k => KING_ATTACKS[square as usize],
+        Piece::N | Piece::n => KNIGHT_ATTACKS[square as usize],
+        Piece::B | Piece::b => get_bishop_attacks(square as usize, board_position.occupancies[2]),
+        Piece::R | Piece::r => get_rook_attacks(square as usize, board_position.occupancies[2]),
+        Piece::Q | Piece::q => get_queen_attacks(square as usize,board_position.occupancies[2]),
+
+        Piece::NONE => 0
+    }
+}
+
+pub fn get_least_valuable_attacker(board_position: &BoardPosition, square: u8) -> ( Move, Option<BoardPosition> ) {
+    
+    let side = board_position.side;
+
+    for piece_idx in 0 + 6*side as usize..6 + 6*side as usize {
+        let attacker = Piece::new(piece_idx);
+
+        let attacks = get_piece_attacks(board_position, square, attacker);
+        let mut attacking_pieces = attacks & board_position.bitboards[piece_idx];
+
+        for _ in 0..attacking_pieces.count_ones() {
+            let source = attacking_pieces.trailing_zeros() as u8;
+            pop_bit(&mut attacking_pieces, source as usize);
+
+            // let mv = if piece_idx % 6 == 0 && square < 8 || square >= 56 
+            //     { Move::create(source, square, MoveCode::QueenPromotionCapture)} else 
+            //     { Move::create(source, square, MoveCode::Capture) };
+
+            let mv = { Move::create(source, square, MoveCode::Capture) };
+            let board_position = board_position.make_move(mv);
+
+            if board_position.is_some() {
+                return (mv, board_position);
+            }
+        }
+
+    }
+
+    (Move::create_null(), None)
 }

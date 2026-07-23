@@ -2,7 +2,7 @@ use coarsetime::{Instant};
 
 use crate::primitives::board::BoardPosition;
 use crate::primitives::shared::{Move, Piece};
-use crate::primitives::consts::{FIRST_KILLER_BONUS, MAX_HISTORY, MVV_LVA, SECOND_KILLER_BONUS};
+use crate::primitives::consts::{MAX_HISTORY, MVV_LVA};
 use crate::search_objs::config::EngineConfig;
 use crate::search_objs::move_stack::MoveStack;
 use crate::search_objs::tt::{TTEntry, TTFlag, TranspositionTable, score_to_tt};
@@ -12,7 +12,7 @@ use crate::evaluation::network_state::NetworkState;
 pub struct SearchState {
     pub max_depth: usize, // Of the search iteration, not in general
     pub seldepth: usize,
-    killer_moves: [[Move; 256]; 2],
+    pub killer_moves: [[Move; 256]; 2],
     //only public for test purposes
     pub history_moves: [[[i32; 64]; 64]; 2],
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
@@ -84,32 +84,8 @@ impl SearchState {
     }
 
     #[inline(always)]
-    fn get_mvv_lva(victim: Piece, attacker: Piece) -> i32 {
+    pub fn get_mvv_lva(victim: Piece, attacker: Piece) -> i32 {
         MVV_LVA[victim as usize % 6 + attacker as usize % 6 * 6]
-    }
-
-    pub fn get_move_score(&self, board_position: &BoardPosition, mv: Move) -> i32 {
-        if mv.is_capture() {
-            let victim = board_position.get_victim(mv);
-            let mvv = Self::get_mvv_lva(victim, board_position.get_piece(mv));
-            
-            return mvv;
-            //return mvv + 
-            //    self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][self.get_piece(mv) as usize][mv.get_target_square() as usize];
-        }
-
-        // Killer moves
-        if self.ply < 256 {
-            if self.killer_moves[0][self.ply] == mv {
-                return FIRST_KILLER_BONUS;
-            }
-            if self.killer_moves[1][self.ply] == mv {
-                return SECOND_KILLER_BONUS;
-            }
-        }
-
-        // History heuristic
-        self.history_moves[board_position.side][mv.get_source_square() as usize][mv.get_target_square() as usize]
     }
 
     pub fn update_killer_move(&mut self, mv: Move) {
