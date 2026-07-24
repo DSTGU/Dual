@@ -244,7 +244,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     if !NODE::PV
        && depth <= 6
        && !is_in_check
-       && static_eval - (150*depth) as i32 >= beta {
+       && static_eval - (100*depth) as i32 >= beta {
             return SearchAnswer {
                 move_list: vec![],
                 node_count: 1,
@@ -302,7 +302,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         legal_moves > 1 &&
         mv.is_quiet() &&
         !is_in_check {
-            if static_eval + 150 * depth as i32 <= alpha {
+            if static_eval + 100 * depth as i32 <= alpha {
                 continue;
             }
         }
