@@ -175,6 +175,6 @@ impl MovePicker {
         }
 
         // History heuristic
-        search_state.history_moves[board_position.side][mv.get_source_square() as usize][mv.get_target_square() as usize]
+        search_state.get_quiet_history(board_position.side, mv.get_source_square(), mv.get_target_square())
     }
 }

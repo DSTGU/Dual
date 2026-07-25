@@ -1,7 +1,7 @@
 use coarsetime::{Instant};
 
 use crate::primitives::board::BoardPosition;
-use crate::primitives::shared::{Move, Piece};
+use crate::primitives::shared::{Color, Move, Piece};
 use crate::primitives::consts::{MAX_HISTORY, MVV_LVA};
 use crate::search_objs::config::EngineConfig;
 use crate::search_objs::move_stack::MoveStack;
@@ -98,12 +98,12 @@ impl SearchState {
     pub fn update_history(&mut self, board_position: &BoardPosition, mv: Move, bonus: i32) {
         let clamped_bonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY);
         let piece = board_position.get_piece(mv) as usize;
-        let source = mv.get_source_square() as usize;
-        let target = mv.get_target_square() as usize;
+        let source = mv.get_source_square();
+        let target = mv.get_target_square();
         let side = board_position.side;
         if piece < 12 && target < 64 {
-            let history_val = self.history_moves[side][source][target];           
-            self.history_moves[side][source][target] += clamped_bonus - history_val * clamped_bonus.abs() / MAX_HISTORY //second bonus should be abs
+            let history_val = self.get_quiet_history(side, source, target);           
+            self.history_moves[side][source as usize][target as usize] += clamped_bonus - history_val * clamped_bonus.abs() / MAX_HISTORY //second bonus should be abs
             //if mv.is_capture() {
             //    let history_val = self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target];
             //    self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY;
@@ -113,6 +113,11 @@ impl SearchState {
 
         }
     }
+
+    pub fn get_quiet_history(&self, side: Color, source: u8, target: u8) -> i32 {
+        self.history_moves[side][source as usize][target as usize]
+    }
+
 
     // pub fn get_stats(&self) -> (u64, u64, f64) {
     //     let fill_pct = self.tt.fill_percentage();

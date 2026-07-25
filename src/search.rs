@@ -346,6 +346,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             let mut reduction = reduce_lmr_by(depth, legal_moves);
 
             // Often reduce less for good-history moves
+            //search_state
             //reduction -= historyBonus(move)
 
             reduction = reduction.clamp(0, depth - 1);
