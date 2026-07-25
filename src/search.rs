@@ -13,9 +13,9 @@ use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::SearchState;
 
 #[allow(clippy::approx_constant)]
-pub fn reduce_lmr_by(depth: usize, moves: usize) -> usize {
+pub fn reduce_lmr_by(depth: usize, moves: usize) -> i32 {
     // Obsidian function
-    (0.99 + (depth as f32).ln() * (moves as f32).ln() / 3.14) as usize
+    ((0.99 + (depth as f32).ln() * (moves as f32).ln() / 3.14) * 1024.0) as i32
 }
 
 pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> i32 {
@@ -347,9 +347,9 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
             // Often reduce less for good-history moves
             //search_state
-            //reduction -= historyBonus(move)
+            reduction -= search_state.get_quiet_history(board_position.side, mv) / 8;
 
-            reduction = reduction.clamp(0, depth - 1);
+            let reduction = (reduction / 1024).clamp(0, (depth - 1) as i32) as usize;
 
             score = pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1-reduction );
             nodes += score.node_count;

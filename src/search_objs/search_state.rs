@@ -102,7 +102,7 @@ impl SearchState {
         let target = mv.get_target_square();
         let side = board_position.side;
         if piece < 12 && target < 64 {
-            let history_val = self.get_quiet_history(side, source, target);           
+            let history_val = self.get_quiet_history(side, mv);           
             self.history_moves[side][source as usize][target as usize] += clamped_bonus - history_val * clamped_bonus.abs() / MAX_HISTORY //second bonus should be abs
             //if mv.is_capture() {
             //    let history_val = self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target];
@@ -114,8 +114,8 @@ impl SearchState {
         }
     }
 
-    pub fn get_quiet_history(&self, side: Color, source: u8, target: u8) -> i32 {
-        self.history_moves[side][source as usize][target as usize]
+    pub fn get_quiet_history(&self, side: Color, mv: Move) -> i32 {
+        self.history_moves[side][mv.get_source_square() as usize][mv.get_target_square() as usize]
     }
 
 
