@@ -12,6 +12,7 @@ use crate::search_objs::see::{see_a_move_threshold};
 use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::SearchState;
 
+// value is 1024 * depth
 #[allow(clippy::approx_constant)]
 pub fn reduce_lmr_by(depth: usize, moves: usize) -> i32 {
     // Obsidian function
@@ -37,41 +38,29 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
         Move::create_null()
     };
     
-    // if let Some(entry) = probe {
-    //     if !search_state.is_twofold_repetition(board_position.hash) {
-    //         let score = score_from_tt(entry.score, search_state.ply);
-    //         match entry.flag {
+    if let Some(entry) = probe {
+        if !search_state.is_twofold_repetition(board_position.hash) {
+            let score = score_from_tt(entry.score, search_state.ply);
+            match entry.flag {
 
-    //             TTFlag::Exact => {
-    //                 return SearchAnswer {
-    //                     move_list: vec![Some(entry.best_move)],
-    //                     node_count: 1,
-    //                     eval: score,
-    //                 };
-    //             }
+                TTFlag::Exact => {
+                    return score;
+                }
 
-    //             TTFlag::Alpha => {
-    //                 if score <= alpha {
-    //                     return SearchAnswer {
-    //                         move_list: vec![],
-    //                         node_count: 1,
-    //                         eval: score,
-    //                     };
-    //                 }
-    //             }
+                TTFlag::Alpha => {
+                    if score <= alpha {
+                        return score;
+                    }
+                }
 
-    //             TTFlag::Beta => {
-    //                 if score >= beta {
-    //                     return SearchAnswer {
-    //                         move_list: vec![Some(entry.best_move)],
-    //                         node_count: 1,
-    //                         eval: score,
-    //                     };
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+                TTFlag::Beta => {
+                    if score >= beta {
+                        return score;
+                    }
+                }
+            }
+        }
+    }
 
     //PESTO eval
     let eval = nnue_evaluate(&board_position, search_state);
@@ -354,7 +343,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             score = pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1-reduction );
             nodes += score.node_count;
 
-            if -score.eval > new_alpha {
+            if -score.eval > new_alpha && reduction > 0 {
                 score = pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1 );
                 nodes += score.node_count;
             }
