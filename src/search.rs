@@ -337,7 +337,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // LMR (Late Move Reductions)
         // --------------------------------------------------------
         if depth >= 3 &&
-           legal_moves > 1 &&
+           legal_moves > 2 &&
            mv.is_quiet() {
            // !NODE::PV {
            //and not inCheck
