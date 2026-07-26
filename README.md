@@ -13,26 +13,26 @@ Currently features:
  - Aspiration windows
  - NNUE
  - SEE
+ - LMP
+ - Razoring
 
-Estimated current rating for dev: ~3000
-Estimated current rating for release: 2850-2900
+Estimated current rating for release: 2950-3000
 For more info see releases tab.
 
 Todo for 1.0.0:
- - LMP
- - Razoring
  - True engine selfplay datagen
  - Net improvement and optimisations (fused updates, manual simd)
  - Correct tt format (with static eval and buckets)
- - Legal movegen?
+ - Fix clippy lints
+ - Hammer out all(most) performance time sinks correctly
+ - Movegen improvements (legal?)
 
 Future plans:
  - Correction/Continuation/Countermove history
  - Capture history
  - Tuning
- - Some other easy improvements from furypasta
+ - Other easy improvements from furypasta
  - Experiment with different net architectures (namely: hm, maybe buckets)
- - Movegen improvements
  - Make stronger in general :>
 
 Perf analisis (accurate as of 750759a):
@@ -57,8 +57,10 @@ No ranking or tournament results as of now
 
 Thanks to:
 Maksym Korzh
-Engine Programming discord
+Engine Programming discord + SF discord
 jw1912 - Bullet library creator
+Ciekce - Stormphrax author
+Other engines Dual takes inspiration from, including (but not limited to) Reckless, Icarus, Hobbes, Berserk and Caissa
 
 Bullet was used to train the network used by the engine
 

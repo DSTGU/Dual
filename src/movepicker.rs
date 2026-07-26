@@ -57,8 +57,8 @@ impl MovePicker {
 
                 let new_board= board_position.make_move(self.tt_move);
                 
-                if new_board.is_some() {
-                    return Some((self.tt_move, new_board.unwrap()));
+                if let Some(new_board) = new_board {
+                    return Some((self.tt_move, new_board));
                 }
             }
         }
@@ -83,8 +83,7 @@ impl MovePicker {
 
                 let new_board= board_position.make_move(entry.mv);
                     
-                if new_board.is_some() {
-                    let new_board = new_board.unwrap();
+                if let Some(new_board) = new_board {
                     if !see_a_move_threshold(board_position, entry.mv, &new_board, 0) {
                         self.bad_noisy.push(entry.mv);
                         continue;
@@ -118,8 +117,8 @@ impl MovePicker {
 
                 let new_board= board_position.make_move(entry.mv);
                     
-                if new_board.is_some() {
-                    return Some((entry.mv, new_board.unwrap()));
+                if let Some(new_board) = new_board {
+                    return Some((entry.mv, new_board));
                 }
             }
 
@@ -133,8 +132,8 @@ impl MovePicker {
                 let new_board= board_position.make_move(mv);
                 
                 self.bad_noisy_idx += 1;
-                if new_board.is_some() {
-                    return Some((mv, new_board.unwrap()));
+                if let Some(new_board) = new_board {
+                    return Some((mv, new_board));
                 }
             }
         }
