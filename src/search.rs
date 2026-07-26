@@ -249,6 +249,17 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                 eval: static_eval,
             };
        }
+    
+    // ------------------------------------------------------------
+    // Razoring
+    // ------------------------------------------------------------
+    // sf: alpha - 512 - (293 * depth * depth) as i32
+    if !NODE::PV && static_eval < alpha - 200 - (100 * depth * depth) as i32{ // likely a fail-low node ?
+        let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
+        if new_score < beta {
+            return SearchAnswer { move_list: vec![], node_count: 0, eval: new_score }; // fail soft
+        }
+    }
 
 
     // ------------------------------------------------------------
