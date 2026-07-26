@@ -478,27 +478,30 @@ pub fn single_depth_search(board_position: &BoardPosition, search_state: &mut Se
 }
 
 pub fn single_depth_search_aspirated(board_position: &BoardPosition, search_state: &mut SearchState, depth: usize, eval: i32) -> SearchAnswer {
-    let mut aspiration_lower = 50;
-    let mut aspiration_higher = 50;
+
+    let aspiration_deltas = vec![50, 75, 200, i32::MAX];
+    let mut alpha = eval - aspiration_deltas[0]/2;
+    let mut beta = eval + aspiration_deltas[0]/2;
 
     let mut score ;
 
-    for _ in 0..3 {
+    for delta in aspiration_deltas.iter().skip(1) {
         //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
-        score = pvs::<Root>(board_position, search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
+        score = pvs::<Root>(board_position, search_state, alpha, beta, depth);
         //println!("aspiration, score: {:?}", score.eval);
         search_state.nodes += score.node_count as u64;
         
-        if !score.move_list.is_empty() && score.move_list[0].is_some() {
+        if (!score.move_list.is_empty() && score.move_list[0].is_some() && score.eval > alpha && score.eval < beta) || search_state.stop_condition.should_hard_quit(0) {
             return score;
         }
 
-        //println!("aspiration failed, score: {:?}", score.eval);
-        if score.eval < eval {
-            aspiration_lower *= 2;
+        //println!("aspiration failed, score: {:?}, window: {}-{}", score.eval, alpha, beta);
+        if score.eval <= alpha {
+            //beta = (alpha + beta) / 2;
+            alpha -= delta;
         }
-        else {
-            aspiration_higher *= 2;
+        else { // > beta
+            beta += delta;
         }
     }
 
