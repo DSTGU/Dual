@@ -105,6 +105,15 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
             search_state.take_back();
 
             if -res >= beta {
+
+                // search_state.store_tt(
+                //     0,
+                //     new_alpha,
+                //     flag,
+                //     best_move.unwrap_or(Move::create_null()),
+                //     board_position.hash
+                // );
+
                 search_state.nodes += 1;
                 return beta;
             }

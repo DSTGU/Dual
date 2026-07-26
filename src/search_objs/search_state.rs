@@ -56,6 +56,7 @@ impl SearchState {
         self.stop_condition = StopCondition::default();
         self.should_quit = false;
         self.ply = 0;
+        self.tt.increment_age();
     }
 
     pub fn clear_persistent_data(&mut self) {
@@ -67,7 +68,6 @@ impl SearchState {
     pub fn reset_for_new_iteration(&mut self, depth: usize) {
         self.max_depth = depth;
         self.seldepth = depth;
-        self.tt.increment_age();
     }
 
     pub fn make_move(&mut self, mv: Move, board_position: &BoardPosition) {

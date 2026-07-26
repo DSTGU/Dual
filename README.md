@@ -12,9 +12,10 @@ Currently features:
  - Futility + Reverse futility pruning
  - Aspiration windows
  - NNUE
+ - SEE
 
-Estimated current rating for dev: ~2950
-Estimated current rating for release: 2750
+Estimated current rating for dev: ~3000
+Estimated current rating for release: 2850-2900
 For more info see releases tab.
 
 Todo for 1.0.0:
@@ -24,7 +25,6 @@ Todo for 1.0.0:
  - Net improvement and optimisations (fused updates, manual simd)
  - Correct tt format (with static eval and buckets)
  - Legal movegen?
- - Staged movegen
 
 Future plans:
  - Correction/Continuation/Countermove history

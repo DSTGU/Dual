@@ -107,7 +107,7 @@ impl TranspositionTable {
         let idx = self.index(hash);
         let entry = &mut self.entries[idx];
 
-        if entry.hash == 0 || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 3) > 0 {
+        if entry.hash == 0 || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 6) > 0 {
             *entry = TTEntry {
                 hash,
                 depth,
