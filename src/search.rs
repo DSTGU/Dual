@@ -19,6 +19,10 @@ pub fn reduce_lmr_by(depth: usize, moves: usize) -> i32 {
     ((0.99 + (depth as f32).ln() * (moves as f32).ln() / 3.14) * 1024.0) as i32
 }
 
+fn lmp_threshold(depth: usize) -> usize {
+    3 + depth * depth
+}
+
 pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> i32 {
 
     search_state.seldepth = search_state.seldepth.max(ply);
@@ -316,6 +320,19 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             }
         }
 
+        // --------------------------------------------------------
+        // Late move pruning
+        // --------------------------------------------------------
+        if !NODE::PV 
+            && new_alpha.abs() <= MATE_THRESHOLD
+            && mv.is_quiet()
+            && previous_quiet_moves.len()
+                >= lmp_threshold(depth)
+        {
+            move_picker.skip_quiets();
+            continue;
+        }
+
         // Static Exchange Evaluation Pruning (SEE Pruning)
         if !NODE::ROOT && !is_in_check {
             let threshold= -120 - 50 * depth as i32;
@@ -325,11 +342,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             // } else {
             //     (-7 * depth as i32 * depth as i32 - 36 * depth as i32 + 14).min(0)
             // };
-
-
-            // if see_a_move_premoved(board_position, mv, &new_board) < threshold {
-            //     continue;
-            // }
 
             if !see_a_move_threshold(board_position, mv, &new_board, threshold) {
                 continue;

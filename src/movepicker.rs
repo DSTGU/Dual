@@ -29,6 +29,7 @@ pub struct MovePicker {
     stage: Stage,
     bad_noisy: Vec<Move>,
     bad_noisy_idx: usize,
+    skip_quiets: bool
     //noisy_count: usize,
 }
 
@@ -40,7 +41,8 @@ impl MovePicker {
             tt_move,
             stage:  Stage::HashMove,
             bad_noisy: vec![],
-            bad_noisy_idx: 0
+            bad_noisy_idx: 0,
+            skip_quiets: false
         }
     }
 
@@ -96,7 +98,9 @@ impl MovePicker {
                 return None;
                 // Currently no need to check bad noisy in quiescence (they are always pruned)
                 //self.stage = Stage::BadNoisy;
-            } else {   
+            } else if self.skip_quiets {
+                self.stage = Stage::BadNoisy;
+            } else {
                 self.list = generate_move_entries::<QuietMovegen>(board_position);
                 self.score_moves(board_position, search_state);
                 self.stage = Stage::Quiet;
@@ -104,6 +108,10 @@ impl MovePicker {
         }
 
         if self.stage == Stage::Quiet {
+
+            if self.skip_quiets {
+                self.stage = Stage::BadNoisy;
+            }
 
             while !self.list.is_empty() {
                 let entry = self.get_best_entry();
@@ -133,6 +141,10 @@ impl MovePicker {
 
         //println!("No more moves. Returning None");
         None
+    }
+
+    pub fn skip_quiets(&mut self) {
+        self.skip_quiets = true;
     }
 
     fn get_best_entry(&mut self) -> MoveEntry {
