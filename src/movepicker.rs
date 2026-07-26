@@ -51,7 +51,7 @@ impl MovePicker {
 
             self.stage = Stage::Movegen;
 
-            if !self.tt_move.is_null() {
+            if !self.tt_move.is_null() && board_position.can_make_move(self.tt_move){
 
                 let new_board= board_position.make_move(self.tt_move);
                 

@@ -1,3 +1,4 @@
+use crate::movegen::attacks::get_piece_attacks;
 use crate::movegen::move_gen::{CASTLING_RIGHTS, is_square_attacked};
 use crate::primitives::shared::Color::{Black, White};
 use crate::primitives::shared::{ASCII_PIECES, Castle, Color, KING_INDEX, Move, Piece, SQUARE_TO_COORDINATES, get_bit, pop_bit, set_bit};
@@ -379,6 +380,33 @@ impl BoardPosition {
 
     //     true
     // }
+
+    // 99.9% correct
+    pub fn can_make_move(&self, mv: Move) -> bool {
+        let piece = self.mailbox[mv.get_source_square() as usize];
+        let source = mv.get_source_square();
+        let target = mv.get_target_square();
+
+        if piece == Piece::NONE || piece.get_side() != self.side {
+            return false;
+        }
+
+        if (piece == Piece::P || piece == Piece::p) && !mv.is_capture() {
+            return source % 8 == target % 8;
+        }
+
+        if mv.get_castling() {
+            return piece == Piece::K || piece == Piece::k;
+        }
+
+        // Note - get_piece_attacks checks for if a piece CAN BE AN ATTACKER OF A GIVEN SQUARE
+        // Therefore source and target swapped
+        if get_piece_attacks(self, mv.get_target_square(), piece) & (1 << mv.get_source_square()) == 0  {
+            return false;
+        }
+
+        true
+    }
 
     // print board
     pub fn format_board(&self) -> String
