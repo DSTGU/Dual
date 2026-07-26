@@ -60,13 +60,13 @@ pub struct TranspositionTable {
 
 impl TranspositionTable {
     pub fn new(hash_size: usize) -> Self {
-        let nr_entries = (1024*1024*hash_size/size_of::<TTEntry>()) as u64;
-        let nr_entries_pow2 = if hash_size == 0 { 0 } else { 1 << (64 - nr_entries.leading_zeros() - 1) }; // Biggest smaller pow2
+        let nr_entries = 1024*1024*hash_size/size_of::<TTEntry>();
+        //let nr_entries_pow2 = if hash_size == 0 { 0 } else { 1 << (64 - nr_entries.leading_zeros() - 1) }; // Biggest smaller pow2
 
         Self {
-            entries: vec![TTEntry::empty(); nr_entries_pow2],
+            entries: vec![TTEntry::empty(); nr_entries],
             age: 0,
-            tt_size: nr_entries_pow2
+            tt_size: nr_entries
         }
     }
 
@@ -85,7 +85,7 @@ impl TranspositionTable {
     /// Get index into the table from hash
     #[inline(always)]
     fn index(&self, hash: u64) -> usize {
-        (hash as usize) & (self.tt_size - 1)
+        (hash as usize) % self.tt_size
     }
 
     /// Probe the transposition table
