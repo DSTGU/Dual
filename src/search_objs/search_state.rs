@@ -5,6 +5,7 @@ use crate::primitives::shared::{Color, Move, Piece};
 use crate::primitives::consts::{MAX_HISTORY, MVV_LVA};
 use crate::search_objs::config::EngineConfig;
 use crate::search_objs::move_stack::MoveStack;
+use crate::search_objs::search_state::Reporting::UCI;
 use crate::search_objs::tt::{TTEntry, TTFlag, TranspositionTable, score_to_tt};
 use crate::evaluation::network_state::NetworkState;
 
@@ -23,7 +24,8 @@ pub struct SearchState {
     should_quit: bool,
     pub ply: usize,
     pub network_state: NetworkState,
-    pub engine_config: EngineConfig
+    pub engine_config: EngineConfig,
+    pub reporting: Reporting
 }
 
 impl SearchState {
@@ -42,7 +44,8 @@ impl SearchState {
             should_quit: false,
             ply: 0,
             network_state: NetworkState::default(),
-            engine_config: config.clone()
+            engine_config: config.clone(),
+            reporting: UCI
         }
     }
 
@@ -265,6 +268,12 @@ impl StopCondition {
         self.drop_everything_and_quit = false;
         self.started_search = Instant::now();
     }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Reporting {
+    UCI,
+    Quiet
 }
 
 

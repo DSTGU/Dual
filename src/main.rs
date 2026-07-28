@@ -7,6 +7,7 @@ mod primitives;
 mod bench;
 mod movepicker;
 
+use std::env;
 use std::io;
 use std::thread;
 use primitives::shared::{get_bit, pop_bit, print_bitboard, Piece};
@@ -35,6 +36,7 @@ pub fn print_identification() {
     println!("id name Dual v0.4.1");
     println!("id author Tomasz Stawowy");
     println!("option name Hash type spin default 256 min 0 max 1024");
+    println!("option name Threads type spin default 1 min 1 max 1");
     println!("uciok");
 }
 
@@ -83,11 +85,20 @@ pub fn uci_loop() {
 
 
 fn main() {
-    print_identification();
     let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
     let handler = builder.spawn(|| {
-        // thread code
-        //
+
+        let args: Vec<String> = env::args().collect();
+
+        if args.get(1).map(|s| s.as_str()) == Some("bench") {
+            let engine_config = EngineConfig::default();
+            let mut search_state = SearchState::new(&engine_config);
+
+            bench_engine(&mut search_state);
+            return;
+        }
+
+        print_identification();
         uci_loop()
     }).unwrap();
     handler.join().unwrap();

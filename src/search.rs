@@ -10,7 +10,7 @@ use crate::primitives::shared::Color::White;
 use crate::primitives::shared::{Move, Piece, SearchAnswer, move_to_alg};
 use crate::search_objs::see::{see_a_move_threshold};
 use crate::search_objs::tt::{TTFlag, score_from_tt};
-use crate::search_objs::search_state::SearchState;
+use crate::search_objs::search_state::{Reporting, SearchState};
 
 // value is 1024 * depth
 #[allow(clippy::approx_constant)]
@@ -555,14 +555,20 @@ pub fn search(board_position: &BoardPosition, search_state: &mut SearchState) {
             print_info_string(&score, search_state);
         }
     }
-    
-    println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
+
+    if search_state.reporting != Reporting::Quiet {
+        println!("bestmove {}", move_to_alg(&score.move_list.pop().unwrap().unwrap()));
+    }
 
     // search_state.print_history_stats();
     
 }
 
 pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState) {
+    if search_state.reporting == Reporting::Quiet {
+        return;
+    }
+    
     let pv: String = collect_pv(&score.move_list);
     let micros = if search_state.stop_condition.started_search.elapsed().as_micros() > 0 {search_state.stop_condition.started_search.elapsed().as_micros()} else {1};
 
