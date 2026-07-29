@@ -293,6 +293,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // Move, eval (alpha), nodes
     let mut nodes = 1;
 
+    let mut best_score = i32::MIN;
     let mut best_move = None;
     let mut best_move_list = vec![];
 
@@ -395,43 +396,46 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
         search_state.take_back();
 
-        if -score.eval > new_alpha {
-            if -score.eval >= beta {
-                
-                if search_state.stop_condition.should_hard_quit(nodes as u64) {
-                    return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
-                }
-
-                search_state.store_tt(
-                    depth as u8,
-                    -score.eval,
-                    TTFlag::Beta,
-                    mv,
-                    board_position.hash
-                );
-
-                if mv.is_quiet() {
-                    search_state.update_killer_move(mv);
-                    search_state.update_history(board_position, mv, history_bonus);
-
-                    // apply malus to previous quiet moves
-                    for prev_mv in &previous_quiet_moves {
-                        search_state.update_history(
-                                board_position,
-                            *prev_mv,
-                            -history_bonus,
-                        );
+        if -score.eval > best_score {
+            best_score = -score.eval;
+            if -score.eval > new_alpha {
+                if -score.eval >= beta {
+                    
+                    if search_state.stop_condition.should_hard_quit(nodes as u64) {
+                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
                     }
+                    
+                    search_state.store_tt(
+                        depth as u8,
+                        -score.eval,
+                        TTFlag::Beta,
+                        mv,
+                        board_position.hash
+                    );
+                    
+                    if mv.is_quiet() {
+                        search_state.update_killer_move(mv);
+                        search_state.update_history(board_position, mv, history_bonus);
+                        
+                        // apply malus to previous quiet moves
+                        for prev_mv in &previous_quiet_moves {
+                            search_state.update_history(
+                                board_position,
+                                *prev_mv,
+                                -history_bonus,
+                            );
+                        }
+                    }
+                    
+                    return SearchAnswer { move_list: vec![], node_count: nodes, eval: -score.eval };
                 }
-
-                return SearchAnswer { move_list: vec![], node_count: nodes, eval: -score.eval };
+                
+                new_alpha = -score.eval;
+                best_move = Some(mv);
+                best_move_list = score.move_list;
             }
-
-            new_alpha = -score.eval;
-            best_move = Some(mv);
-            best_move_list = score.move_list;
         }
-
+            
         if mv.is_quiet() {
             previous_quiet_moves.push(mv);
         }
@@ -456,9 +460,9 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
     }
 
-    let flag: TTFlag = if new_alpha <= alpha {
+    let flag: TTFlag = if best_score <= alpha {
         TTFlag::Alpha
-    } else if new_alpha >= beta {
+    } else if best_score >= beta {
         TTFlag::Beta
     } else {
         TTFlag::Exact
@@ -466,14 +470,14 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
     search_state.store_tt(
         depth as u8,
-        new_alpha,
+        best_score,
         flag,
         best_move.unwrap_or(Move::create_null()),
         board_position.hash
     );
 
     best_move_list.push(best_move);
-    SearchAnswer { move_list: best_move_list, node_count: nodes, eval: new_alpha }
+    SearchAnswer { move_list: best_move_list, node_count: nodes, eval: best_score }
 }
 
 pub fn score_to_mate( score: i32 ) -> i32 {
