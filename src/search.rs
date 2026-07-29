@@ -335,12 +335,12 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
         // Static Exchange Evaluation Pruning (SEE Pruning)
         if !NODE::ROOT && !is_in_check {
-            let threshold= -120 - 50 * depth as i32;
+            // let threshold= -120 - 50 * depth as i32;
             // Try out a history term
             // let threshold: i32 = if mv.is_quiet() {
             //     (-12 * depth as i32 * depth as i32 + 56 * depth as i32 + 27).min(0)
             // } else {
-            //     (-7 * depth as i32 * depth as i32 - 36 * depth as i32 + 14).min(0)
+            let threshold = (-7 * depth as i32 * depth as i32 - 36 * depth as i32 + 14).min(0);
             // };
 
             if !see_a_move_threshold(board_position, mv, &new_board, threshold) {
