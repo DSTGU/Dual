@@ -28,22 +28,22 @@ impl ZobristKeys {
         }
 
         let mut piece_keys = [[0u64; 64]; 12];
-        for piece in 0..12 {
-            for square in 0..64 {
-                piece_keys[piece][square] = xorshift64(&mut seed);
+        for key in &mut piece_keys {
+            for inner_key in key {
+                *inner_key = xorshift64(&mut seed);
             }
         }
 
         let side_key = xorshift64(&mut seed);
 
         let mut castling_keys = [0u64; 4];
-        for i in 0..4 {
-            castling_keys[i] = xorshift64(&mut seed);
+        for key in &mut castling_keys {
+            *key = xorshift64(&mut seed);
         }
 
         let mut enpassant_keys = [0u64; 8];
-        for i in 0..8 {
-            enpassant_keys[i] = xorshift64(&mut seed);
+        for key in &mut enpassant_keys {
+            *key = xorshift64(&mut seed);
         }
 
         Self {
