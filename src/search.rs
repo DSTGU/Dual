@@ -315,7 +315,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         depth <= 5 &&
         legal_moves > 1 &&
         mv.is_quiet() &&
-        !is_in_check {
+        !is_in_check && 
+        best_score.abs() <= MATE_THRESHOLD {
             if static_eval + 80 * depth as i32 <= alpha {
                 continue;
             }
@@ -325,7 +326,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // Late move pruning
         // --------------------------------------------------------
         if !NODE::PV 
-            && new_alpha.abs() <= MATE_THRESHOLD
+            && best_score.abs() <= MATE_THRESHOLD
             && mv.is_quiet()
             && previous_quiet_moves.len()
                 >= lmp_threshold(depth)
@@ -335,7 +336,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         }
 
         // Static Exchange Evaluation Pruning (SEE Pruning)
-        if !NODE::ROOT && !is_in_check {
+        if !NODE::ROOT && !is_in_check && best_score.abs() <= MATE_THRESHOLD {
             let threshold= -120 - 50 * depth as i32;
             // Try out a history term
             // let threshold: i32 = if mv.is_quiet() {
