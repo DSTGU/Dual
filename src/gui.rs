@@ -166,6 +166,14 @@ pub fn parse_setoption(engine_config: &mut EngineConfig, command: &str) {
                 engine_config.hash = hash;
             }
         },
+        "SoftNodes" => {
+            let val = words[4..].concat();
+            let parse_result = val.parse::<u64>();
+            if let Ok(soft_nodes) = parse_result {
+                // 0 means "no soft node limit", any other value is a limit.
+                engine_config.soft_nodes = if soft_nodes == 0 { None } else { Some(soft_nodes) };
+            }
+        },
         _ => (),
     }
 
@@ -176,7 +184,7 @@ pub fn parse_setoption(engine_config: &mut EngineConfig, command: &str) {
 
 #[cfg(test)]
 mod tests {
-    use crate::gui::{parse_go, parse_position_command};
+    use crate::gui::{parse_go, parse_position_command, parse_setoption};
     use crate::primitives::shared::{START_POSITION};
     use crate::primitives::board::BoardPosition;
     use crate::search_objs::config::EngineConfig;
@@ -221,5 +229,29 @@ mod tests {
             })
             .unwrap();
         handler.join().unwrap();
+    }
+
+    #[test]
+    fn test_setoption_softnodes() {
+        let mut engine_config = EngineConfig::default();
+
+        // Unset by default.
+        assert_eq!(engine_config.soft_nodes, None);
+
+        // 0 -> no soft node limit.
+        parse_setoption(&mut engine_config, "setoption name SoftNodes value 0");
+        assert_eq!(engine_config.soft_nodes, None);
+
+        // Any other value -> the soft node count.
+        parse_setoption(&mut engine_config, "setoption name SoftNodes value 5000");
+        assert_eq!(engine_config.soft_nodes, Some(5000));
+
+        // Back to 0 -> unlimited again.
+        parse_setoption(&mut engine_config, "setoption name SoftNodes value 0");
+        assert_eq!(engine_config.soft_nodes, None);
+
+        // A non-numeric value is ignored.
+        parse_setoption(&mut engine_config, "setoption name SoftNodes value notanumber");
+        assert_eq!(engine_config.soft_nodes, None);
     }
 }

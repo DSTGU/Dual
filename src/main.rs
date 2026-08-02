@@ -38,6 +38,7 @@ pub fn print_identification() {
     println!("id name Dual v0.4.1");
     println!("id author Tomasz Stawowy");
     println!("option name Hash type spin default 256 min 0 max 1024");
+    println!("option name SoftNodes type spin default 0 min 0 max 1000000000");
     println!("option name Threads type spin default 1 min 1 max 1");
     println!("uciok");
 }

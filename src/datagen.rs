@@ -162,7 +162,10 @@ fn generate(n: usize, seed: u64, book: &[String], out: &mut dyn Write) -> io::Re
     // Datagen positions are fully independent, so the transposition table is
     // disabled and each position searches from a pristine state. This keeps
     // every position's score deterministic and uninfluenced by earlier ones.
-    let mut search_state = SearchState::new(&EngineConfig { hash: 0 });
+    let mut search_state = SearchState::new(&EngineConfig {
+        hash: 0,
+        soft_nodes: None,
+    });
     search_state.reporting = Reporting::Quiet;
 
     let mut written = 0;

@@ -57,6 +57,7 @@ impl SearchState {
         self.rep_table.clear();
         self.nodes = 0;
         self.stop_condition = StopCondition::default();
+        self.stop_condition.soft_nodecount = self.engine_config.soft_nodes;
         self.should_quit = false;
         self.ply = 0;
         self.tt.increment_age();
@@ -226,7 +227,7 @@ impl StopCondition {
         }
 
         if let Some(max_nodes) = self.soft_nodecount {
-            if max_nodes == nodes {
+            if nodes >= max_nodes {
                 return true;
             }
         }
@@ -316,5 +317,39 @@ use crate::search_objs::search_state::{SearchState};
             .unwrap();
         handler.join().unwrap();
 
+    }
+
+    #[test]
+    fn test_clear_data_applies_soft_nodes() {
+        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder
+            .spawn(|| {
+                // Unlimited by default.
+                let mut search_state = SearchState::new(&EngineConfig::thin());
+                assert_eq!(search_state.stop_condition.soft_nodecount, None);
+                search_state.clear_data();
+                assert_eq!(search_state.stop_condition.soft_nodecount, None);
+
+                // A configured soft node limit is applied on every clear_data.
+                let mut config = EngineConfig::thin();
+                config.soft_nodes = Some(12345);
+                let mut search_state = SearchState::new(&config);
+                search_state.clear_data();
+                assert_eq!(search_state.stop_condition.soft_nodecount, Some(12345));
+
+                // A per-search override survives until the next clear_data,
+                // which restores the configured value.
+                search_state.stop_condition.soft_nodecount = Some(7);
+                search_state.clear_data();
+                assert_eq!(search_state.stop_condition.soft_nodecount, Some(12345));
+
+                // Setting the option to 0 maps to None (no limit).
+                config.soft_nodes = None;
+                let mut search_state = SearchState::new(&config);
+                search_state.clear_data();
+                assert_eq!(search_state.stop_condition.soft_nodecount, None);
+            })
+            .unwrap();
+        handler.join().unwrap();
     }
 }
