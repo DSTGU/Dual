@@ -492,4 +492,138 @@ impl BoardPosition {
         println!("{}", self.format_board());
     }
 
+    /// Serialize the position to a FEN string. `fullmove` is the fullmove
+    /// counter (the 6th FEN field, which the engine otherwise ignores).
+    pub fn to_fen(&self, fullmove: usize) -> String {
+        let mut fen = String::with_capacity(96);
+
+        // Piece placement, rank 8 down to rank 1.
+        for rank in 0..8 {
+            let mut empty = 0;
+            for file in 0..8 {
+                let square = rank * 8 + file;
+                let piece = self.mailbox[square];
+                if piece == Piece::NONE {
+                    empty += 1;
+                } else {
+                    if empty > 0 {
+                        fen.push(char::from_digit(empty as u32, 10).unwrap());
+                        empty = 0;
+                    }
+                    fen.push(char::from(ASCII_PIECES[piece as usize]));
+                }
+            }
+            if empty > 0 {
+                fen.push(char::from_digit(empty as u32, 10).unwrap());
+            }
+            if rank < 7 {
+                fen.push('/');
+            }
+        }
+
+        // Side to move.
+        fen.push(' ');
+        fen.push(if self.side == White { 'w' } else { 'b' });
+
+        // Castling rights.
+        fen.push(' ');
+        if self.castle & Castle::Wk != 0 {
+            fen.push('K');
+        }
+        if self.castle & Castle::Wq != 0 {
+            fen.push('Q');
+        }
+        if self.castle & Castle::Bk != 0 {
+            fen.push('k');
+        }
+        if self.castle & Castle::Bq != 0 {
+            fen.push('q');
+        }
+        if self.castle == 0 {
+            fen.push('-');
+        }
+
+        // En passant target square.
+        fen.push(' ');
+        if self.enpassant != 0 {
+            fen.push_str(SQUARE_TO_COORDINATES[self.enpassant as usize]);
+        } else {
+            fen.push('-');
+        }
+
+        // Halfmove clock and fullmove number.
+        fen.push(' ');
+        fen.push_str(&self.fifty_mr.to_string());
+        fen.push(' ');
+        fen.push_str(&fullmove.to_string());
+
+        fen
+    }
+
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::primitives::shared::MoveCode;
+
+    fn run_with_big_stack(f: impl FnOnce() + Send + 'static) {
+        let builder = std::thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let handler = builder.spawn(f).unwrap();
+        handler.join().unwrap();
+    }
+
+    #[test]
+    fn test_to_fen_round_trip() {
+        run_with_big_stack(|| {
+            let fens = [
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+                "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
+                "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1",
+            ];
+
+            for fen in fens {
+                let board = BoardPosition::new(fen);
+                let out = board.to_fen(1);
+                assert_eq!(out, fen, "FEN string mismatch for {}", fen);
+                assert_eq!(
+                    BoardPosition::new(&out),
+                    board,
+                    "position mismatch for {}",
+                    fen
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn test_to_fen_en_passant_and_fullmove() {
+        run_with_big_stack(|| {
+            // After 1. e4 d5 the en passant target is d6.
+            let fen = "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2";
+            let board = BoardPosition::new(fen);
+            assert_eq!(board.enpassant, 19); // d6
+            assert_eq!(board.to_fen(2), fen);
+        });
+    }
+
+    #[test]
+    fn test_to_fen_castled_king_side() {
+        run_with_big_stack(|| {
+            // Castling removes the corresponding rights. After O-O the king moved,
+            // so White loses both of its rights; Black keeps both.
+            let board =
+                BoardPosition::new("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+            let castle_king = Move::create(60, 62, MoveCode::KingCastle);
+            let after = board.make_move(castle_king).unwrap();
+            assert!(after.castle & Castle::Wk as usize == 0);
+            assert!(after.castle & Castle::Wq as usize == 0);
+            assert!(after.castle & Castle::Bk as usize != 0);
+            assert!(after.castle & Castle::Bq as usize != 0);
+            assert_eq!(after.castle, Castle::Bk as usize | Castle::Bq as usize);
+        });
+    }
+}
+
+

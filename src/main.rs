@@ -6,6 +6,7 @@ mod evaluation;
 mod primitives;
 mod bench;
 mod movepicker;
+mod datagen;
 
 use std::env;
 use std::io;
@@ -15,6 +16,7 @@ use movegen::attacks::PAWN_ATTACKS;
 use movegen::attacks::KNIGHT_ATTACKS;
 use movegen::attacks::KING_ATTACKS;
 use crate::bench::bench_engine;
+use crate::datagen::run_genfens;
 use crate::evaluation::evaluate::evaltest;
 use crate::gui::parse_position_command;
 use crate::gui::parse_setoption;
@@ -71,7 +73,8 @@ pub fn uci_loop() {
                 parse_setoption(&mut engine_config, command);
                 search_state = SearchState::new(&engine_config);
                 board_position = parse_position_command(&mut search_state, "position startpos");
-            }
+            },
+            "genfens" => run_genfens(words),
             "printboard" => board_position.print_board(),
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
@@ -95,6 +98,17 @@ fn main() {
             let mut search_state = SearchState::new(&engine_config);
 
             bench_engine(&mut search_state);
+            return;
+        }
+
+        let tokens: Vec<&str> = args
+            .iter()
+            .skip(1)
+            .flat_map(|arg| arg.split_ascii_whitespace())
+            .collect();
+
+        if tokens.first().is_some_and(|&token| token == "genfens") {
+            crate::datagen::run_genfens(tokens);
             return;
         }
 
