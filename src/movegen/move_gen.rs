@@ -1,3 +1,5 @@
+use arrayvec::ArrayVec;
+
 use crate::movepicker::MoveEntry;
 use crate::primitives::board::BoardPosition;
 use crate::primitives::shared::Color::{self, White};
@@ -128,13 +130,13 @@ pub fn is_square_attacked(square: u8, board: &BoardPosition) -> bool {
 // Move generation helpers
 // ---------------------------------------------------------------------------
 #[inline(always)]
-fn push_move(moves: &mut Vec<Move>, source: u8, target: u8, move_code: MoveCode) {
+fn push_move(moves: &mut ArrayVec<MoveEntry, 256>, source: u8, target: u8, move_code: MoveCode) {
     let new_move = Move::create(
         source,
         target,
         move_code
     );
-    moves.push(new_move);
+    moves.push(MoveEntry { mv: new_move, score: 0 });
 }
 
 // ---------------------------------------------------------------------------
@@ -145,7 +147,7 @@ fn push_move(moves: &mut Vec<Move>, source: u8, target: u8, move_code: MoveCode)
 fn generate_pawn_moves<Type: MovegenType>(
     board: &BoardPosition,
     side: Color,
-    moves: &mut Vec<Move>,
+    moves: &mut ArrayVec<MoveEntry, 256>,
 ) {
     let piece = if side == White { Piece::P } else { Piece::p };
     let promo_rank_range: (usize, usize) = if side == White { (8, 15) } else { (48, 55) };
@@ -213,7 +215,7 @@ fn generate_pawn_moves<Type: MovegenType>(
 fn generate_king_moves<Type : MovegenType>(
     board: &BoardPosition,
     side: Color,
-    moves: &mut Vec<Move>,
+    moves: &mut ArrayVec<MoveEntry, 256>
 ) {
     let piece = if side == White { Piece::K } else { Piece::k };
     let filter = if Type::NOISY {
@@ -243,7 +245,7 @@ fn generate_king_moves<Type : MovegenType>(
 fn generate_castling_moves(
     board: &BoardPosition,
     side: Color,
-    moves: &mut Vec<Move>,
+    moves: &mut ArrayVec<MoveEntry, 256>
 ) {
     let occ = board.occupancies[2];
 
@@ -294,7 +296,7 @@ fn generate_castling_moves(
 fn generate_knight_moves<Type:MovegenType>(
     board: &BoardPosition,
     side: Color,
-    moves: &mut Vec<Move>,
+    moves: &mut ArrayVec<MoveEntry, 256>,
 ) {
     let piece = if side == White { Piece::N } else { Piece::n };
     let filter = if Type::NOISY {
@@ -323,7 +325,7 @@ fn generate_knight_moves<Type:MovegenType>(
 fn generate_bishop_moves<Type : MovegenType>(
     board: &BoardPosition,
     side: Color,
-    moves: &mut Vec<Move>,
+    moves: &mut ArrayVec<MoveEntry, 256>,
 ) {
     let piece = if side == White { Piece::B } else { Piece::b };
     let filter = if Type::NOISY {
@@ -352,7 +354,7 @@ fn generate_bishop_moves<Type : MovegenType>(
 fn generate_rook_moves<Type:MovegenType>(
     board: &BoardPosition,
     side: Color,
-    moves: &mut Vec<Move>,
+    moves: &mut ArrayVec<MoveEntry, 256>,
 ) {
     let piece = if side == White { Piece::R } else { Piece::r };
     let filter = if Type::NOISY {
@@ -380,7 +382,7 @@ fn generate_rook_moves<Type:MovegenType>(
 fn generate_queen_moves<Type:MovegenType>(
     board: &BoardPosition,
     side: Color,
-    moves: &mut Vec<Move>,
+    moves: &mut ArrayVec<MoveEntry, 256>,
 ) {
     let piece = if side == White { Piece::Q } else { Piece::q };
     let filter = if Type::NOISY {
@@ -429,7 +431,7 @@ fn promotion_capture_codes() -> [MoveCode; 4] {
 // ---------------------------------------------------------------------------
 
 /// Generate all pseudo-legal moves for the side to move.
-pub fn generate_moves<Type: MovegenType>(board: &BoardPosition, list: &mut Vec<Move>) {
+pub fn generate_moves<Type: MovegenType>(board: &BoardPosition, list: &mut ArrayVec<MoveEntry, 256>) {
     let side = board.side;
     // Typical legal positions have ~35 moves; 64 avoids most reallocations.
 
@@ -445,17 +447,8 @@ pub fn generate_moves<Type: MovegenType>(board: &BoardPosition, list: &mut Vec<M
     generate_queen_moves::<Type>(board, side, list);
 }
 
-// fix eventually
-pub fn generate_move_entries<Type: MovegenType>(board: &BoardPosition) -> Vec<MoveEntry>
-{
-    let mut list = Vec::with_capacity(256);
-    generate_moves::<Type>(board, &mut list);
-    list.iter().map(|mv| MoveEntry{mv: *mv, score: 0}).collect()
-
-}
-
-pub fn generate_all_moves(board: &BoardPosition) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(256);
+pub fn generate_all_moves(board: &BoardPosition) -> ArrayVec<MoveEntry, 256> {
+    let mut moves = ArrayVec::new();
 
     generate_moves::<NoisyMovegen>(board, &mut moves);
     generate_moves::<QuietMovegen>(board, &mut moves);

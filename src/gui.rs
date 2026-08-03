@@ -15,7 +15,7 @@ pub fn parse_move(board: &BoardPosition, move_to_parse: &str) -> Option<Move> {
 
     let src = coordinates_to_squares(&move_to_parse[0..2]);
     let target = coordinates_to_squares(&move_to_parse[2..4]);
-    let mut legal_moves : Vec<Move> = legal_moves.into_iter().filter(|x| x.get_source_square() == src && x.get_target_square() == target).collect();
+    let mut legal_moves : Vec<Move> = legal_moves.into_iter().map(|mv| mv.mv).filter(|x| x.get_source_square() == src && x.get_target_square() == target).collect();
 
     if legal_moves.len() < 2 {
         if legal_moves.is_empty(){

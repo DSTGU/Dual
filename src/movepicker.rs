@@ -1,4 +1,6 @@
-use crate::movegen::move_gen::{NoisyMovegen, QuietMovegen, generate_move_entries};
+use arrayvec::ArrayVec;
+
+use crate::movegen::move_gen::{NoisyMovegen, QuietMovegen, generate_moves};
 use crate::primitives::board::BoardPosition;
 use crate::primitives::consts::{FIRST_KILLER_BONUS, SECOND_KILLER_BONUS};
 use crate::primitives::shared::Move;
@@ -24,7 +26,7 @@ pub struct MoveEntry {
 }
 
 pub struct MovePicker {
-    list: Vec<MoveEntry>,
+    list: ArrayVec<MoveEntry, 256>,
     tt_move: Move,
     stage: Stage,
     bad_noisy: Vec<Move>,
@@ -37,7 +39,7 @@ pub struct MovePicker {
 impl MovePicker {
     pub const fn new(tt_move: Move) -> Self {
         Self {
-            list: vec![],
+            list: ArrayVec::new_const(),
             tt_move,
             stage:  Stage::HashMove,
             bad_noisy: vec![],
@@ -65,7 +67,7 @@ impl MovePicker {
 
         if self.stage == Stage::Movegen {
             //TODO: switch
-            self.list = generate_move_entries::<NoisyMovegen>(board_position);
+            generate_moves::<NoisyMovegen>(board_position, &mut self.list);
             self.score_moves(board_position, search_state);
             self.stage = Stage::Noisy;
         }
@@ -100,7 +102,7 @@ impl MovePicker {
             } else if self.skip_quiets {
                 self.stage = Stage::BadNoisy;
             } else {
-                self.list = generate_move_entries::<QuietMovegen>(board_position);
+                generate_moves::<QuietMovegen>(board_position, &mut self.list);
                 self.score_moves(board_position, search_state);
                 self.stage = Stage::Quiet;
             }

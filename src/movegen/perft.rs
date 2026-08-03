@@ -15,7 +15,7 @@ pub fn perft_driver(board_position: &BoardPosition, depth: usize) -> usize {
     
     for i in movelist {
 
-        let result = board_position.make_move(i);
+        let result = board_position.make_move(i.mv);
         if result.is_none() {
             continue;
         }
@@ -43,7 +43,7 @@ pub fn perft(board_position: &BoardPosition, depth: usize) {
     let mut movecount = 0;
 
     for i in movelist {
-        let result = board_position.make_move(i);
+        let result = board_position.make_move(i.mv);
         if result.is_none() {
             continue;
         }
@@ -51,7 +51,7 @@ pub fn perft(board_position: &BoardPosition, depth: usize) {
         let new_board = result.unwrap();
 
         let cnt= perft_driver(&new_board, depth - 1);
-        println!("{:?}, Moves: {}", i, cnt);
+        println!("{:?}, Moves: {}", i.mv, cnt);
 
         movecount += cnt;
     }
@@ -132,7 +132,7 @@ mod tests{
         let mut movecount = 0;
 
         for i in movelist {
-            let result = board_position.make_move(i);
+            let result = board_position.make_move(i.mv);
             if result.is_none() {
                 continue;
             }

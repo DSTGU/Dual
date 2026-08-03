@@ -130,9 +130,9 @@ fn play_random_plies(
         // Filter down to legal moves (pseudo-legal movegen can leave the king
         // en prise when pinned).
         let mut legal: Vec<Move> = Vec::with_capacity(pseudo.len());
-        for &mv in &pseudo {
-            if board.make_move(mv).is_some() {
-                legal.push(mv);
+        for mv in &pseudo {
+            if board.make_move(mv.mv).is_some() {
+                legal.push(mv.mv);
             }
         }
 
