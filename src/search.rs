@@ -3,7 +3,7 @@ use coarsetime::{Instant};
 
 use crate::evaluation::evaluate::{nnue_evaluate};
 use crate::movegen::move_gen::{is_square_attacked};
-use crate::movepicker::MovePicker;
+use crate::movepicker::{MovePicker, Stage};
 use crate::primitives::board::{BoardPosition};
 use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
 use crate::primitives::shared::Color::White;
@@ -335,7 +335,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         }
 
         // Static Exchange Evaluation Pruning (SEE Pruning)
-        if !NODE::ROOT && !is_in_check {
+        if !NODE::ROOT && !is_in_check && (move_picker.stage == Stage::BadNoisy || move_picker.stage == Stage::Quiet) {
             let threshold= -120 - 50 * depth as i32;
             // Try out a history term
             // let threshold: i32 = if mv.is_quiet() {

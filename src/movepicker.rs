@@ -28,7 +28,7 @@ pub struct MoveEntry {
 pub struct MovePicker {
     list: ArrayVec<MoveEntry, 256>,
     tt_move: Move,
-    stage: Stage,
+    pub stage: Stage,
     bad_noisy: Vec<Move>,
     bad_noisy_idx: usize,
     skip_quiets: bool
