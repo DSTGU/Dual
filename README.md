@@ -20,12 +20,14 @@ Estimated current rating for release: 2950-3000
 For more info see releases tab.
 
 Todo for 1.0.0:
- - True engine selfplay datagen
- - Net improvement and optimisations (fused updates, manual simd)
+ - Net improvement and optimisations (fused updates, manual simd, hm)
  - Correct tt format (with static eval and buckets)
  - Fix clippy lints
  - Hammer out all(most) performance time sinks correctly
  - Movegen improvements (legal?)
+ - IIR
+ - Proper move stack with static eval data
+ - Improving
 
 Future plans:
  - Correction/Continuation/Countermove history
