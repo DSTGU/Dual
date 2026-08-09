@@ -150,6 +150,7 @@ impl SearchState {
         &mut self,
         depth: u8,
         score: i32,
+        eval: i32,
         flag: TTFlag,
         best_move: Move,
         hash: u64
@@ -162,6 +163,7 @@ impl SearchState {
             hash,
             depth,
             score_to_tt(score, self.ply),
+            eval,
             flag,
             best_move, // or .into()
         );

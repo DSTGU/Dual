@@ -9,6 +9,7 @@ pub const MVV_LVA : [i32 ; 36] = [
 
 // Score constants
 pub const MAX_PLY : i32 = 512;
+pub const NO_SCORE: i32 = 5_000_001;
 pub const MATE_SCORE: i32 = 5_000_000;
 pub const MATE_THRESHOLD: i32 = MATE_SCORE - MAX_PLY;
 pub const FIRST_KILLER_BONUS: i32 = 9_000_000;
