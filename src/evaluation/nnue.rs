@@ -1,4 +1,5 @@
 use crate::primitives::shared::Piece;
+use std::arch::x86_64::*;
 
 pub const HIDDEN_SIZE: usize = 256;
 const SCALE: i32 = 400;
@@ -43,16 +44,36 @@ impl Network {
         // Initialise output.
         let mut output = 0;
 
-        // Side-To-Move Accumulator -> Output.
-        for (&input, &weight) in us.vals.iter().zip(&self.output_weights[..HIDDEN_SIZE]) {
-            output += screlu(input) * i32::from(weight);
-        }
+        if is_x86_feature_detected!("avx2") {
+            unsafe {
+                output =
+                    screlu_dot_avx2(
+                        &us.vals,
+                        &self.output_weights[..HIDDEN_SIZE]
+                            .try_into()
+                            .unwrap(),
+                    );
 
-        // Not-Side-To-Move Accumulator -> Output.
-        for (&input, &weight) in them.vals.iter().zip(&self.output_weights[HIDDEN_SIZE..]) {
-            output += screlu(input) * i32::from(weight);
-        }
+                output +=
+                    screlu_dot_avx2(
+                        &them.vals,
+                        &self.output_weights[HIDDEN_SIZE..]
+                            .try_into()
+                            .unwrap(),
+                    );
+            }
+        } else {
 
+            // Side-To-Move Accumulator -> Output.
+            for (&input, &weight) in us.vals.iter().zip(&self.output_weights[..HIDDEN_SIZE]) {
+                output += screlu(input) * i32::from(weight);
+            }
+
+            // Not-Side-To-Move Accumulator -> Output.
+            for (&input, &weight) in them.vals.iter().zip(&self.output_weights[HIDDEN_SIZE..]) {
+                output += screlu(input) * i32::from(weight);
+            }
+        }
         // Reduce quantization from QA * QA * QB to QA * QB.
         output /= i32::from(QA);
 
@@ -67,6 +88,64 @@ impl Network {
 
         output
     }
+}
+
+#[inline]
+#[target_feature(enable = "avx2")]
+unsafe fn screlu_dot_avx2(
+    input: &[i16; HIDDEN_SIZE],
+    weights: &[i16; HIDDEN_SIZE],
+) -> i32 {
+    debug_assert_eq!(HIDDEN_SIZE % 16, 0);
+
+    let zero = _mm256_setzero_si256();
+    let qa = _mm256_set1_epi16(QA);
+
+    let mut sum = _mm256_setzero_si256();
+
+    for i in (0..HIDDEN_SIZE).step_by(16) {
+        let x = _mm256_loadu_si256(
+            input.as_ptr().add(i) as *const __m256i
+        );
+
+        let w = _mm256_loadu_si256(
+            weights.as_ptr().add(i) as *const __m256i
+        );
+
+        // v = clamp(x, 0, QA)
+        let v = _mm256_min_epi16(
+            _mm256_max_epi16(x, zero),
+            qa,
+        );
+
+        // Lizard SCReLU:
+        //
+        // (v * w) * v
+        //
+        // v * w remains in i16 because the weights are clipped.
+        let vw = _mm256_mullo_epi16(w, v);
+
+        // Pair adjacent terms:
+        //
+        // vw[0]*v[0] + vw[1]*v[1]
+        // vw[2]*v[2] + vw[3]*v[3]
+        // ...
+        //
+        // Results are i32.
+        let products = _mm256_madd_epi16(vw, v);
+
+        sum = _mm256_add_epi32(sum, products);
+    }
+
+    // Reduce eight i32 lanes to one i32.
+    let lo = _mm256_castsi256_si128(sum);
+    let hi = _mm256_extracti128_si256(sum, 1);
+
+    let sum128 = _mm_add_epi32(lo, hi);
+    let sum64 = _mm_hadd_epi32(sum128, sum128);
+    let result = _mm_hadd_epi32(sum64, sum64);
+
+    _mm_cvtsi128_si32(result)
 }
 
 /// A column of the feature-weights matrix.
@@ -105,7 +184,36 @@ pub fn feature_index(piece: Piece, square: usize) -> usize {
     piece as usize * 64 + square
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::evaluation::nnue::{HIDDEN_SIZE, screlu, screlu_dot_avx2};
 
+
+#[test]
+fn test_screlu_avx2() {
+    let mut input = [0i16; HIDDEN_SIZE];
+    let mut weights = [0i16; HIDDEN_SIZE];
+
+    // Ideally test lots of random values too.
+    for i in 0..HIDDEN_SIZE {
+        input[i] = ((i * 37) % 500) as i16 - 100;
+        weights[i] = ((i * 17) % 253) as i16 - 126;
+    }
+
+    let scalar: i32 = input
+        .iter()
+        .zip(weights.iter())
+        .map(|(&x, &w)| screlu(x) * i32::from(w))
+        .sum();
+
+    let simd = unsafe {
+        screlu_dot_avx2(&input, &weights)
+    };
+
+    assert_eq!(scalar, simd);
+}
+
+}
 // #[cfg(test)]
 // mod tests {
 //     use crate::{nnue::{Accumulator, Network, screlu}, shared::{KIWIPETE, START_POSITION}, types::board::BoardPosition};

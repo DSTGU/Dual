@@ -307,7 +307,7 @@ use crate::search_objs::search_state::{SearchState};
 
                 parse_ucinewgame(&mut search_state);
                 board_position = parse_position_command(&mut search_state,"position kiwipete");
-                search_state.stop_condition.depth = Some(6);
+                search_state.stop_condition.depth = Some(7);
                 assert_eq!(search_state.history_moves, empty_history);
 
                 search(&board_position, &mut search_state);
