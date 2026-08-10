@@ -6,7 +6,7 @@
 //! - Threefold repetition detection
 
 use crate::primitives::shared::Move;
-use crate::primitives::consts::MATE_THRESHOLD;
+use crate::primitives::consts::{MATE_THRESHOLD, NO_SCORE};
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND
@@ -25,6 +25,7 @@ pub enum TTFlag {
 pub struct TTEntry {
     pub hash: u64,      // Full hash for verification
     pub score: i32,     // Evaluated score
+    pub eval: i32,
     pub best_move: Move, // Best move found (if any)
     pub depth: u8,     // Search depth
     pub age: u8,        // Search age for replacement
@@ -35,10 +36,11 @@ impl TTEntry {
     pub const fn empty() -> Self {
         Self {
             hash: 0,
-            depth: 0,
             score: 0,
+            eval: NO_SCORE,
             flag: TTFlag::Exact,
             best_move: Move::create_null(),
+            depth: 0,
             age: 0,
         }
     }
@@ -103,7 +105,7 @@ impl TranspositionTable {
 
     /// Store an entry in the transposition table
     #[inline]
-    pub fn store(&mut self, hash: u64, depth: u8, score: i32, flag: TTFlag, best_move: Move) {
+    pub fn store(&mut self, hash: u64, depth: u8, score: i32, eval: i32, flag: TTFlag, best_move: Move) {
         let idx = self.index(hash);
         let entry = &mut self.entries[idx];
 
@@ -112,6 +114,7 @@ impl TranspositionTable {
                 hash,
                 depth,
                 score,
+                eval,
                 flag,
                 best_move,
                 age: self.age,
@@ -123,6 +126,7 @@ impl TranspositionTable {
                 hash,
                 depth,
                 score,
+                eval,
                 flag,
                 best_move: mv,
                 age: self.age,

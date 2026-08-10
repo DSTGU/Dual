@@ -67,7 +67,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     }
 
     //PESTO eval
-    let eval = nnue_evaluate(&board_position, search_state);
+    let eval = if let Some(entry) = probe { entry.eval } else { nnue_evaluate(&board_position, search_state)};
 
     if eval >= beta
     {
@@ -408,6 +408,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                     search_state.store_tt(
                         depth as u8,
                         -score.eval,
+                        static_eval,
                         TTFlag::Beta,
                         mv,
                         board_position.hash
@@ -471,6 +472,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     search_state.store_tt(
         depth as u8,
         best_score,
+        static_eval,
         flag,
         best_move.unwrap_or(Move::create_null()),
         board_position.hash
