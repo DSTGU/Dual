@@ -501,12 +501,19 @@ const BISHOP_MAGIC_NUMBERS: [u64; 64] = [
 // The chosen magics are collision-free on [0, 2^bits), so the map is a bijection
 // and the per-square slices can be packed back-to-back without gaps.
 //
-// Note: a BMI2 `pext`-based variant was also implemented and benchmarked, but it
-// was consistently slower on the dev CPU (~25% in this engine), and LLVM silently
+// A BMI2 `pext`-based fast path is also available (see USE_PEXT below). It is
+// disabled by default: on CPUs where `pext` is microcoded it is much slower than 
+// the magic multiply-shift, and LLVM silently
 // software-emulates `pext` when the codegen target lacks BMI2 (e.g. a plain
-// `cargo build --release`), which is far worse again. Fancy magic is faster on
-// every measured configuration and needs no CPU feature checks.
+// `cargo build --release`), which is far worse again. Enable it only on CPUs
+// with native (fast) PEXT and always build with `-C target-cpu=native`.
 // -----------------------------------------------------------------------------
+
+/// Master switch: use the BMI2 `pext` fast path instead of magic multiply-shift.
+/// Keep `false` unless you build with BMI2 codegen (e.g. `cargo rustc --release
+/// -- -C target-cpu=native`, as the Makefile does) and you have verified that
+/// `pext` is fast on your CPU.
+const USE_PEXT: bool = false;
 
 // bishop relevant occupancy bit count for every square on board
 const BISHOP_RELEVANT_BITS: [usize; 64] = [
@@ -553,6 +560,26 @@ fn magic_index(magic: u64, shift: usize, mask: u64, occupancy: u64) -> usize {
     (occ >> shift) as usize
 }
 
+/// Dense table index via the BMI2 `pext` instruction. `pext` applies the mask
+/// itself, so no separate `& mask` is needed. Only compiled when the codegen
+/// target actually has BMI2; otherwise `use_pext()` cannot work.
+#[cfg(target_feature = "bmi2")]
+#[inline(always)]
+fn pext_index(mask: u64, occupancy: u64) -> usize {
+    unsafe { std::arch::x86_64::_pext_u64(occupancy, mask) as usize }
+}
+
+/// Guard for misconfigured builds: if USE_PEXT is enabled but the crate was not
+/// compiled with BMI2 codegen, fail loudly instead of silently letting LLVM
+/// software-emulate the instruction (correct, but far slower than magic).
+#[cfg(not(target_feature = "bmi2"))]
+fn pext_index(_mask: u64, _occupancy: u64) -> usize {
+    unreachable!(
+        "USE_PEXT requires building with BMI2 codegen, e.g. \
+         `cargo rustc --release -- -C target-cpu=native`"
+    )
+}
+
 /// Fill a dense slider attack table.
 fn build_slider_table(
     masks: &[u64; 64],
@@ -597,58 +624,114 @@ lazy_static! {
 }
 
 lazy_static! {
-    /// Flat bishop attack table (magic order, per-square base offsets).
-    pub static ref BISHOP_ATTACKS: Box<[u64]> = build_slider_table(
-        &BISHOP_MASKS,
-        &BISHOP_BASE,
-        |sq, occ| magic_index(
-            BISHOP_MAGIC_NUMBERS[sq],
-            64 - BISHOP_RELEVANT_BITS[sq],
-            BISHOP_MASKS[sq],
-            occ,
-        ),
-        |sq, occ| bishop_attacks_on_the_fly(sq, occ),
-    );
+    /// Flat bishop attack table, magic order (per-square base offsets).
+    /// Empty while USE_PEXT is enabled.
+    pub static ref BISHOP_ATTACKS: Box<[u64]> = {
+        if USE_PEXT {
+            Vec::new().into_boxed_slice()
+        } else {
+            build_slider_table(
+                &BISHOP_MASKS,
+                &BISHOP_BASE,
+                |sq, occ| magic_index(
+                    BISHOP_MAGIC_NUMBERS[sq],
+                    64 - BISHOP_RELEVANT_BITS[sq],
+                    BISHOP_MASKS[sq],
+                    occ,
+                ),
+                |sq, occ| bishop_attacks_on_the_fly(sq, occ),
+            )
+        }
+    };
 }
 
 lazy_static! {
-    /// Flat rook attack table (magic order, per-square base offsets).
-    pub static ref ROOK_ATTACKS: Box<[u64]> = build_slider_table(
-        &ROOK_MASKS,
-        &ROOK_BASE,
-        |sq, occ| magic_index(
-            ROOK_MAGIC_NUMBERS[sq],
-            64 - ROOK_RELEVANT_BITS[sq],
-            ROOK_MASKS[sq],
-            occ,
-        ),
-        |sq, occ| rook_attacks_on_the_fly(sq, occ),
-    );
+    /// Flat rook attack table, magic order (per-square base offsets).
+    /// Empty while USE_PEXT is enabled.
+    pub static ref ROOK_ATTACKS: Box<[u64]> = {
+        if USE_PEXT {
+            Vec::new().into_boxed_slice()
+        } else {
+            build_slider_table(
+                &ROOK_MASKS,
+                &ROOK_BASE,
+                |sq, occ| magic_index(
+                    ROOK_MAGIC_NUMBERS[sq],
+                    64 - ROOK_RELEVANT_BITS[sq],
+                    ROOK_MASKS[sq],
+                    occ,
+                ),
+                |sq, occ| rook_attacks_on_the_fly(sq, occ),
+            )
+        }
+    };
+}
+
+lazy_static! {
+    /// Flat bishop attack table, PEXT order (used when USE_PEXT is enabled).
+    pub static ref BISHOP_ATTACKS_PEXT: Box<[u64]> = {
+        if USE_PEXT {
+            build_slider_table(
+                &BISHOP_MASKS,
+                &BISHOP_BASE,
+                |sq, occ| pext_index(BISHOP_MASKS[sq], occ),
+                |sq, occ| bishop_attacks_on_the_fly(sq, occ),
+            )
+        } else {
+            Vec::new().into_boxed_slice()
+        }
+    };
+}
+
+lazy_static! {
+    /// Flat rook attack table, PEXT order (used when USE_PEXT is enabled).
+    pub static ref ROOK_ATTACKS_PEXT: Box<[u64]> = {
+        if USE_PEXT {
+            build_slider_table(
+                &ROOK_MASKS,
+                &ROOK_BASE,
+                |sq, occ| pext_index(ROOK_MASKS[sq], occ),
+                |sq, occ| rook_attacks_on_the_fly(sq, occ),
+            )
+        } else {
+            Vec::new().into_boxed_slice()
+        }
+    };
 }
 
 
 // Get bishop attacks
 #[inline(always)]
 pub fn get_bishop_attacks(square: usize, occupancy: u64) -> u64 {
-    let idx = magic_index(
-        BISHOP_MAGIC_NUMBERS[square],
-        64 - BISHOP_RELEVANT_BITS[square],
-        BISHOP_MASKS[square],
-        occupancy,
-    );
-    BISHOP_ATTACKS[BISHOP_BASE[square] + idx]
+    if USE_PEXT {
+        let mask = BISHOP_MASKS[square];
+        BISHOP_ATTACKS_PEXT[BISHOP_BASE[square] + pext_index(mask, occupancy)]
+    } else {
+        let idx = magic_index(
+            BISHOP_MAGIC_NUMBERS[square],
+            64 - BISHOP_RELEVANT_BITS[square],
+            BISHOP_MASKS[square],
+            occupancy,
+        );
+        BISHOP_ATTACKS[BISHOP_BASE[square] + idx]
+    }
 }
 
 // Get rook attacks
 #[inline(always)]
 pub fn get_rook_attacks(square: usize, occupancy: u64) -> u64 {
-    let idx = magic_index(
-        ROOK_MAGIC_NUMBERS[square],
-        64 - ROOK_RELEVANT_BITS[square],
-        ROOK_MASKS[square],
-        occupancy,
-    );
-    ROOK_ATTACKS[ROOK_BASE[square] + idx]
+    if USE_PEXT {
+        let mask = ROOK_MASKS[square];
+        ROOK_ATTACKS_PEXT[ROOK_BASE[square] + pext_index(mask, occupancy)]
+    } else {
+        let idx = magic_index(
+            ROOK_MAGIC_NUMBERS[square],
+            64 - ROOK_RELEVANT_BITS[square],
+            ROOK_MASKS[square],
+            occupancy,
+        );
+        ROOK_ATTACKS[ROOK_BASE[square] + idx]
+    }
 }
 
 pub fn get_queen_attacks(square: usize, occupancy: u64) -> u64 {
@@ -708,13 +791,16 @@ pub fn get_least_valuable_attacker(board_position: &BoardPosition, square: u8) -
 mod tests {
     use super::*;
 
-    /// Cross-check the dense magic table against the reference on-the-fly
-    /// generators, for every square and every relevant occupancy.
+    /// Cross-check both table orderings (PEXT, when enabled, and magic) against
+    /// the reference on-the-fly generators, for every square and every relevant
+    /// occupancy.
     #[test]
     fn slider_tables_match_on_the_fly() {
         // Force the tables to be built.
         let _ = &*BISHOP_ATTACKS;
         let _ = &*ROOK_ATTACKS;
+        let _ = &*BISHOP_ATTACKS_PEXT;
+        let _ = &*ROOK_ATTACKS_PEXT;
 
         for square in 0..64 {
             let bmask = BISHOP_MASKS[square];
@@ -730,13 +816,23 @@ mod tests {
             for index in 0..(1usize << bbits) {
                 let occ = set_occupancy(index as i32, bbits, bmask);
                 let expected = bishop_attacks_on_the_fly(square, occ);
-                assert_eq!(
-                    BISHOP_ATTACKS[BISHOP_BASE[square] + bmagic_idx(occ)],
-                    expected,
-                    "magic bishop index mismatch sq {} occ {}",
-                    square,
-                    occ
-                );
+                if USE_PEXT {
+                    assert_eq!(
+                        BISHOP_ATTACKS_PEXT[BISHOP_BASE[square] + pext_index(bmask, occ)],
+                        expected,
+                        "pext bishop index mismatch sq {} occ {}",
+                        square,
+                        occ
+                    );
+                } else {
+                    assert_eq!(
+                        BISHOP_ATTACKS[BISHOP_BASE[square] + bmagic_idx(occ)],
+                        expected,
+                        "magic bishop index mismatch sq {} occ {}",
+                        square,
+                        occ
+                    );
+                }
             }
 
             let rmask = ROOK_MASKS[square];
@@ -752,13 +848,23 @@ mod tests {
             for index in 0..(1usize << rbits) {
                 let occ = set_occupancy(index as i32, rbits, rmask);
                 let expected = rook_attacks_on_the_fly(square, occ);
-                assert_eq!(
-                    ROOK_ATTACKS[ROOK_BASE[square] + rmagic_idx(occ)],
-                    expected,
-                    "magic rook index mismatch sq {} occ {}",
-                    square,
-                    occ
-                );
+                if USE_PEXT {
+                    assert_eq!(
+                        ROOK_ATTACKS_PEXT[ROOK_BASE[square] + pext_index(rmask, occ)],
+                        expected,
+                        "pext rook index mismatch sq {} occ {}",
+                        square,
+                        occ
+                    );
+                } else {
+                    assert_eq!(
+                        ROOK_ATTACKS[ROOK_BASE[square] + rmagic_idx(occ)],
+                        expected,
+                        "magic rook index mismatch sq {} occ {}",
+                        square,
+                        occ
+                    );
+                }
             }
         }
     }
