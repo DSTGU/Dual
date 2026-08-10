@@ -30,3 +30,4 @@ archive
 
 # Release binary emitted by the Makefile
 /Dual
+REVIEW.md
