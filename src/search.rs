@@ -67,9 +67,9 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     }
 
     //PESTO eval
-    let eval = if let Some(entry) = probe { entry.eval } else { nnue_evaluate(&board_position, search_state)};
+    let static_eval = if let Some(entry) = probe { entry.eval } else { nnue_evaluate(&board_position, search_state)};
 
-    if eval >= beta
+    if static_eval >= beta
     {
         search_state.nodes += 1;
         return beta;
@@ -78,9 +78,9 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
     let mut new_alpha = alpha;
 
-    if eval > alpha
+    if static_eval > alpha
     {
-        new_alpha = eval;
+        new_alpha = static_eval;
     }
 
     let mut move_picker = MovePicker::new(tt_move);
@@ -235,7 +235,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     //     nnue_evaluate(board_position, search_state)
     // };
 
-    let static_eval = nnue_evaluate(board_position, search_state);
+    let static_eval = if let Some(entry) = probe { entry.eval } else { nnue_evaluate(&board_position, search_state)};
 
     // ------------------------------------------------------------
     // Reverse Futility Pruning (beta pruning)
