@@ -66,6 +66,10 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
         }
     }
 
+    //Todo: move to movegen
+    let our_king = if board_position.side == White { Piece::K } else {Piece::k};
+    let is_in_check = is_square_attacked(board_position.bitboards[our_king as usize].trailing_zeros() as u8, &board_position);
+
     //PESTO eval
     let eval = if let Some(entry) = probe { entry.eval } else { nnue_evaluate(&board_position, search_state)};
 
@@ -85,7 +89,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
     let mut move_picker = MovePicker::new(tt_move);
 
-    while let Some((mv, new_board)) = move_picker.next(board_position, search_state, true) {
+    while let Some((mv, new_board)) = move_picker.next(board_position, search_state, !is_in_check) {
 
         // let captured_value = DELTA_VALUES[mv.get_taken_piece() as usize % 6];
         // // Delta pruning
