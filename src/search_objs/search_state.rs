@@ -7,7 +7,6 @@ use crate::search_objs::config::EngineConfig;
 use crate::search_objs::move_stack::MoveStack;
 use crate::search_objs::pv_table::PrincipalVariationTable;
 use crate::search_objs::search_state::Reporting::UCI;
-use crate::search_objs::search_state::SearchStage::Meaningless;
 use crate::search_objs::tt::{TTEntry, TTFlag, TranspositionTable, score_to_tt};
 use crate::evaluation::network_state::NetworkState;
 
@@ -29,7 +28,7 @@ pub struct SearchState {
     pub pv_table: PrincipalVariationTable,
     pub engine_config: EngineConfig,
     pub reporting: Reporting,
-    pub search_stage: SearchStage,
+    //pub search_stage: SearchStage,
 }
 
 impl SearchState {
@@ -51,7 +50,7 @@ impl SearchState {
             pv_table: PrincipalVariationTable::default(),
             engine_config: config.clone(),
             reporting: UCI,
-            search_stage: Meaningless
+            //search_stage: Meaningless
         }
     }
 
@@ -284,12 +283,12 @@ pub enum Reporting {
     Quiet
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum SearchStage {
-    Meaningless,
-    Partial,
-    Full,
-}
+// #[derive(Debug, PartialEq, Clone, Copy)]
+// pub enum SearchStage {
+//     Meaningless,
+//     Partial,
+//     Full,
+// }
 
 #[cfg(test)]
 mod tests {

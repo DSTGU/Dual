@@ -8,7 +8,6 @@ use crate::primitives::board::{BoardPosition};
 use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
 use crate::primitives::shared::Color::White;
 use crate::primitives::shared::{Move, Piece, move_to_alg};
-use crate::search_objs::search_state::SearchStage::{Full, Meaningless};
 use crate::search_objs::see::{see_a_move_threshold};
 use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::{Reporting, SearchState};
@@ -157,10 +156,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     
     if NODE::PV {
         search_state.pv_table.clear(search_state.ply as usize);
-    }
-
-    if NODE::ROOT {
-        search_state.search_stage = Meaningless;
     }
 
     if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
@@ -425,10 +420,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         if mv.is_quiet() {
             previous_quiet_moves.push(mv);
         }
-    }
-
-    if PV::ROOT {
-        search_state.search_stage = Full;
     }
 
     if legal_moves == 0 {
