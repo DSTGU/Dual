@@ -35,12 +35,6 @@ impl<T> IndexMut<Color> for [T] {
     }
 }
 
-#[derive(Debug)]
-pub struct SearchAnswer {
-    //pub search_state: SearchState,
-    pub eval: i32
-}
-
 #[derive(Clone, Copy, PartialEq)]
 pub enum MoveCode {
     QuietMove = 0,
