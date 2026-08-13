@@ -29,7 +29,7 @@ pub struct MovePicker {
     list: ArrayVec<MoveEntry, 256>,
     tt_move: Move,
     stage: Stage,
-    bad_noisy: Vec<Move>,
+    bad_noisy: ArrayVec<Move, 16>,
     bad_noisy_idx: usize,
     skip_quiets: bool
     //noisy_count: usize,
@@ -42,7 +42,7 @@ impl MovePicker {
             list: ArrayVec::new_const(),
             tt_move,
             stage:  Stage::HashMove,
-            bad_noisy: vec![],
+            bad_noisy: ArrayVec::new_const(),
             bad_noisy_idx: 0,
             skip_quiets: false
         }
