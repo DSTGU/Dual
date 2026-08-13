@@ -26,9 +26,9 @@ fn lmp_threshold(depth: usize) -> usize {
 pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> i32 {
 
     search_state.seldepth = search_state.seldepth.max(ply);
+    search_state.nodes += 1;
 
     if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
-        search_state.nodes += 1;
         return DRAW_SCORE;
     }
 
@@ -71,9 +71,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
     if eval >= beta
     {
-        search_state.nodes += 1;
         return beta;
-        //return SearchAnswer { move_list: vec![], node_count: 0, eval: beta };
     }
 
     let mut new_alpha = alpha;
@@ -118,7 +116,6 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
                 //     board_position.hash
                 // );
 
-                search_state.nodes += 1;
                 return beta;
             }
 
@@ -127,7 +124,6 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
             }
         }
 
-    search_state.nodes += 1;
     new_alpha
     //SearchAnswer { move_list: vec![], node_count: nodes, eval: new_alpha }
 
@@ -158,17 +154,21 @@ impl NodeType for NonPV {
 
 pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
     
-    if search_state.stop_condition.should_hard_quit(1) {
-       return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};  
-    }
-
     if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
-        return SearchAnswer { move_list: vec![], node_count: 1, eval: DRAW_SCORE };
+        search_state.nodes += 1;
+        return SearchAnswer { move_list: vec![], eval: DRAW_SCORE };
     }
     
     if depth == 0 {
-        return SearchAnswer { move_list: vec![], node_count: 0, eval: quiescence(board_position, search_state, alpha, beta, search_state.ply) };
+        return SearchAnswer { move_list: vec![], eval: quiescence(board_position, search_state, alpha, beta, search_state.ply) };
     }
+
+    search_state.nodes += 1;
+
+    if search_state.stop_condition.should_hard_quit(search_state.nodes) {
+        return SearchAnswer { move_list: vec![], eval: 0};  
+    }
+
 
     let mut new_alpha = alpha;
 
@@ -183,7 +183,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     };
     
     if let Some(entry) = probe {
-
         if !NODE::ROOT && entry.depth as usize >= depth && !search_state.is_twofold_repetition(board_position.hash) {
             let score = score_from_tt(entry.score, search_state.ply);
             match entry.flag {
@@ -191,7 +190,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                 TTFlag::Exact => {
                     return SearchAnswer {
                         move_list: vec![Some(entry.best_move)],
-                        node_count: 1,
                         eval: score,
                     };
                 }
@@ -200,7 +198,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                     if score <= alpha {
                         return SearchAnswer {
                             move_list: vec![],
-                            node_count: 1,
                             eval: score,
                         };
                     }
@@ -210,7 +207,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                     if score >= beta {
                         return SearchAnswer {
                             move_list: vec![Some(entry.best_move)],
-                            node_count: 1,
                             eval: score,
                         };
                     }
@@ -249,7 +245,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        && static_eval - (80*depth) as i32 >= beta {
             return SearchAnswer {
                 move_list: vec![],
-                node_count: 1,
                 eval: static_eval,
             };
        }
@@ -261,7 +256,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     if !NODE::PV && static_eval < alpha - 200 - (100 * depth * depth) as i32{ // likely a fail-low node ?
         let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
         if new_score < beta {
-            return SearchAnswer { move_list: vec![], node_count: 0, eval: new_score }; // fail soft
+            return SearchAnswer { move_list: vec![], eval: new_score }; // fail soft
         }
     }
 
@@ -283,7 +278,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             if -search_answer.eval >= beta {
                 return SearchAnswer {
                     move_list: vec![],
-                    node_count: search_answer.node_count,
                     eval: -search_answer.eval,
                 };
                 //return search_answer;
@@ -291,8 +285,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         }
 
     // Move, eval (alpha), nodes
-    let mut nodes = 1;
-
     let mut best_score = i32::MIN;
     let mut best_move = None;
     let mut best_move_list = vec![];
@@ -349,7 +341,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             }
         }
         
-        let mut score: SearchAnswer = SearchAnswer { move_list: vec![], node_count: 0, eval: MATE_SCORE };
+        let mut score: SearchAnswer = SearchAnswer { move_list: vec![], eval: MATE_SCORE };
 
         search_state.make_move(mv, board_position);
 
@@ -374,24 +366,19 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             let reduction = (reduction / 1024).clamp(0, (depth - 1) as i32) as usize;
 
             score = pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1-reduction );
-            nodes += score.node_count;
 
             if -score.eval > new_alpha && reduction > 0 {
                 score = pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1 );
-                nodes += score.node_count;
             }
 
         }
         // Fulldepth
         else if !NODE::PV || legal_moves >= 2 {
             score = pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1 );
-            nodes += score.node_count;
-
         }
         // PVS
         if NODE::PV && ( legal_moves == 1 || -score.eval > new_alpha) {
             score = pvs::<PV>( &new_board, search_state, -beta , -new_alpha , depth-1 );
-            nodes += score.node_count;
         }
 
         search_state.take_back();
@@ -401,8 +388,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             if -score.eval > new_alpha {
                 if -score.eval >= beta {
                     
-                    if search_state.stop_condition.should_hard_quit(nodes as u64) {
-                        return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
+                    if search_state.stop_condition.should_hard_quit(search_state.nodes) {
+                        return SearchAnswer { move_list: vec![], eval: 0};
                     }
                     
                     search_state.store_tt(
@@ -428,7 +415,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                         }
                     }
                     
-                    return SearchAnswer { move_list: vec![], node_count: nodes, eval: -score.eval };
+                    return SearchAnswer { move_list: vec![], eval: -score.eval };
                 }
                 
                 new_alpha = -score.eval;
@@ -444,10 +431,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
     if legal_moves == 0 {
         if board_position.is_king_attacked() {
-            return SearchAnswer { move_list: vec![], node_count: 1, eval: -MATE_SCORE + search_state.ply as i32};
+            return SearchAnswer { move_list: vec![], eval: -MATE_SCORE + search_state.ply as i32};
         }
         else {
-            return SearchAnswer { move_list: vec![], node_count: 1, eval: 0};
+            return SearchAnswer { move_list: vec![], eval: 0};
         }
     }
 
@@ -455,10 +442,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         if mv.is_quiet() {
             search_state.update_history(board_position, best_move.unwrap(), history_bonus);
         }
-    }
-
-    if search_state.stop_condition.should_hard_quit(nodes as u64) {
-       return SearchAnswer { move_list: vec![], node_count: nodes, eval: 0};
     }
 
     let flag: TTFlag = if best_score <= alpha {
@@ -479,7 +462,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     );
 
     best_move_list.push(best_move);
-    SearchAnswer { move_list: best_move_list, node_count: nodes, eval: best_score }
+    SearchAnswer { move_list: best_move_list, eval: best_score }
 }
 
 pub fn score_to_mate( score: i32 ) -> i32 {
@@ -501,9 +484,7 @@ pub fn collect_pv(moves: &[Option<Move>]) -> String {
 }
 
 pub fn single_depth_search(board_position: &BoardPosition, search_state: &mut SearchState, depth: usize) -> SearchAnswer {
-    let score = pvs::<Root>(board_position, search_state, -MATE_SCORE, MATE_SCORE, depth);
-    search_state.nodes += score.node_count as u64;
-    score
+    pvs::<Root>(board_position, search_state, -MATE_SCORE, MATE_SCORE, depth)
 }
 
 pub fn single_depth_search_aspirated(board_position: &BoardPosition, search_state: &mut SearchState, depth: usize, eval: i32) -> SearchAnswer {
@@ -516,7 +497,6 @@ pub fn single_depth_search_aspirated(board_position: &BoardPosition, search_stat
         //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
         score = pvs::<Root>(board_position, search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
         //println!("aspiration, score: {:?}", score.eval);
-        search_state.nodes += score.node_count as u64;
         
         if !score.move_list.is_empty() && score.move_list[0].is_some() {
             return score;
@@ -614,7 +594,7 @@ use crate::search_objs::search_state::SearchState;
 
                 println!("{:?}", score);
 
-                assert!(score.node_count < 3);
+                assert!(search_state.nodes < 3);
                 assert_eq!(score.eval, 0);
                 
             })
@@ -648,7 +628,7 @@ use crate::search_objs::search_state::SearchState;
 
                 println!("{:?}", score);
 
-                assert!(score.node_count < 3);
+                assert!(search_state.nodes < 3);
                 assert_eq!(score.eval, 0);
                 
             })
@@ -670,7 +650,7 @@ use crate::search_objs::search_state::SearchState;
 
                 println!("{:?}", score);
 
-                assert!(score.node_count < 3);
+                assert!(search_state.nodes < 3);
                 assert_eq!(score.eval, 0);
                 
             })

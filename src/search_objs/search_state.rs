@@ -257,8 +257,6 @@ impl StopCondition {
             return true;
         }
 
-
-
         if self.passed_deadline() {
             self.drop_everything_and_quit = true;
             return true;

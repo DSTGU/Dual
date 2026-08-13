@@ -39,7 +39,6 @@ impl<T> IndexMut<Color> for [T] {
 pub struct SearchAnswer {
     //pub search_state: SearchState,
     pub move_list: Vec<Option<Move>>,
-    pub node_count: i32,
     pub eval: i32
 }
 
