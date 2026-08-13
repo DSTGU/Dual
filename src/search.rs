@@ -154,6 +154,10 @@ impl NodeType for NonPV {
 
 pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> SearchAnswer {
     
+    if NODE::PV {
+        search_state.pv_table.clear(search_state.ply as usize);
+    }
+
     if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
         search_state.nodes += 1;
         return SearchAnswer { move_list: vec![], eval: DRAW_SCORE };
@@ -386,6 +390,11 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         if -score.eval > best_score {
             best_score = -score.eval;
             if -score.eval > new_alpha {
+
+                if NODE::PV {
+                    search_state.pv_table.update(search_state.ply, mv);
+                }
+
                 if -score.eval >= beta {
                     
                     if search_state.stop_condition.should_hard_quit(search_state.nodes) {
@@ -473,12 +482,11 @@ pub fn score_to_mate( score: i32 ) -> i32 {
     - distance / 2
 }
 
-pub fn collect_pv(moves: &[Option<Move>]) -> String {
+pub fn collect_pv(moves: &[Move]) -> String {
     moves
         .iter()
-        .filter(|&&mv| mv.is_some() && mv.unwrap() != Move::create_null())
-        .filter_map(|x| x.as_ref().map(move_to_alg))
-        .rev()
+        .filter(|&&mv| mv != Move::create_null())
+        .map(|x| move_to_alg(x))
         .reduce(|a, b| a + " " + &b)
         .unwrap_or_default()
 }
@@ -555,7 +563,9 @@ pub fn print_info_string(score: &SearchAnswer, search_state: &SearchState) {
         return;
     }
     
-    let pv: String = collect_pv(&score.move_list);
+    let len = search_state.pv_table.len[0];
+    let pv: String = collect_pv(&search_state.pv_table.table[0][..len]);
+
     let micros = if search_state.stop_condition.started_search.elapsed().as_micros() > 0 {search_state.stop_condition.started_search.elapsed().as_micros()} else {1};
 
     if score.eval.abs() > MATE_THRESHOLD {

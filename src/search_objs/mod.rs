@@ -3,3 +3,4 @@ pub mod move_stack;
 pub mod search_state;
 pub mod config;
 pub mod see;
+pub mod pv_table;
