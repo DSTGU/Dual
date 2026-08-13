@@ -38,7 +38,6 @@ impl<T> IndexMut<Color> for [T] {
 #[derive(Debug)]
 pub struct SearchAnswer {
     //pub search_state: SearchState,
-    pub move_list: Vec<Option<Move>>,
     pub eval: i32
 }
 
