@@ -541,8 +541,8 @@ pub fn search(board_position: &BoardPosition, search_state: &mut SearchState) {
 
         //if search_state.search_stage == Full {
         if !search_state.stop_condition.should_hard_quit(0) {
-            print_info_string(score, search_state);
             score = new_score;
+            print_info_string(score, search_state);
             bestmove = search_state.pv_table.table[0][0];
         }
     }
