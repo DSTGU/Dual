@@ -188,7 +188,7 @@ fn generate(n: usize, seed: u64, book: &[String], out: &mut dyn Write) -> io::Re
         let result = single_depth_search(&board, &mut search_state, MIN_DEPTH);
 
         // 4. Accept only positions whose |score| sits within 0.5-2.0 pawns.
-        let score = result.eval.abs();
+        let score = result.abs();
         if !(MIN_CP..=MAX_CP).contains(&score) {
             continue;
         }
