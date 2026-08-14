@@ -125,8 +125,6 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
         }
 
     new_alpha
-    //SearchAnswer { move_list: vec![], node_count: nodes, eval: new_alpha }
-
 }
 
 pub trait NodeType {
@@ -260,9 +258,9 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         board_position.has_pieces() &&
         static_eval > beta &&
         !is_in_check &&
-        depth >= 3
-        // !NODE::ROOT &&
-        // !NODE::PV &&
+        depth >= 3 &&
+        // !NODE::ROOT
+        !NODE::PV 
         {
             let r = 2 + depth / 4; // NMP Reduction
             let null_board = board_position.make_null_move();
@@ -276,7 +274,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // Move, eval (alpha), nodes
     let mut best_score = i32::MIN;
     let mut best_move = None;
-    let mut best_move_list = vec![];
 
     let mut legal_moves = 0;
     let mut previous_quiet_moves = vec![]; // malus purposes
@@ -454,7 +451,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         board_position.hash
     );
 
-    best_move_list.push(best_move);
     best_score
 }
 
