@@ -32,11 +32,11 @@ use crate::search_objs::search_state::SearchState;
         let board_after_move = board_position.make_move(mv).unwrap();
 
         let eval1 = nnue_evaluate(&board_position, &search_state);
-        search_state.make_move(mv, &board_position);
+        search_state.make_move(mv, &board_position, eval1);
         let eval2 = nnue_evaluate(&board_after_move, &search_state);
         search_state.take_back();
         let eval3 = nnue_evaluate(&board_position, &search_state);
-        search_state.make_move(mv, &board_position);
+        search_state.make_move(mv, &board_position, eval3);
         let eval4 = nnue_evaluate(&board_after_move, &search_state);
         println!("{} - {} - {} - {}", eval1, eval2, eval3, eval4);
 

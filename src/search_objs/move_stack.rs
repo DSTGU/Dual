@@ -1,32 +1,43 @@
+use arrayvec::ArrayVec;
+
 /// Threefold repetition detector
 /// Stores a history of position hashes
 #[derive(Debug)]
 pub struct MoveStack {
-    hashes: Vec<u64>,
+    position_command_hashes: Vec<u64>,
+    search_position_info: ArrayVec<PositionInfo, 513>
 }
 
 impl MoveStack {
     pub fn new() -> Self {
         Self {
-            hashes: Vec::with_capacity(256),
+            position_command_hashes: Vec::with_capacity(256),
+            search_position_info: ArrayVec::new_const()
         }
     }
 
     /// Clear the repetition table
     pub fn clear(&mut self) {
-        self.hashes.clear();
+        self.position_command_hashes.clear();
+        self.search_position_info.clear();
     }
 
-    /// Push a hash onto the history
+    // For position X moves <>
     #[inline(always)]
-    pub fn push(&mut self, hash: u64) {
-        self.hashes.push(hash);
+    pub fn prefill(&mut self, hash: u64) {
+        self.position_command_hashes.push(hash);
     }
 
-    /// Pop the last hash from history
+    /// Push a position onto the history
     #[inline(always)]
-    pub fn pop(&mut self) -> u64 {
-        self.hashes.pop().expect("can't unmake a move that's not there")
+    pub fn push(&mut self, hash: u64, static_eval: i32) {
+        self.search_position_info.push(PositionInfo { hash: hash, static_eval: static_eval });
+    }
+
+    /// Pop the last position from history
+    #[inline(always)]
+    pub fn pop(&mut self) -> PositionInfo {
+        self.search_position_info.pop().expect("can't unmake a move that's not there")
     }
 
     /// Check if the current position is a draw by repetition
@@ -35,12 +46,19 @@ impl MoveStack {
     #[inline]
     pub fn is_draw(&self, hash: u64) -> bool {
         let mut count = 0;
-        // Only check positions where the same side is to move.
-        // hashes[i] stores the hash of the position before move i was made,
-        // so hashes[i] has the same side to move as the current position
-        // when i and self.hashes.len() have the same parity.
-        let start = self.hashes.len() % 2;
-        for &h in self.hashes.iter().skip(start).step_by(2) {
+
+        let start = self.position_command_hashes.len() % 2;
+        for &h in self.position_command_hashes.iter() {
+            if h == hash {
+                count += 1;
+                if count >= 2 {
+                    // Current occurrence + 2 previous = 3 total
+                    return true;
+                }
+            }
+        }
+
+        for &h in self.search_position_info.iter().map(|pos: &PositionInfo| &pos.hash) {
             if h == hash {
                 count += 1;
                 if count >= 2 {
@@ -55,9 +73,16 @@ impl MoveStack {
     /// Check if position has occurred at least once before
     /// (for detecting twofold repetition)
     pub fn has_occurred(&self, hash: u64) -> bool {
-        let start = self.hashes.len() % 2;
-        for &h in self.hashes.iter().skip(start).step_by(2) {
+        let start = self.position_command_hashes.len() % 2;
+        for &h in self.position_command_hashes.iter() {
             if h == hash {
+                return true;
+            }
+        }
+
+        for &h in self.search_position_info.iter().map(|pos| &pos.hash) {
+            if h == hash {
+                // Current occurrence + 2 previous = 3 total
                 return true;
             }
         }
@@ -69,4 +94,10 @@ impl Default for MoveStack {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(Debug)]
+pub struct PositionInfo {
+    hash: u64,
+    static_eval: i32,
 }

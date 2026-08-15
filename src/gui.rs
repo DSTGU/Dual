@@ -100,7 +100,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            search_state.make_move(x, &board_position);
+                            search_state.prefill_position_info(board_position.hash);
                             board_position = suggestion.unwrap();
                         }
                     }
@@ -118,7 +118,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            search_state.make_move(x, &board_position);
+                            search_state.prefill_position_info(board_position.hash);
                             board_position = suggestion.unwrap();
                         }
                 }
@@ -135,7 +135,7 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
                                 return board_position;
                             }
 
-                            search_state.make_move(x, &board_position);
+                            search_state.prefill_position_info(board_position.hash);
                             board_position = suggestion.unwrap();
                         }
                 }

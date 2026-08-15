@@ -121,8 +121,6 @@ fn play_random_plies(
     search_state.clear_persistent_data();
 
     let mut board = BoardPosition::new(start_fen);
-    search_state.network_state.start_board(&board, &NNUE);
-    search_state.ply = 0;
 
     for _ in 0..plies {
         let pseudo = generate_all_moves(&board);
@@ -143,9 +141,11 @@ fn play_random_plies(
         let mv = legal[rng.below(legal.len())];
         let new_board = board.make_move(mv).unwrap();
 
-        search_state.make_move(mv, &board);
+        search_state.prefill_position_info(board.hash);
         board = new_board;
     }
+
+    search_state.network_state.start_board(&board, &NNUE);
 
     // Match normal play: the search starts at ply 0 while the played plies
     // remain in the repetition table for draw detection.

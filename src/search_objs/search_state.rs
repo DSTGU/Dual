@@ -19,7 +19,7 @@ pub struct SearchState {
     pub history_moves: [[[i32; 64]; 64]; 2],
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
     tt: TranspositionTable,
-    pub rep_table: MoveStack,
+    pub move_stack: MoveStack,
     pub nodes: u64,
     pub stop_condition: StopCondition,
     should_quit: bool,
@@ -40,7 +40,7 @@ impl SearchState {
             history_moves: [[[0; 64]; 64]; 2],
             //capt_history_moves: [[[0; 64]; 12]; 12],
             tt: TranspositionTable::new(config.hash),
-            rep_table: MoveStack::new(),
+            move_stack: MoveStack::new(),
             nodes: 0,
             stop_condition: StopCondition::default(),
             //deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
@@ -54,12 +54,12 @@ impl SearchState {
         }
     }
 
-    // This function was moved here to preserve TT between nodes
+    // position X
     pub fn clear_data(&mut self) {
         self.max_depth = 0;
         self.seldepth = 0;
         self.killer_moves = [[Move::create_null(); 256]; 2];
-        self.rep_table.clear();
+        self.move_stack.clear();
         self.nodes = 0;
         self.pv_table.clear(0);
         self.stop_condition = StopCondition::default();
@@ -69,26 +69,32 @@ impl SearchState {
         self.tt.increment_age();
     }
 
+    //ucinewgame
     pub fn clear_persistent_data(&mut self) {
         self.tt.clear();
         self.history_moves = [[[0;64]; 64]; 2];
         //self.capt_history_moves = [[[0; 64]; 12]; 12];
     }
 
+    // ID
     pub fn reset_for_new_iteration(&mut self, depth: usize) {
         self.max_depth = depth;
         self.seldepth = depth;
     }
 
-    pub fn make_move(&mut self, mv: Move, board_position: &BoardPosition) {
-        self.rep_table.push(board_position.hash); 
+    // make move during position command parsing
+    pub fn prefill_position_info(&mut self, hash: u64) {
+        self.move_stack.prefill(hash); 
+    }
+
+    pub fn make_move(&mut self, mv: Move, board_position: &BoardPosition, static_eval: i32) {
+        self.move_stack.push(board_position.hash, static_eval); 
         self.ply += 1;
         self.network_state.apply_move(mv, board_position);
     }
 
     pub fn take_back(&mut self) {
-        //take back manages the hash        
-        self.rep_table.pop();
+        self.move_stack.pop();
         self.ply -= 1;
         self.network_state.undo_move();
     }
@@ -135,11 +141,11 @@ impl SearchState {
     // }
 
     pub fn is_trifold_repetition(&self, hash: u64) -> bool {
-        self.rep_table.is_draw(hash)
+        self.move_stack.is_draw(hash)
     }
 
     pub fn is_twofold_repetition(&self, hash: u64) -> bool {
-        self.rep_table.has_occurred(hash)
+        self.move_stack.has_occurred(hash)
     }
 
     #[inline(always)]
