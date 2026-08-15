@@ -72,14 +72,7 @@ impl MoveStack {
 
     /// Check if position has occurred at least once before
     /// (for detecting twofold repetition)
-    pub fn has_occurred(&self, hash: u64) -> bool {
-        let start = self.position_command_hashes.len() % 2;
-        for &h in self.position_command_hashes.iter() {
-            if h == hash {
-                return true;
-            }
-        }
-
+    pub fn has_occurred_in_search(&self, hash: u64) -> bool {
         for &h in self.search_position_info.iter().map(|pos| &pos.hash) {
             if h == hash {
                 // Current occurrence + 2 previous = 3 total

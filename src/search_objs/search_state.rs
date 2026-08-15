@@ -144,8 +144,8 @@ impl SearchState {
         self.move_stack.is_draw(hash)
     }
 
-    pub fn is_twofold_repetition(&self, hash: u64) -> bool {
-        self.move_stack.has_occurred(hash)
+    pub fn has_occured_in_search(&self, hash: u64) -> bool {
+        self.move_stack.has_occurred_in_search(hash)
     }
 
     #[inline(always)]

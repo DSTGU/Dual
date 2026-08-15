@@ -28,7 +28,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     search_state.seldepth = search_state.seldepth.max(ply);
     search_state.nodes += 1;
 
-    if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
+    if search_state.has_occured_in_search(board_position.hash) || search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
         return DRAW_SCORE;
     }
 
@@ -43,24 +43,21 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     };
     
     if let Some(entry) = probe {
-        if !search_state.is_twofold_repetition(board_position.hash) {
-            let score = score_from_tt(entry.score, search_state.ply);
-            match entry.flag {
+        let score = score_from_tt(entry.score, search_state.ply);
+        match entry.flag {
+            TTFlag::Exact => {
+                return score;
+            }
 
-                TTFlag::Exact => {
+            TTFlag::Alpha => {
+                if score <= alpha {
                     return score;
                 }
+            }
 
-                TTFlag::Alpha => {
-                    if score <= alpha {
-                        return score;
-                    }
-                }
-
-                TTFlag::Beta => {
-                    if score >= beta {
-                        return score;
-                    }
+            TTFlag::Beta => {
+                if score >= beta {
+                    return score;
                 }
             }
         }
@@ -158,7 +155,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         search_state.pv_table.clear(search_state.ply as usize);
     }
 
-    if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
+    if search_state.has_occured_in_search(board_position.hash) || search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
         search_state.nodes += 1;
         return DRAW_SCORE;
     }
@@ -187,7 +184,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     };
     
     if let Some(entry) = probe {
-        if !NODE::ROOT && entry.depth as usize >= depth && !search_state.is_twofold_repetition(board_position.hash) {
+        if !NODE::ROOT && entry.depth as usize >= depth {
             let score = score_from_tt(entry.score, search_state.ply);
             match entry.flag {
 
