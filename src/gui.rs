@@ -58,6 +58,7 @@ pub fn parse_go(board_position: &BoardPosition, search_state: &mut SearchState, 
             "winc" => winc = Some(words[2*i+2].parse().unwrap_or(1000)),
             "binc" => binc = Some(words[2*i+2].parse().unwrap_or(1000)),
             "softnodes" => search_state.stop_condition.soft_nodecount = Some(words[2*i+2].parse().unwrap_or(1000)),
+            "nodes" => search_state.stop_condition.hard_nodecount = Some(words[2*i+2].parse().unwrap_or(1000)),
             "movetime" => search_state.stop_condition.movetime_deadline = Some(words[2*i+2].parse().unwrap_or(1000)),
             _ => ()
         }

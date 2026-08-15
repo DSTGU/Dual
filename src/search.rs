@@ -382,10 +382,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
                 if score >= beta {
                     
-                    if search_state.stop_condition.should_hard_quit(search_state.nodes) {
-                        return 0;
-                    }
-                    
                     search_state.store_tt(
                         depth as u8,
                         score,
@@ -524,14 +520,14 @@ pub fn search(board_position: &BoardPosition, search_state: &mut SearchState) {
     let mut bestmove = search_state.pv_table.table[0][0];
     search_state.reset_for_new_iteration(depth);        
 
-    while !search_state.stop_condition.should_soft_quit(depth, search_state.nodes) && !search_state.stop_condition.should_hard_quit(0) {
+    while !search_state.stop_condition.should_soft_quit(depth, search_state.nodes) && !search_state.stop_condition.should_hard_quit(search_state.nodes) {
         depth += 1;
         search_state.reset_for_new_iteration(depth);        
         
         let new_score = single_depth_search_aspirated(board_position, search_state, depth, score);
 
         //if search_state.search_stage == Full {
-        if !search_state.stop_condition.should_hard_quit(0) {
+        if !search_state.stop_condition.should_hard_quit(search_state.nodes) {
             score = new_score;
             print_info_string(score, search_state);
             bestmove = search_state.pv_table.table[0][0];

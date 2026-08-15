@@ -182,7 +182,7 @@ pub struct StopCondition {
     pub our_time_ms: Option<u64>,
     pub our_inc_ms: Option<u64>,
     pub depth: Option<usize>,
-    _hard_nodecount: Option<u64>,
+    pub hard_nodecount: Option<u64>,
     pub soft_nodecount: Option<u64>,
     pub started_search: Instant,
     drop_everything_and_quit: bool 
@@ -194,7 +194,7 @@ impl Default for StopCondition {
             our_time_ms: None,
             our_inc_ms: None,
             depth: None, 
-            _hard_nodecount: None, 
+            hard_nodecount: None, 
             soft_nodecount: None, 
             started_search: Instant::now(),
             drop_everything_and_quit: false 
@@ -266,6 +266,13 @@ impl StopCondition {
         if self.passed_deadline() && nodes % 1024 == 0 {
             self.drop_everything_and_quit = true;
             return true;
+        }
+
+        if let Some(nodelimit) = self.hard_nodecount {
+            if nodes > nodelimit { 
+                self.drop_everything_and_quit = true;
+                return true;
+            }
         }
 
         false
