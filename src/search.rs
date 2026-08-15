@@ -341,7 +341,9 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // --------------------------------------------------------
         if depth >= 3 &&
            legal_moves > 2 &&
-           mv.is_quiet() {
+           mv.is_quiet() &&
+           !is_in_check 
+           {
            // !NODE::PV {
            //and not inCheck
            //and not givesCheck:
