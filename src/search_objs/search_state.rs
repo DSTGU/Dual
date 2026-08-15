@@ -257,13 +257,13 @@ impl StopCondition {
         false
     }
 
-    pub fn should_hard_quit(&mut self, _nodes: u64) -> bool {
+    pub fn should_hard_quit(&mut self, nodes: u64) -> bool {
         
         if self.drop_everything_and_quit {
             return true;
         }
 
-        if self.passed_deadline() {
+        if self.passed_deadline() && nodes % 1024 == 0 {
             self.drop_everything_and_quit = true;
             return true;
         }
