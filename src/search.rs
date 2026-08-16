@@ -5,7 +5,7 @@ use crate::evaluation::evaluate::{nnue_evaluate};
 use crate::movegen::move_gen::{is_square_attacked};
 use crate::movepicker::MovePicker;
 use crate::primitives::board::{BoardPosition};
-use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH};
+use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH, NO_SCORE};
 use crate::primitives::shared::Color::White;
 use crate::primitives::shared::{Move, Piece, move_to_alg};
 use crate::search_objs::see::{see_a_move_threshold};
@@ -336,7 +336,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         
         let mut score= MATE_SCORE;
 
-        search_state.make_move(mv, board_position, static_eval);
+        search_state.make_move(mv, board_position, if is_in_check {NO_SCORE} else {static_eval});
 
         legal_moves += 1;
 

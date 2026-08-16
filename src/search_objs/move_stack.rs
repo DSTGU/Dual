@@ -1,5 +1,7 @@
 use arrayvec::ArrayVec;
 
+use crate::primitives::consts::NO_SCORE;
+
 /// Threefold repetition detector
 /// Stores a history of position hashes
 #[derive(Debug)]
@@ -86,7 +88,7 @@ impl MoveStack {
         let second_last = self.search_position_info.iter().rev().nth(1);
 
         if let Some(sl_pos) = second_last {
-            if static_eval > sl_pos.static_eval {
+            if static_eval > sl_pos.static_eval || sl_pos.static_eval == NO_SCORE {
                 return true;
             }
         }
