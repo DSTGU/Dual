@@ -1,23 +1,37 @@
-Amateur chess engine
+# Dual
 
-Currently features:
+An amateur UCI chess engine written in Rust.
+
+## Features
+
+- **NNUE Evaluation** - a classic (768 -> 256)x2 -> 1 architecture network trained using excellent Bullet library on self generated data
+- **Search** - Alpha-beta based search algorithm with additional search feature set:
+
+**General Search features**:
+ - Principal variation search
  - Quiescence search
- - History Heuristic
- - Killer Heuristic
- - MVV_LVA
- - Transposition table (move ordering + probing) (TT size unconfigurable ~24MB)
- - PVS
- - LMR
- - NMP
- - Futility + Reverse futility pruning
+ - Late Move Reductions
  - Aspiration windows
- - NNUE
- - SEE
- - LMP
+ - Iterative deepening
+
+**Move ordering**:
+ - Transposition table
+ - MVV_LVA
+ - Killer Heuristic
+ - History Heuristic
+ - SEE (good and bad captures)
+
+Forward pruning:
+ - Transposition table
+ - Null Move Pruning
+ - Futility pruning
+ - Reverse futility pruning
+ - Static Exchange Evaluation
+ - Late Move Pruning
+ - Futility + Reverse futility pruning
  - Razoring
 
-Estimated current rating for release: 2950-3000
-For more info see releases tab.
+## Future plans:
 
 Todo for 1.0.0:
  - Net improvement and optimisations (fused updates, manual simd, hm)
@@ -37,36 +51,33 @@ Future plans:
  - Experiment with different net architectures (namely: hm, maybe buckets)
  - Make stronger in general :>
 
-Perf analisis (accurate as of 750759a):
+## UCI Options
 
-PVS time:
-25.8%: Sorting movelist
-14.6%: Movegen
-13.6%: Board makemove
-12.7%: Searchstate makemove (nnue update)
-9.4%: Static evaluation
-rest: Elves
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| Hash | spin (1-1024) | 64 | Transposition table size in MB |
+| Threads | spin (1-1) | 1 | Thread count option stub |
+| SoftNodes | spin (0-1000000000) | 0 | UCI option for giving soft limit to depth search |
 
-QS time:
-32.6%: Static evaluation
-19.7%: Movegen
-18.0%: Movelist ordering
-13.0%: Searchstate makemove (nnue update)
-11.6%: Board makemove
-rest: Elves
+## Strength
 
-No ranking or tournament results as of now
+| Version | Release Date | COPE Bullet | COPE Rapid | CCI VLTC |
+|---------|--------------|-------------|------------|----------|
+| v0.4.2 | 2026-08-08    |   TBD       |   TBD      | 3085     |
+| v0.4.1 | 2026-07-26    | 3041 (#54)  | 3170 (#55) | 2853     |
+| v0.4.0 | 2026-07-19    |   ---       |  ---       | 2782     |
+| v0.3.2 | 2026-07-06    |  ---        | ---        | 2662     |
 
-Thanks to:
-Maksym Korzh
-Engine Programming discord + SF discord
-jw1912 - Bullet library creator
-Ciekce - Stormphrax author
-Other engines Dual takes inspiration from, including (but not limited to) Reckless, Icarus, Hobbes, Berserk and Caissa
+## Credits
 
-Bullet was used to train the network used by the engine
+- **Maksym Korzh** - BCC engine and video series creator
+- Engine Programming discord + SF discord
+- **jw1912** - Bullet library creator. Bullet has been used for training the nets used by Dual
+- Other engines Dual takes inspiration from, including (but not limited to) Reckless, Icarus, Hobbes, Berserk, Stormphrax and Caissa
 
 ---
+
+## License
 
 Copyright (C) 2026 Tomasz Stawowy
 
