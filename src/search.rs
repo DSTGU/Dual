@@ -240,10 +240,14 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // ------------------------------------------------------------
     if !NODE::PV
        && depth <= 6
-       && !is_in_check
-       && static_eval - (80*depth) as i32 >= beta {
+       && !is_in_check {
+
+        let rfp_margin = static_eval - 80 * (depth as i32 - improving as i32);
+        
+        if rfp_margin >= beta {
             return static_eval;
-       }
+        }
+    }
     
     // ------------------------------------------------------------
     // Razoring
