@@ -19,8 +19,8 @@ pub fn reduce_lmr_by(depth: usize, moves: usize) -> i32 {
     ((0.99 + (depth as f32).ln() * (moves as f32).ln() / 3.14) * 1024.0) as i32
 }
 
-fn lmp_threshold(depth: usize) -> usize {
-    3 + depth * depth
+fn lmp_threshold(depth: usize, improving: bool) -> usize {
+    (3 + depth * depth) / if improving {1} else {2} 
 }
 
 pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> i32 {
@@ -313,7 +313,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             && new_alpha.abs() <= MATE_THRESHOLD
             && mv.is_quiet()
             && previous_quiet_moves.len()
-                >= lmp_threshold(depth)
+                >= lmp_threshold(depth, improving)
         {
             move_picker.skip_quiets();
             continue;
