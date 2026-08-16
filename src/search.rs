@@ -214,16 +214,23 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     //Todo: move to movegen
     let our_king = if board_position.side == White { Piece::K } else {Piece::k};
     let is_in_check = is_square_attacked(board_position.bitboards[our_king as usize].trailing_zeros() as u8, &board_position);
-
-    // let static_eval =  if is_in_check {
-    //     -MATE_SCORE
-    // } else if probe.is_some() && probe.unwrap().flag == TTFlag::Exact {
-    //     score_from_tt(probe.unwrap().score, search_state.ply)
-    // } else {
-    //     nnue_evaluate(board_position, search_state)
-    // };
-
     let static_eval = nnue_evaluate(board_position, search_state);
+
+
+    // Improving is a very important modifier to many heuristics. It checks if our static eval has improved since our last move.
+    // As we don't evaluate in check, we look for the first ply we weren't in check between 2 and 4 plies ago. If we find that
+    // static eval has improved, or that we were in check both 2 and 4 plies ago, we set improving to true.
+    let improving = if !is_in_check && search_state.move_stack.is_improving(static_eval) {true} else { false }; 
+    
+    // if(i)
+    //     improving = false;
+    // else if ((ss - 2)->staticEval != SCORE_NONE) {
+    //     improving = ss->staticEval > (ss - 2)->staticEval;
+    // }
+    // else if ((ss - 4)->staticEval != SCORE_NONE) {
+    //     improving = ss->staticEval > (ss - 4)->staticEval;
+    // }
+
 
     // ------------------------------------------------------------
     // Reverse Futility Pruning (beta pruning)
