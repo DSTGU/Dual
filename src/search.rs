@@ -28,7 +28,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     search_state.seldepth = search_state.seldepth.max(ply);
     search_state.nodes += 1;
 
-    if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
+    if search_state.has_occured_in_search(board_position.hash) || search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
         return DRAW_SCORE;
     }
 
@@ -43,42 +43,39 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     };
     
     if let Some(entry) = probe {
-        if !search_state.is_twofold_repetition(board_position.hash) {
-            let score = score_from_tt(entry.score, search_state.ply);
-            match entry.flag {
+        let score = score_from_tt(entry.score, search_state.ply);
+        match entry.flag {
+            TTFlag::Exact => {
+                return score;
+            }
 
-                TTFlag::Exact => {
+            TTFlag::Alpha => {
+                if score <= alpha {
                     return score;
                 }
+            }
 
-                TTFlag::Alpha => {
-                    if score <= alpha {
-                        return score;
-                    }
-                }
-
-                TTFlag::Beta => {
-                    if score >= beta {
-                        return score;
-                    }
+            TTFlag::Beta => {
+                if score >= beta {
+                    return score;
                 }
             }
         }
     }
 
     //PESTO eval
-    let eval = if let Some(entry) = probe { entry.eval } else { nnue_evaluate(&board_position, search_state)};
+    let static_eval = if let Some(entry) = probe { entry.eval } else { nnue_evaluate(&board_position, search_state)};
 
-    if eval >= beta
+    if static_eval >= beta
     {
         return beta;
     }
 
     let mut new_alpha = alpha;
 
-    if eval > alpha
+    if static_eval > alpha
     {
-        new_alpha = eval;
+        new_alpha = static_eval;
     }
 
     let mut move_picker = MovePicker::new(tt_move);
@@ -101,7 +98,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
             continue;
         }
 
-        search_state.make_move(mv, board_position);
+        search_state.make_move(mv, board_position, static_eval);
         
             let res = quiescence(&new_board, search_state, -beta, -new_alpha, ply + 1);
             search_state.take_back();
@@ -158,7 +155,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         search_state.pv_table.clear(search_state.ply as usize);
     }
 
-    if search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
+    if search_state.has_occured_in_search(board_position.hash) || search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
         search_state.nodes += 1;
         return DRAW_SCORE;
     }
@@ -187,7 +184,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     };
     
     if let Some(entry) = probe {
-        if !NODE::ROOT && entry.depth as usize >= depth && !search_state.is_twofold_repetition(board_position.hash) {
+        if !NODE::ROOT && entry.depth as usize >= depth {
             let score = score_from_tt(entry.score, search_state.ply);
             match entry.flag {
 
@@ -332,7 +329,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         
         let mut score= MATE_SCORE;
 
-        search_state.make_move(mv, board_position);
+        search_state.make_move(mv, board_position, static_eval);
 
         legal_moves += 1;
 
@@ -605,20 +602,20 @@ use crate::search_objs::search_state::SearchState;
                 let command = "position fen q6k/8/8/8/8/8/7r/1K6 b - - 0 1 moves a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
                 let mut search_state = SearchState::new(&EngineConfig::thin());
                 
-                println!("{:?}", search_state.rep_table);
+                println!("{:?}", search_state.move_stack);
                 
                 let board_position = parse_position_command(&mut search_state, command);
 
-                println!("{:?}", search_state.rep_table);
+                println!("{:?}", search_state.move_stack);
                 
                 search_state.reset_for_new_iteration(3);       
                 
-                println!("{:?}", search_state.rep_table);
+                println!("{:?}", search_state.move_stack);
                 println!("{:?}", board_position.hash);
 
                 let score = single_depth_search(&board_position, &mut search_state, 3);
 
-                println!("{:?}", search_state.rep_table);
+                println!("{:?}", search_state.move_stack);
 
                 println!("{:?}", score);
 
