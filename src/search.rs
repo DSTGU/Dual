@@ -242,7 +242,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        && depth <= 6
        && !is_in_check {
 
-        let rfp_margin = static_eval - 80 * (depth as i32 - improving as i32);
+        let rfp_margin = static_eval - 60 * (depth as i32 - improving as i32);
         
         if rfp_margin >= beta {
             return static_eval;
@@ -305,7 +305,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         legal_moves > 1 &&
         mv.is_quiet() &&
         !is_in_check {
-            if static_eval + 80 * depth as i32 <= alpha {
+            if static_eval + 60 * depth as i32 <= alpha {
                 continue;
             }
         }
