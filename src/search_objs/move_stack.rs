@@ -1,5 +1,7 @@
 use arrayvec::ArrayVec;
 
+use crate::primitives::consts::NO_SCORE;
+
 /// Threefold repetition detector
 /// Stores a history of position hashes
 #[derive(Debug)]
@@ -47,7 +49,7 @@ impl MoveStack {
     pub fn is_draw(&self, hash: u64) -> bool {
         let mut count = 0;
 
-        let start = self.position_command_hashes.len() % 2;
+        let _start = self.position_command_hashes.len() % 2;
         for &h in self.position_command_hashes.iter() {
             if h == hash {
                 count += 1;
@@ -79,6 +81,18 @@ impl MoveStack {
                 return true;
             }
         }
+        false
+    }
+
+    pub fn is_improving(&self, static_eval: i32) -> bool {
+        let second_last = self.search_position_info.iter().rev().nth(1);
+
+        if let Some(sl_pos) = second_last {
+            if static_eval > sl_pos.static_eval || sl_pos.static_eval == NO_SCORE {
+                return true;
+            }
+        }
+
         false
     }
 }
