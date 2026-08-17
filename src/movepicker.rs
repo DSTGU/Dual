@@ -2,7 +2,7 @@ use arrayvec::ArrayVec;
 
 use crate::movegen::move_gen::{NoisyMovegen, QuietMovegen, generate_moves};
 use crate::primitives::board::BoardPosition;
-use crate::primitives::consts::{FIRST_KILLER_BONUS, SECOND_KILLER_BONUS};
+use crate::primitives::consts::{FIRST_KILLER_BONUS};
 use crate::primitives::shared::Move;
 use crate::search_objs::search_state::SearchState;
 use crate::search_objs::see::{see_a_move_threshold};
@@ -179,11 +179,8 @@ impl MovePicker {
         }
 
         if search_state.ply < 256 {
-            if search_state.killer_moves[0][search_state.ply] == mv {
+            if search_state.killer_moves[search_state.ply] == mv {
                 return FIRST_KILLER_BONUS;
-            }
-            if search_state.killer_moves[1][search_state.ply] == mv {
-                return SECOND_KILLER_BONUS;
             }
         }
 

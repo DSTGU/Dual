@@ -14,7 +14,7 @@ use crate::evaluation::network_state::NetworkState;
 pub struct SearchState {
     pub max_depth: usize, // Of the search iteration, not in general
     pub seldepth: usize,
-    pub killer_moves: [[Move; 256]; 2],
+    pub killer_moves: [Move; 256],
     //only public for test purposes
     pub history_moves: [[[i32; 64]; 64]; 2],
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
@@ -36,7 +36,7 @@ impl SearchState {
         Self {
             max_depth: 0,
             seldepth: 0,
-            killer_moves: [[Move::create_null(); 256]; 2],
+            killer_moves: [Move::create_null(); 256],
             history_moves: [[[0; 64]; 64]; 2],
             //capt_history_moves: [[[0; 64]; 12]; 12],
             tt: TranspositionTable::new(config.hash),
@@ -58,7 +58,7 @@ impl SearchState {
     pub fn clear_data(&mut self) {
         self.max_depth = 0;
         self.seldepth = 0;
-        self.killer_moves = [[Move::create_null(); 256]; 2];
+        self.killer_moves = [Move::create_null(); 256];
         self.move_stack.clear();
         self.nodes = 0;
         self.pv_table.clear(0);
@@ -106,8 +106,7 @@ impl SearchState {
 
     pub fn update_killer_move(&mut self, mv: Move) {
         if self.ply < 256 {
-            self.killer_moves[1][self.ply] = self.killer_moves[0][self.ply];
-            self.killer_moves[0][self.ply] = mv;
+            self.killer_moves[self.ply] = mv;
         }
     }
 
