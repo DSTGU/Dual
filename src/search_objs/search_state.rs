@@ -105,7 +105,7 @@ impl SearchState {
     }
 
     pub fn update_killer_move(&mut self, mv: Move) {
-        if self.ply < 256 {
+        if self.ply < 256 && mv != self.killer_moves[0][self.ply] {
             self.killer_moves[1][self.ply] = self.killer_moves[0][self.ply];
             self.killer_moves[0][self.ply] = mv;
         }
