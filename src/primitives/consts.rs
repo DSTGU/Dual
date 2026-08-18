@@ -17,4 +17,4 @@ pub const FIRST_KILLER_BONUS: i32 = 9_000_000;
 pub const SECOND_KILLER_BONUS: i32 = 8_000_000;
 pub const DRAW_SCORE: i32 = 0;
 pub const MIN_DEPTH: usize = 3;
-pub const MAX_HISTORY : i16 = 16384;
+pub const MAX_HISTORY : i32 = 16384;

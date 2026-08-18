@@ -288,7 +288,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
     let mut legal_moves = 0;
     let mut previous_quiet_moves = vec![]; // malus purposes
-    let history_bonus = 300 * depth as i16 - 250;
+    let history_bonus = 300 * depth as i32 - 250;
     
 
     let mut move_picker = MovePicker::new(tt_move);
