@@ -288,7 +288,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
     let mut legal_moves = 0;
     let mut previous_quiet_moves = vec![]; // malus purposes
-    let history_bonus = 300 * depth as i32 - 250;
+    let history_bonus = 300 * depth as i16 - 250;
     
 
     let mut move_picker = MovePicker::new(tt_move);
@@ -358,7 +358,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
             // Often reduce less for good-history moves
             //search_state
-            reduction -= search_state.get_quiet_history(board_position.side, mv) / 8;
+            reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / 8;
 
             let reduction = (reduction / 1024).clamp(0, (depth - 1) as i32) as usize;
 

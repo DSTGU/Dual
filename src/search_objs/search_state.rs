@@ -16,7 +16,7 @@ pub struct SearchState {
     pub seldepth: usize,
     pub killer_moves: [[Move; 256]; 2],
     //only public for test purposes
-    pub history_moves: [[[i32; 64]; 64]; 2],
+    pub history_moves: [[[i16; 64]; 64]; 2],
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
     tt: TranspositionTable,
     pub move_stack: MoveStack,
@@ -111,7 +111,7 @@ impl SearchState {
         }
     }
 
-    pub fn update_history(&mut self, board_position: &BoardPosition, mv: Move, bonus: i32) {
+    pub fn update_history(&mut self, board_position: &BoardPosition, mv: Move, bonus: i16) {
         let clamped_bonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY);
         let piece = board_position.get_piece(mv) as usize;
         let source = mv.get_source_square();
@@ -130,7 +130,7 @@ impl SearchState {
         }
     }
 
-    pub fn get_quiet_history(&self, side: Color, mv: Move) -> i32 {
+    pub fn get_quiet_history(&self, side: Color, mv: Move) -> i16 {
         self.history_moves[side][mv.get_source_square() as usize][mv.get_target_square() as usize]
     }
 
