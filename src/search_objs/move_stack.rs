@@ -1,13 +1,13 @@
 use arrayvec::ArrayVec;
 
-use crate::primitives::consts::NO_SCORE;
+use crate::primitives::{consts::NO_SCORE, shared::{Move, Piece}};
 
 /// Threefold repetition detector
 /// Stores a history of position hashes
 #[derive(Debug)]
 pub struct MoveStack {
     position_command_hashes: Vec<u64>,
-    search_position_info: ArrayVec<PositionInfo, 513>
+    pub search_position_info: ArrayVec<PositionInfo, 513>
 }
 
 impl MoveStack {
@@ -32,8 +32,8 @@ impl MoveStack {
 
     /// Push a position onto the history
     #[inline(always)]
-    pub fn push(&mut self, hash: u64, static_eval: i32) {
-        self.search_position_info.push(PositionInfo { hash: hash, static_eval: static_eval });
+    pub fn push(&mut self, hash: u64, static_eval: i32, mv: Move, piece: Piece) {
+        self.search_position_info.push(PositionInfo { hash, static_eval, mv, piece });
     }
 
     /// Pop the last position from history
@@ -105,6 +105,8 @@ impl Default for MoveStack {
 
 #[derive(Debug)]
 pub struct PositionInfo {
-    hash: u64,
-    static_eval: i32,
+    pub hash: u64,
+    pub static_eval: i32,
+    pub mv: Move, //Currently checked move, doesn't have to be best move
+    pub piece: Piece // Piece making move. Can't always be induced
 }

@@ -18,6 +18,8 @@ pub struct SearchState {
     //only public for test purposes
     pub history_moves: [[[i16; 64]; 64]; 2],
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
+    pub countermove_history: [[[[i16; 64]; 12]; 64]; 12], // [prev_source][prev_piece][curr_source][curr_piece].
+    // ^ This layout leaves 50% space free. Problem for later ig
     tt: TranspositionTable,
     pub move_stack: MoveStack,
     pub nodes: u64,
@@ -39,6 +41,7 @@ impl SearchState {
             killer_moves: [[Move::create_null(); 256]; 2],
             history_moves: [[[0; 64]; 64]; 2],
             //capt_history_moves: [[[0; 64]; 12]; 12],
+            countermove_history: [[[[0; 64]; 12]; 64]; 12],
             tt: TranspositionTable::new(config.hash),
             move_stack: MoveStack::new(),
             nodes: 0,
@@ -74,6 +77,7 @@ impl SearchState {
         self.tt.clear();
         self.history_moves = [[[0;64]; 64]; 2];
         //self.capt_history_moves = [[[0; 64]; 12]; 12];
+        self.countermove_history = [[[[0; 64]; 12]; 64]; 12];
     }
 
     // ID
@@ -88,7 +92,7 @@ impl SearchState {
     }
 
     pub fn make_move(&mut self, mv: Move, board_position: &BoardPosition, static_eval: i32) {
-        self.move_stack.push(board_position.hash, static_eval); 
+        self.move_stack.push(board_position.hash, static_eval, mv, board_position.mailbox[mv.get_source_square() as usize]); 
         self.ply += 1;
         self.network_state.apply_move(mv, board_position);
     }
@@ -119,13 +123,22 @@ impl SearchState {
         let side = board_position.side;
         if piece < 12 && target < 64 {
             let history_val = self.get_quiet_history(side, mv);           
-            self.history_moves[side][source as usize][target as usize] += (clamped_bonus - history_val as i32 * clamped_bonus.abs() / MAX_HISTORY) as i16 //second bonus should be abs
+            self.history_moves[side][source as usize][target as usize] += (clamped_bonus - history_val as i32 * clamped_bonus.abs() / MAX_HISTORY) as i16; //second bonus should be abs
             //if mv.is_capture() {
             //    let history_val = self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target];
             //    self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY;
             //} else {
             //}
             //self.history_moves[piece][target] += bonus;
+
+            if let Some(last_posinfo) = self.move_stack.search_position_info.last() {
+
+                let prev_src = last_posinfo.mv.get_source_square();
+                let prev_piece = last_posinfo.piece;
+
+                let cm_history_val = self.countermove_history[prev_piece][prev_src as usize][piece][source as usize];          
+                self.countermove_history[prev_piece][prev_src as usize][piece][source as usize] += (clamped_bonus - cm_history_val as i32 * clamped_bonus.abs() / MAX_HISTORY) as i16; //second bonus should be abs
+            }
 
         }
     }
@@ -134,6 +147,20 @@ impl SearchState {
         self.history_moves[side][mv.get_source_square() as usize][mv.get_target_square() as usize]
     }
 
+    pub fn get_countermove_history(&self, source: u8, piece: Piece) -> i16 {
+        
+        if let Some(last_posinfo) = self.move_stack.search_position_info.last() {
+
+            let prev_src = last_posinfo.mv.get_source_square();
+            let prev_piece = last_posinfo.piece;
+
+            if prev_src < 64 && prev_piece != Piece::NONE {  
+                return self.countermove_history[prev_piece][prev_src as usize][piece][source as usize];          
+            } 
+        }
+
+        0
+    }
 
     // pub fn get_stats(&self) -> (u64, u64, f64) {
     //     let fill_pct = self.tt.fill_percentage();

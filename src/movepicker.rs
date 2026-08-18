@@ -188,6 +188,6 @@ impl MovePicker {
         }
 
         // History heuristic
-        search_state.get_quiet_history(board_position.side, mv) as i32
+        search_state.get_quiet_history(board_position.side, mv) as i32 + search_state.get_countermove_history(mv.get_source_square(), board_position.mailbox[mv.get_source_square() as usize]) as i32
     }
 }
