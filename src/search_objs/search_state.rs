@@ -16,7 +16,7 @@ pub struct SearchState {
     pub seldepth: usize,
     pub killer_moves: [[Move; 256]; 2],
     //only public for test purposes
-    pub history_moves: [[[i32; 64]; 64]; 2],
+    pub history_moves: [[[i16; 64]; 64]; 2],
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
     tt: TranspositionTable,
     pub move_stack: MoveStack,
@@ -112,14 +112,14 @@ impl SearchState {
     }
 
     pub fn update_history(&mut self, board_position: &BoardPosition, mv: Move, bonus: i32) {
-        let clamped_bonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY);
+        let clamped_bonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY) as i32;
         let piece = board_position.get_piece(mv) as usize;
         let source = mv.get_source_square();
         let target = mv.get_target_square();
         let side = board_position.side;
         if piece < 12 && target < 64 {
             let history_val = self.get_quiet_history(side, mv);           
-            self.history_moves[side][source as usize][target as usize] += clamped_bonus - history_val * clamped_bonus.abs() / MAX_HISTORY //second bonus should be abs
+            self.history_moves[side][source as usize][target as usize] += (clamped_bonus - history_val as i32 * clamped_bonus.abs() / MAX_HISTORY) as i16 //second bonus should be abs
             //if mv.is_capture() {
             //    let history_val = self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target];
             //    self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY;
@@ -130,7 +130,7 @@ impl SearchState {
         }
     }
 
-    pub fn get_quiet_history(&self, side: Color, mv: Move) -> i32 {
+    pub fn get_quiet_history(&self, side: Color, mv: Move) -> i16 {
         self.history_moves[side][mv.get_source_square() as usize][mv.get_target_square() as usize]
     }
 

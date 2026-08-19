@@ -358,7 +358,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
             // Often reduce less for good-history moves
             //search_state
-            reduction -= search_state.get_quiet_history(board_position.side, mv) / 8;
+            reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / 8;
 
             let reduction = (reduction / 1024).clamp(0, (depth - 1) as i32) as usize;
 
