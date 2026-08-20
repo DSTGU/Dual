@@ -148,7 +148,7 @@ impl SearchState {
     }
 
     #[inline(always)]
-    pub fn probe_tt(&self, hash: u64) -> Option<&TTEntry> {
+    pub fn probe_tt(&mut self, hash: u64) -> Option<&TTEntry> {
         if self.engine_config.hash == 0 {
             return None
         }

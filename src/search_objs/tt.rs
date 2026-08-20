@@ -92,11 +92,12 @@ impl TranspositionTable {
 
     /// Probe the transposition table
     #[inline]
-    pub fn probe(&self, hash: u64) -> Option<&TTEntry> {
+    pub fn probe(&mut self, hash: u64) -> Option<&TTEntry> {
         let idx = self.index(hash);
-        let entry = &self.entries[idx];
+        let entry = &mut self.entries[idx];
 
         if entry.matches(hash) {
+            entry.age = self.age;
             Some(entry)
         } else {
             None

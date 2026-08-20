@@ -35,6 +35,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     // // ------------------------------------------------------------
     // // QS TT probe
     // // ------------------------------------------------------------
+    let ply = search_state.ply;
     let probe = search_state.probe_tt(board_position.hash);
     let tt_move = if let Some(entry) = probe {
         entry.best_move
@@ -43,7 +44,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     };
     
     if let Some(entry) = probe {
-        let score = score_from_tt(entry.score, search_state.ply);
+        let score = score_from_tt(entry.score, ply);
         match entry.flag {
             TTFlag::Exact => {
                 return score;
@@ -163,6 +164,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // ------------------------------------------------------------
     // TT probe
     // ------------------------------------------------------------
+    let ply = search_state.ply;
     let probe = search_state.probe_tt(board_position.hash);
     let tt_move = if let Some(entry) = probe {
         entry.best_move
@@ -172,7 +174,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     
     if let Some(entry) = probe {
         if !NODE::ROOT && entry.depth as usize >= depth {
-            let score = score_from_tt(entry.score, search_state.ply);
+            let score = score_from_tt(entry.score, ply);
             match entry.flag {
 
                 TTFlag::Exact => {
