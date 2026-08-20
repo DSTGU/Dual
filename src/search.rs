@@ -82,17 +82,6 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
 
     while let Some((mv, new_board)) = move_picker.next(board_position, search_state, true) {
 
-        // let captured_value = DELTA_VALUES[mv.get_taken_piece() as usize % 6];
-        // // Delta pruning
-        // if eval + captured_value + DELTA_PRUNING_MARGIN < new_alpha {
-        //     continue;
-        // }
-
-            // Late Move Pruning (LMP)
-            // if move_count >= 3 && !td.board.is_direct_check(mv) {
-            //     break;
-            // }
-
         // Static Exchange Evaluation Pruning (SEE Pruning)
         if !see_a_move_threshold(board_position, mv, &new_board, 0) {
             continue;
@@ -219,16 +208,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // As we don't evaluate in check, we look for the first ply we weren't in check between 2 and 4 plies ago. If we find that
     // static eval has improved, or that we were in check both 2 and 4 plies ago, we set improving to true.
     let improving = if !is_in_check && search_state.move_stack.is_improving(static_eval) {true} else { false }; 
-    
-    // if(i)
-    //     improving = false;
-    // else if ((ss - 2)->staticEval != SCORE_NONE) {
-    //     improving = ss->staticEval > (ss - 2)->staticEval;
-    // }
-    // else if ((ss - 4)->staticEval != SCORE_NONE) {
-    //     improving = ss->staticEval > (ss - 4)->staticEval;
-    // }
-
 
     // ------------------------------------------------------------
     // Reverse Futility Pruning (beta pruning)
@@ -267,7 +246,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         static_eval > beta &&
         !is_in_check &&
         depth >= 3 &&
-        // !NODE::ROOT
         !NODE::PV 
         {
             let r = 2 + depth / 4; // NMP Reduction
@@ -353,8 +331,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
             let mut reduction = reduce_lmr_by(depth, legal_moves);
 
-            // Often reduce less for good-history moves
-            //search_state
             reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / 8;
 
             let reduction = (reduction / 1024).clamp(0, (depth - 1) as i32) as usize;
