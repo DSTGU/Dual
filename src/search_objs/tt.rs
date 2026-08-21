@@ -131,7 +131,7 @@ impl TranspositionTable {
                 best_move: mv,
                 age: self.age,
             };
-        } else if entry.matches(hash) {
+        } else if entry.matches(hash) && matches_replacement_strength(depth, flag) + 4 >= matches_replacement_strength(entry.depth, entry.flag) {
             let mv = if entry.best_move.is_null() { best_move } else { entry.best_move };
             entry.best_move = mv;
             //entry.age = self.age;
