@@ -150,7 +150,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         return DRAW_SCORE;
     }
     
-    if depth == 0 {
+    if depth <= 0 {
         return quiescence(board_position, search_state, alpha, beta, search_state.ply);
     }
 
