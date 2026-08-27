@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn test_position_fen_moves() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder.spawn(|| {
             let board_pos = BoardPosition::new("r1bqkbnr/1p1ppppp/8/p1p5/3nP2P/5N2/PPPPQPP1/RNB1KB1R w KQkq - 2 5");
             let mut search_state = SearchState::new(&EngineConfig::thin());
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_position_startpos_moves() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 let board_pos = BoardPosition::new("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_go() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 let mut search_state = SearchState::new(&EngineConfig::thin());

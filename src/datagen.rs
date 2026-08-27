@@ -290,7 +290,7 @@ mod tests {
     use std::io::Cursor;
 
     fn run_with_big_stack(f: impl FnOnce() + Send + 'static) {
-        let builder = std::thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = std::thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder.spawn(f).unwrap();
         handler.join().unwrap();
     }

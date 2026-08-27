@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_attacked_squares_kiwipete() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 let board_pos =
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_rook_attacks_true() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 let board_pos = BoardPosition::new("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
@@ -514,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_rook_attacks_false() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 let board_pos = BoardPosition::new("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3

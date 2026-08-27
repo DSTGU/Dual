@@ -14,18 +14,18 @@ use crate::evaluation::network_state::NetworkState;
 pub struct SearchState {
     pub max_depth: usize, // Of the search iteration, not in general
     pub seldepth: usize,
-    pub killer_moves: [Move; 256],
+    pub killer_moves: Box<[Move; 256]>,
     //only public for test purposes
-    pub history_moves: [[[i16; 64]; 64]; 2],
+    pub history_moves: Box<[[[i16; 64]; 64]; 2]>,
     //pub capt_history_moves: [[[i32; 64]; 12]; 12], // target, own, captured
     tt: TranspositionTable,
-    pub move_stack: MoveStack,
+    pub move_stack: Box<MoveStack>,
     pub nodes: u64,
     pub stop_condition: StopCondition,
     should_quit: bool,
     pub ply: usize,
     pub network_state: NetworkState,
-    pub pv_table: PrincipalVariationTable,
+    pub pv_table: Box<PrincipalVariationTable>,
     pub engine_config: EngineConfig,
     pub reporting: Reporting,
     //pub search_stage: SearchStage,
@@ -36,18 +36,18 @@ impl SearchState {
         Self {
             max_depth: 0,
             seldepth: 0,
-            killer_moves: [Move::create_null(); 256],
-            history_moves: [[[0; 64]; 64]; 2],
+            killer_moves: unsafe { Box::new_zeroed().assume_init() },
+            history_moves: unsafe { Box::new_zeroed().assume_init() },
             //capt_history_moves: [[[0; 64]; 12]; 12],
             tt: TranspositionTable::new(config.hash),
-            move_stack: MoveStack::new(),
+            move_stack: Box::new(MoveStack::new()),
             nodes: 0,
             stop_condition: StopCondition::default(),
             //deadline: Instant::now().checked_add(Duration::from_secs(1)).unwrap(),
             should_quit: false,
             ply: 0,
             network_state: NetworkState::default(),
-            pv_table: PrincipalVariationTable::default(),
+            pv_table: Box::new(PrincipalVariationTable::default()),
             engine_config: config.clone(),
             reporting: UCI,
             //search_stage: Meaningless
@@ -58,7 +58,10 @@ impl SearchState {
     pub fn clear_data(&mut self) {
         self.max_depth = 0;
         self.seldepth = 0;
-        self.killer_moves = [Move::create_null(); 256];
+        // Clear killer moves without creating a large stack temporary
+        for m in self.killer_moves.iter_mut() {
+            *m = Move::create_null();
+        }
         self.move_stack.clear();
         self.nodes = 0;
         self.pv_table.clear(0);
@@ -72,7 +75,9 @@ impl SearchState {
     //ucinewgame
     pub fn clear_persistent_data(&mut self) {
         self.tt.clear();
-        self.history_moves = [[[0;64]; 64]; 2];
+        // Zero history on heap without large stack temp
+        // Allocate fresh zeroed box (old box dropped)
+        self.history_moves = unsafe { Box::new_zeroed().assume_init() };
         //self.capt_history_moves = [[[0; 64]; 12]; 12];
     }
 
@@ -314,30 +319,30 @@ use crate::search_objs::search_state::{SearchState};
 
     #[test]
     fn test_clearing_persistent_data_correctly() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 let mut search_state = SearchState::new(&EngineConfig::thin());
                 let mut board_position = parse_position_command(&mut search_state, "position startpos");
                 search_state.stop_condition.depth = Some(4);
-                let empty_history = [[[0; 64]; 64]; 2];
+                let empty_history: [[[i16; 64]; 64]; 2] = [[[0; 64]; 64]; 2];
                 search(&board_position, &mut search_state);
-                assert_ne!(search_state.history_moves, empty_history);
+                assert_ne!(*search_state.history_moves, empty_history);
 
                 board_position = parse_position_command(&mut search_state, "position startpos moves e2e4 e7e5");
                 search_state.stop_condition.depth = Some(4);
-                assert_ne!(search_state.history_moves, empty_history);
+                assert_ne!(*search_state.history_moves, empty_history);
 
                 search(&board_position, &mut search_state);
-                assert_ne!(search_state.history_moves, empty_history);
+                assert_ne!(*search_state.history_moves, empty_history);
 
                 parse_ucinewgame(&mut search_state);
                 board_position = parse_position_command(&mut search_state,"position kiwipete");
                 search_state.stop_condition.depth = Some(7);
-                assert_eq!(search_state.history_moves, empty_history);
+                assert_eq!(*search_state.history_moves, empty_history);
 
                 search(&board_position, &mut search_state);
-                assert_ne!(search_state.history_moves, empty_history);
+                assert_ne!(*search_state.history_moves, empty_history);
 
             })
             .unwrap();
@@ -347,7 +352,7 @@ use crate::search_objs::search_state::{SearchState};
 
     #[test]
     fn test_clear_data_applies_soft_nodes() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 // Unlimited by default.

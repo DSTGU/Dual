@@ -21,7 +21,7 @@ use crate::search_objs::search_state::SearchState;
 
     #[test]
     fn test_undoing() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
 

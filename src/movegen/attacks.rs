@@ -1,4 +1,3 @@
-use std::sync::{Once};
 use lazy_static::lazy_static;
 
 use crate::primitives::{board::BoardPosition, shared::{Move, MoveCode, Piece, pop_bit, set_bit}};
@@ -17,41 +16,32 @@ const NOT_AB_FILE: u64 = 18229723555195321596;
 
 // PAWN_ATTACKS[side][square] - 0 = białe, 1 = czarne
 lazy_static! {
-    pub static ref PAWN_ATTACKS: [[u64; 64]; 2] = {
-        let mut pawn_attacks = [[0; 64]; 2];
-        let once = Once::new();
-        once.call_once(|| {
-            for square  in 0..64 {
-                pawn_attacks[0][square] = mask_pawn_attacks(0,square);
-                pawn_attacks[1][square] = mask_pawn_attacks(1,square);
-            }
-        });
-            pawn_attacks
+    pub static ref PAWN_ATTACKS: Box<[[u64; 64]; 2]> = {
+        let mut pawn_attacks: Box<[[u64; 64]; 2]> = unsafe { Box::new_zeroed().assume_init() };
+        for square in 0..64 {
+            pawn_attacks[0][square] = mask_pawn_attacks(0,square);
+            pawn_attacks[1][square] = mask_pawn_attacks(1,square);
+        }
+        pawn_attacks
     };
 }
 
 lazy_static! {
-    pub static ref KNIGHT_ATTACKS: [u64; 64] = {
-        let mut knight_attacks = [0; 64];
-        let once = Once::new();
-        once.call_once(|| {
-            for square  in 0..64 {
-                knight_attacks[square] = mask_knight_attacks(square);
-            }
-        });
+    pub static ref KNIGHT_ATTACKS: Box<[u64; 64]> = {
+        let mut knight_attacks: Box<[u64; 64]> = unsafe { Box::new_zeroed().assume_init() };
+        for square in 0..64 {
+            knight_attacks[square] = mask_knight_attacks(square);
+        }
         knight_attacks
     };
 }
 
 lazy_static! {
-    pub static ref KING_ATTACKS: [u64; 64] = {
-        let mut king_attacks = [0; 64];
-        let once = Once::new();
-        once.call_once(|| {
-            for square  in 0..64 {
-                king_attacks[square] = mask_king_attacks(square);
-            }
-        });
+    pub static ref KING_ATTACKS: Box<[u64; 64]> = {
+        let mut king_attacks: Box<[u64; 64]> = unsafe { Box::new_zeroed().assume_init() };
+        for square in 0..64 {
+            king_attacks[square] = mask_king_attacks(square);
+        }
         king_attacks
     };
 }
@@ -490,94 +480,56 @@ const BISHOP_MAGIC_NUMBERS: [u64; 64] = [
 ];
 
 lazy_static! {
-    pub static ref BISHOP_ATTACKS: [[u64; 512]; 64] = {
-        let mut bishop_attacks = [[0; 512]; 64];
-        let once = Once::new();
-        once.call_once(|| {
-            for square  in 0..64 {
-                let attack_mask = BISHOP_MASKS[square];
-
-                // Initialize relevant occupancy bit count
-                let relevant_bits_count = attack_mask.count_ones();
-
-                // Initialize occupancy indices
-                let occupancy_indices = 1 << relevant_bits_count;
-
-                // Loop over occupancy indices
-                for index in 0..occupancy_indices {
-                    // Initialize current occupancy variation
-                    let occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
-
-                        // Initialize magic index
-                    let magic_index = ((occupancy.wrapping_mul( BISHOP_MAGIC_NUMBERS[square])) >> (64 - BISHOP_RELEVANT_BITS[square])) as usize;
-
-                    // Initialize bishop attacks
-                    bishop_attacks[square][magic_index] = bishop_attacks_on_the_fly(square, occupancy);
-                }
+    pub static ref BISHOP_ATTACKS: Box<[[u64; 512]; 64]> = {
+        let mut bishop_attacks: Box<[[u64; 512]; 64]> = unsafe { Box::new_zeroed().assume_init() };
+        for square in 0..64 {
+            let attack_mask = BISHOP_MASKS[square];
+            let relevant_bits_count = attack_mask.count_ones();
+            let occupancy_indices = 1 << relevant_bits_count;
+            for index in 0..occupancy_indices {
+                let occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
+                let magic_index = ((occupancy.wrapping_mul(BISHOP_MAGIC_NUMBERS[square])) >> (64 - BISHOP_RELEVANT_BITS[square])) as usize;
+                bishop_attacks[square][magic_index] = bishop_attacks_on_the_fly(square, occupancy);
             }
-        });
-            bishop_attacks
-    };
-
-}
-
-lazy_static! {
-    pub static ref BISHOP_MASKS: [u64; 64] = {
-        let mut bishop_masks = [0; 64];
-        let once = Once::new();
-        once.call_once(|| {
-            for square  in 0..64 {
-                bishop_masks[square] = mask_bishop_attacks(square);
-
-
-            }
-        });
-            bishop_masks
+        }
+        bishop_attacks
     };
 }
 
 lazy_static! {
-    pub static ref ROOK_ATTACKS: [[u64; 4096]; 64] = {
-        let mut rook_attacks = [[0; 4096]; 64];
-        let once = Once::new();
-        once.call_once(|| {
-            for square  in 0..64 {
-                let attack_mask = ROOK_MASKS[square];
-
-                // Initialize relevant occupancy bit count
-                let relevant_bits_count = attack_mask.count_ones();
-
-                // Initialize occupancy indices
-                let occupancy_indices = 1 << relevant_bits_count;
-
-                // Loop over occupancy indices
-                for index in 0..occupancy_indices {
-                    // Initialize current occupancy variation
-                    let occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
-
-                        // Initialize magic index
-                    let magic_index = ((occupancy.wrapping_mul( ROOK_MAGIC_NUMBERS[square])) >> (64 - ROOK_RELEVANT_BITS[square])) as usize;
-
-                    // Initialize bishop attacks
-                    rook_attacks[square][magic_index] = rook_attacks_on_the_fly(square, occupancy);
-                }
-            }
-        });
-            rook_attacks
+    pub static ref BISHOP_MASKS: Box<[u64; 64]> = {
+        let mut bishop_masks: Box<[u64; 64]> = unsafe { Box::new_zeroed().assume_init() };
+        for square in 0..64 {
+            bishop_masks[square] = mask_bishop_attacks(square);
+        }
+        bishop_masks
     };
-
 }
 
 lazy_static! {
-    pub static ref ROOK_MASKS: [u64; 64] = {
-        let mut rook_masks = [0; 64];
-        let once = Once::new();
-        once.call_once(|| {
-            for square  in 0..64 {
-                rook_masks[square] = mask_rook_attacks(square);
+    pub static ref ROOK_ATTACKS: Box<[[u64; 4096]; 64]> = {
+        let mut rook_attacks: Box<[[u64; 4096]; 64]> = unsafe { Box::new_zeroed().assume_init() };
+        for square in 0..64 {
+            let attack_mask = ROOK_MASKS[square];
+            let relevant_bits_count = attack_mask.count_ones();
+            let occupancy_indices = 1 << relevant_bits_count;
+            for index in 0..occupancy_indices {
+                let occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
+                let magic_index = ((occupancy.wrapping_mul(ROOK_MAGIC_NUMBERS[square])) >> (64 - ROOK_RELEVANT_BITS[square])) as usize;
+                rook_attacks[square][magic_index] = rook_attacks_on_the_fly(square, occupancy);
             }
-        });
-            rook_masks
+        }
+        rook_attacks
+    };
+}
+
+lazy_static! {
+    pub static ref ROOK_MASKS: Box<[u64; 64]> = {
+        let mut rook_masks: Box<[u64; 64]> = unsafe { Box::new_zeroed().assume_init() };
+        for square in 0..64 {
+            rook_masks[square] = mask_rook_attacks(square);
+        }
+        rook_masks
     };
 }
 
@@ -605,59 +557,6 @@ const ROOK_RELEVANT_BITS: [usize;64] = [
 11, 10, 10, 10, 10, 10, 10, 11,
 12, 11, 11, 11, 11, 11, 11, 12
 ];
-/*
-pub fn init_sliders_attacks(bishop: bool) {
-    let mut rook_masks = ROOK_MASKS.lock().unwrap();
-    let mut bishop_masks = BISHOP_MASKS.lock().unwrap();
-    let mut rook_attacks = ROOK_ATTACKS.lock().unwrap();
-    let mut bishop_attacks = BISHOP_ATTACKS.lock().unwrap();
-    // Loop over 64 board squares
-    for square in 0..64 {
-        // Initialize bishop & rook masks
-        bishop_masks[square] = mask_bishop_attacks(square);
-        rook_masks[square] = mask_rook_attacks(square);
-
-        // Initialize attack mask
-        let attack_mask = if bishop {
-            bishop_masks[square]
-        } else {
-            rook_masks[square]
-        };
-
-        // Initialize relevant occupancy bit count
-        let relevant_bits_count = attack_mask.count_ones();
-
-        // Initialize occupancy indices
-        let occupancy_indices = 1 << relevant_bits_count;
-
-        // Loop over occupancy indices
-        for index in 0..occupancy_indices {
-            // Bishop
-            if bishop {
-                // Initialize current occupancy variation
-                let occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
-
-                // Initialize magic index
-            let magic_index = ((occupancy.wrapping_mul( BISHOP_MAGIC_NUMBERS[square])) >> (64 - BISHOP_RELEVANT_BITS[square])) as usize;
-
-                // Initialize bishop attacks
-                bishop_attacks[square][magic_index] = bishop_attacks_on_the_fly(square, occupancy);
-            }
-            // Rook
-            else {
-                // Initialize current occupancy variation
-                let occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
-
-                // Initialize magic index
-                let magic_index = ((occupancy.wrapping_mul( ROOK_MAGIC_NUMBERS[square])) >> (64 - ROOK_RELEVANT_BITS[square])) as usize;
-
-                // Initialize rook attacks
-                rook_attacks[square][magic_index] = rook_attacks_on_the_fly(square, occupancy);
-            }
-        }
-    }
-}
-*/
 // Get bishop attacks
 pub fn get_bishop_attacks(square: usize, occupancy: u64) -> u64 {
     // Get bishop attacks assuming current board occupancy
@@ -716,10 +615,6 @@ pub fn get_least_valuable_attacker(board_position: &BoardPosition, square: u8) -
         for _ in 0..attacking_pieces.count_ones() {
             let source = attacking_pieces.trailing_zeros() as u8;
             pop_bit(&mut attacking_pieces, source as usize);
-
-            // let mv = if piece_idx % 6 == 0 && square < 8 || square >= 56 
-            //     { Move::create(source, square, MoveCode::QueenPromotionCapture)} else 
-            //     { Move::create(source, square, MoveCode::Capture) };
 
             let mv = { Move::create(source, square, MoveCode::Capture) };
             let board_position = board_position.make_move(mv);

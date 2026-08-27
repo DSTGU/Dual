@@ -89,7 +89,7 @@ pub fn uci_loop() {
 
 
 fn main() {
-    let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+    let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
     let handler = builder.spawn(|| {
 
         let args: Vec<String> = env::args().collect();

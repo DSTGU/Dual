@@ -80,7 +80,7 @@ mod tests{
 
     #[test]
     fn test_perft_kiwipete() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 let board_position = BoardPosition::new(KIWIPETE);
@@ -93,7 +93,7 @@ mod tests{
 
     #[test]
     fn test_perft_endgame() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 let board_position = BoardPosition::new(ENDGAME_PERFT);
@@ -106,7 +106,7 @@ mod tests{
 
     #[test]
     fn test_perft_startpos_intermediate_depths() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 // These are the expected perft results for each depth from startpos
@@ -148,7 +148,7 @@ mod tests{
 
     #[test]
     fn test_occupancy_calculation() {
-        let builder = thread::Builder::new().stack_size(80 * 1024 * 1024);
+        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
         let handler = builder
             .spawn(|| {
                 // These are the expected perft results for each depth from startpos
