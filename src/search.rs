@@ -230,7 +230,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // Razoring
     // ------------------------------------------------------------
     // sf: alpha - 512 - (293 * depth * depth) as i32
-    if !NODE::PV && static_eval < alpha - 200 - (100 * depth * depth) as i32{ // likely a fail-low node ?
+    if !NODE::PV && !is_in_check && static_eval < alpha - 200 - (100 * depth * depth) as i32{ // likely a fail-low node ?
         let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
         if new_score < beta {
             return new_score; // fail soft
