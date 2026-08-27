@@ -7,4 +7,4 @@ else
 endif
 
 build:
-	cargo rustc --release -- -C target-cpu=native --emit link=$(NAME)
+	cargo rustc --release --features tuning -- -C target-cpu=native --emit link=$(NAME)
