@@ -108,25 +108,25 @@ tunable_params! {
     // Reverse Futility Pruning (RFP) — quadratic: margin = a*d^2 + b*d + c - improving*imp
     // Original: 80*(d - improving) => a=0, b=80, c=0, imp=80
     // -----------------------------------------------------------------------
-    rfp_max_depth                = 6,   3..=9,              false;
+    rfp_max_depth                = 6,   4..=12,             true;
     rfp_a                        = 0,   -10..=20,           true;
     rfp_b                        = 80,  20..=150,           true;
     rfp_c                        = 0,   -50..=50,           true;
-    rfp_improving                = 80,  0..=150,            true;
+    rfp_improving                = 80,  -10..=150,          true;
 
     // -----------------------------------------------------------------------
     // Razoring — quadratic: threshold = a*d^2 + b*d + c  (eval < alpha - threshold)
     // Original: 200 + 100*d^2 => a=100, b=0, c=200
     // -----------------------------------------------------------------------
-    razor_a                      = 100, 0..=300,            true;
-    razor_b                      = 0,   0..=100,            true;
-    razor_c                      = 200, 0..=400,            true;
+    razor_a                      = 100, -100..=300,         true;
+    razor_b                      = 0,   -100..=100,         true;
+    razor_c                      = 200, -100..=400,         true;
 
     // -----------------------------------------------------------------------
     // Futility Pruning (quiet) — quadratic: bonus = a*d^2 + b*d + c
     // Original: 80*d => a=0, b=80, c=0
     // -----------------------------------------------------------------------
-    fp_max_depth                 = 5,   3..=8,              false;
+    fp_max_depth                 = 5,   4..=12,             true;
     fp_a                         = 0,   -10..=20,           true;
     fp_b                         = 80,  20..=150,           true;
     fp_c                         = 0,   -50..=50,           true;
@@ -144,15 +144,15 @@ tunable_params! {
     // -----------------------------------------------------------------------
     // Null Move Pruning — reduction = base + depth / divisor
     // -----------------------------------------------------------------------
-    nmp_min_depth                = 3,   2..=5,              false;
-    nmp_base                     = 2,   0..=4,              false;
-    nmp_divisor                  = 4,   2..=8,              false;
+    nmp_min_depth                = 3,   2..=5,              true;
+    nmp_base                     = 2,   0..=4,              true;
+    nmp_divisor                  = 4,   2..=8,              true;
 
     // -----------------------------------------------------------------------
     // Late Move Pruning — after lmp_base + lmp_scale*d^2 quiets, skip
     // -----------------------------------------------------------------------
     lmp_base                     = 3,   0..=6,              true;
-    lmp_scale                    = 1,   1..=3,              false;
+    lmp_scale                    = 1,   1..=3,              true;
 
     // -----------------------------------------------------------------------
     // History bonus — base = scale*d + offset, then separate float multipliers
@@ -168,8 +168,8 @@ tunable_params! {
     // LMR — reduction = (0.99 + ln(d)*ln(m)/3.14)*1024 - history/div
     // 0.99 and 3.14 are scaled x100 to keep int tuning: 99 and 314
     // -----------------------------------------------------------------------
-    lmr_min_depth                = 3,   2..=5,              false;
-    lmr_min_moves                = 2,   1..=4,              false;
+    lmr_min_depth                = 3,   2..=5,              true;
+    lmr_min_moves                = 2,   1..=4,              true;
     lmr_hist_div                 = 8,   2..=16,             true;
     lmr_base                     = 99,  50..=150,           true; // 0.99*100
     lmr_div                      = 314, 200..=500,          true; // 3.14*100
@@ -196,12 +196,12 @@ tunable_params! {
     // -----------------------------------------------------------------------
     // LMP / Aspiration max tries (poisoned small ints -> spsa false)
     // -----------------------------------------------------------------------
-    lmp_max_depth                = 12,  6..=20,             false; // LMP only if depth <= this (large = almost always). Set high to keep current behavior.
-    asp_max_tries                = 3,   2..=6,              false; // aspiration re-searches before fallback
+    lmp_max_depth                = 12,  6..=20,             true; // LMP only if depth <= this (large = almost always). Set high to keep current behavior.
+    asp_max_tries                = 3,   2..=6,              true; // aspiration re-searches before fallback
 
     // -----------------------------------------------------------------------
     // Aspiration window
     // -----------------------------------------------------------------------
     asp_delta                    = 50,  10..=100,           true;
-    asp_mult                     = 2,   2..=3,              false;
+    asp_mult                     = 2,   2..=4,              true;
 }
