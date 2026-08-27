@@ -11,6 +11,7 @@ use crate::primitives::shared::{Move, Piece, move_to_alg};
 use crate::search_objs::see::{see_a_move_threshold};
 use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::{Reporting, SearchState};
+use crate::tunable::*;
 
 // value is 1024 * depth
 #[allow(clippy::approx_constant)]
@@ -20,7 +21,7 @@ pub fn reduce_lmr_by(depth: usize, moves: usize) -> i32 {
 }
 
 fn lmp_threshold(depth: usize) -> usize {
-    3 + depth * depth
+    (lmp_base() as usize) + (lmp_scale() as usize) * depth * depth
 }
 
 pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> i32 {
@@ -83,7 +84,7 @@ pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState
     while let Some((mv, new_board)) = move_picker.next(board_position, search_state, true) {
 
         // Static Exchange Evaluation Pruning (SEE Pruning)
-        if !see_a_move_threshold(board_position, mv, &new_board, 0) {
+        if !see_a_move_threshold(board_position, mv, &new_board, qs_see_threshold()) {
             continue;
         }
 
@@ -216,10 +217,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     //  we still exceed beta."
     // ------------------------------------------------------------
     if !NODE::PV
-       && depth <= 6
+       && depth <= rfp_max_depth() as usize
        && !is_in_check {
 
-        let rfp_margin = static_eval - 80 * (depth as i32 - improving as i32);
+        let rfp_margin = static_eval - rfp_scale() * (depth as i32 - improving as i32);
         
         if rfp_margin >= beta {
             return static_eval;
@@ -230,7 +231,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // Razoring
     // ------------------------------------------------------------
     // sf: alpha - 512 - (293 * depth * depth) as i32
-    if !NODE::PV && static_eval < alpha - 200 - (100 * depth * depth) as i32{ // likely a fail-low node ?
+    if !NODE::PV && static_eval < alpha - razor_base() - (razor_scale() * depth as i32 * depth as i32) { // likely a fail-low node ?
         let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
         if new_score < beta {
             return new_score; // fail soft
@@ -245,10 +246,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         board_position.has_pieces() &&
         static_eval > beta &&
         !is_in_check &&
-        depth >= 3 &&
+        depth >= nmp_min_depth() as usize &&
         !NODE::PV 
         {
-            let r = 2 + depth / 4; // NMP Reduction
+            let r = nmp_base() as usize + depth / nmp_divisor() as usize; // NMP Reduction
             let null_board = board_position.make_null_move();
             let search_answer = -pvs::<NonPV>(&null_board, search_state, -beta, -(beta - 1), (depth - r - 1).max(0));
 
@@ -263,7 +264,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
     let mut legal_moves = 0;
     let mut previous_quiet_moves = vec![]; // malus purposes
-    let history_bonus = 300 * depth as i32 - 250;
+    let history_bonus = hist_bonus_scale() * depth as i32 + hist_bonus_offset();
     
 
     let mut move_picker = MovePicker::new(tt_move);
@@ -276,11 +277,11 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // --------------------------------------------------------
         
         if !NODE::PV && 
-        depth <= 5 &&
+        depth <= fp_max_depth() as usize &&
         legal_moves > 1 &&
         mv.is_quiet() &&
         !is_in_check {
-            if static_eval + 80 * depth as i32 <= alpha {
+            if static_eval + fp_scale() * depth as i32 <= alpha {
                 continue;
             }
         }
@@ -300,7 +301,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
         // Static Exchange Evaluation Pruning (SEE Pruning)
         if !NODE::ROOT && !is_in_check {
-            let threshold= -120 - 50 * depth as i32;
+            let threshold= see_base() + see_scale() * depth as i32;
             // Try out a history term
             // let threshold: i32 = if mv.is_quiet() {
             //     (-12 * depth as i32 * depth as i32 + 56 * depth as i32 + 27).min(0)
@@ -322,8 +323,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // --------------------------------------------------------
         // LMR (Late Move Reductions)
         // --------------------------------------------------------
-        if depth >= 3 &&
-           legal_moves > 2 &&
+        if depth >= lmr_min_depth() as usize &&
+           legal_moves > lmr_min_moves() as usize &&
            mv.is_quiet() {
            // !NODE::PV {
            //and not inCheck
@@ -331,7 +332,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
             let mut reduction = reduce_lmr_by(depth, legal_moves);
 
-            reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / 8;
+            reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / lmr_hist_div();
 
             let reduction = (reduction / 1024).clamp(0, (depth - 1) as i32) as usize;
 
@@ -456,8 +457,8 @@ pub fn single_depth_search(board_position: &BoardPosition, search_state: &mut Se
 }
 
 pub fn single_depth_search_aspirated(board_position: &BoardPosition, search_state: &mut SearchState, depth: usize, eval: i32) -> i32 {
-    let mut aspiration_lower = 50;
-    let mut aspiration_higher = 50;
+    let mut aspiration_lower = asp_delta();
+    let mut aspiration_higher = asp_delta();
 
     let mut score ;
     //println!(" ---------------- NEW SEARCH, depth: {} ----------------", depth);
@@ -474,10 +475,10 @@ pub fn single_depth_search_aspirated(board_position: &BoardPosition, search_stat
 
         //println!("aspiration failed, score: {:?}", score.eval);
         if score < eval {
-            aspiration_lower *= 2;
+            aspiration_lower *= asp_mult();
         }
         else {
-            aspiration_higher *= 2;
+            aspiration_higher *= asp_mult();
         }
     }
 
