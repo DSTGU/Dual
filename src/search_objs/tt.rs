@@ -7,6 +7,7 @@
 
 use crate::primitives::shared::Move;
 use crate::primitives::consts::{MATE_THRESHOLD, NO_SCORE};
+use crate::tunable::{tt_age_weight, tt_exact_bonus};
 
 /// Size of the transposition table (number of entries)
 /// Using a power of 2 allows for fast modulo with bitwise AND
@@ -109,7 +110,7 @@ impl TranspositionTable {
         let idx = self.index(hash);
         let entry = &mut self.entries[idx];
 
-        if entry.hash == 0 || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * 6) > 0 {
+        if entry.hash == 0 || !entry.matches(hash) && depth as i32 - entry.depth as i32 + (self.age.wrapping_sub(entry.age) as i32 * tt_age_weight()) > 0 {
             *entry = TTEntry {
                 hash,
                 depth,
@@ -138,7 +139,7 @@ impl TranspositionTable {
 #[inline]
 pub fn matches_replacement_strength(depth: u8, flag: TTFlag) -> u8 {
     depth + if flag == TTFlag::Exact {
-        1
+        tt_exact_bonus() as u8
     } else {
         0
     }

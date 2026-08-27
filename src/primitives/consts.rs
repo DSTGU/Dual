@@ -16,4 +16,5 @@ pub const MATE_THRESHOLD: i32 = MATE_SCORE - MAX_PLY;
 pub const FIRST_KILLER_BONUS: i32 = 9_000_000;
 pub const DRAW_SCORE: i32 = 0;
 pub const MIN_DEPTH: usize = 3;
-pub const MAX_HISTORY : i32 = 16384;
+#[allow(dead_code)]
+pub const MAX_HISTORY : i32 = 16384; // superseded by tunable max_history() when feature "tuning" is on, kept for reference/docs

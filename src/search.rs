@@ -16,8 +16,10 @@ use crate::tunable::*;
 // value is 1024 * depth
 #[allow(clippy::approx_constant)]
 pub fn reduce_lmr_by(depth: usize, moves: usize) -> i32 {
-    // Obsidian function
-    ((0.99 + (depth as f32).ln() * (moves as f32).ln() / 3.14) * 1024.0) as i32
+    // Obsidian function with tunable base/div (scaled x100: 99=0.99, 314=3.14)
+    let base = lmr_base() as f32 / 100.0;
+    let div = lmr_div() as f32 / 100.0;
+    ((base + (depth as f32).ln() * (moves as f32).ln() / div) * 1024.0) as i32
 }
 
 fn lmp_threshold(depth: usize) -> usize {
@@ -220,7 +222,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        && depth <= rfp_max_depth() as usize
        && !is_in_check {
 
-        let rfp_margin = static_eval - rfp_scale() * (depth as i32 - improving as i32);
+        let d = depth as i32;
+        let rfp_margin = static_eval - (rfp_a() * d * d + rfp_b() * d + rfp_c() - improving as i32 * rfp_improving());
         
         if rfp_margin >= beta {
             return static_eval;
@@ -231,7 +234,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // Razoring
     // ------------------------------------------------------------
     // sf: alpha - 512 - (293 * depth * depth) as i32
-    if !NODE::PV && static_eval < alpha - razor_base() - (razor_scale() * depth as i32 * depth as i32) { // likely a fail-low node ?
+    if !NODE::PV && static_eval < alpha - (razor_a() * depth as i32 * depth as i32 + razor_b() * depth as i32 + razor_c()) { // likely a fail-low node ?
         let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
         if new_score < beta {
             return new_score; // fail soft
@@ -264,7 +267,11 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
     let mut legal_moves = 0;
     let mut previous_quiet_moves = vec![]; // malus purposes
-    let history_bonus = hist_bonus_scale() * depth as i32 + hist_bonus_offset();
+    let hist_base = hist_bonus_scale() * depth as i32 + hist_bonus_offset();
+    // separate float multipliers (x100): 100 = 1.0
+    let hist_beta_bonus = hist_base * hist_beta_mult() / 100;
+    let hist_alpha_bonus = hist_base * hist_alpha_mult() / 100;
+    let hist_malus_bonus = hist_base * hist_malus_mult() / 100;
     
 
     let mut move_picker = MovePicker::new(tt_move);
@@ -281,7 +288,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         legal_moves > 1 &&
         mv.is_quiet() &&
         !is_in_check {
-            if static_eval + fp_scale() * depth as i32 <= alpha {
+            let d = depth as i32;
+            if static_eval + (fp_a() * d * d + fp_b() * d + fp_c()) <= alpha {
                 continue;
             }
         }
@@ -290,6 +298,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // Late move pruning
         // --------------------------------------------------------
         if !NODE::PV 
+            && depth <= lmp_max_depth() as usize
             && new_alpha.abs() <= MATE_THRESHOLD
             && mv.is_quiet()
             && previous_quiet_moves.len()
@@ -299,9 +308,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             continue;
         }
 
-        // Static Exchange Evaluation Pruning (SEE Pruning)
+        // Static Exchange Evaluation Pruning (SEE Pruning) — quadratic
         if !NODE::ROOT && !is_in_check {
-            let threshold= see_base() + see_scale() * depth as i32;
+            let d = depth as i32;
+            let threshold= see_a() * d * d + see_b() * d + see_c();
             // Try out a history term
             // let threshold: i32 = if mv.is_quiet() {
             //     (-12 * depth as i32 * depth as i32 + 56 * depth as i32 + 27).min(0)
@@ -375,14 +385,14 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                     
                     if mv.is_quiet() {
                         search_state.update_killer_move(mv);
-                        search_state.update_history(board_position, mv, history_bonus);
+                        search_state.update_history(board_position, mv, hist_beta_bonus);
                         
                         // apply malus to previous quiet moves
                         for prev_mv in &previous_quiet_moves {
                             search_state.update_history(
                                 board_position,
                                 *prev_mv,
-                                -history_bonus,
+                                -hist_malus_bonus,
                             );
                         }
                     }
@@ -411,7 +421,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
     if let Some(mv) = best_move {
         if mv.is_quiet() {
-            search_state.update_history(board_position, best_move.unwrap(), history_bonus);
+            search_state.update_history(board_position, best_move.unwrap(), hist_alpha_bonus);
         }
     }
 
@@ -462,7 +472,7 @@ pub fn single_depth_search_aspirated(board_position: &BoardPosition, search_stat
 
     let mut score ;
     //println!(" ---------------- NEW SEARCH, depth: {} ----------------", depth);
-    for _ in 0..3 {
+    for _ in 0..asp_max_tries() {
         //println!("low: {}, high: {}", eval-aspiration_lower, eval+aspiration_higher);
         score = pvs::<Root>(board_position, search_state, eval-aspiration_lower, eval+aspiration_higher, depth);
         //println!("aspiration, score: {:?}", score.eval);

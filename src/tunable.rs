@@ -1,13 +1,13 @@
 //! Tunable search parameters for SPSA / OpenBench tuning.
 //!
-//!mirrors the `tunable_params!` macro from the example snippet.
+//!Mirrors the `tunable_params!` macro from the example snippet.
 //! When compiled with `--features tuning`, each parameter is an `AtomicI32` that can be
 //! changed at runtime via UCI `setoption name <param> value <val>`.
 //! Without the feature, each function is a `const`-folded inline returning the default.
 //!
 //! # OpenBench SPSA workflow
 //! 1. Build with tuning: `cargo build --release --features tuning`
-//! 2. Generate SPSA input: `./target/release/Dual --spsa`  or `print_params_ob` via UCI `print_params_ob` (if wired)
+//! 2. Generate SPSA input: `./target/release/Dual --spsa`  or `print_params_ob` via UCI `print_params_ob`
 //!    which prints lines like:
 //!    `rfp_scale, int, 80.0, 30.0, 150.0, 6.0, 0.002`
 //! 3. Paste that into OpenBench "SPSA Input" when creating a tune.
@@ -97,55 +97,111 @@ macro_rules! tunable_params {
 
 // ---------------------------------------------------------------------------
 // Actual search parameters for Dual.
-// Every hardcoded literal from `search.rs` that is interesting to tune is
-// exposed here.  Ranges are intentionally wide but plausible; tighten them after
-// a few test tunes.
+// Ranges are intentionally wide but plausible; tighten them after a few test tunes.
 // `spsa = false` => UCI-tunable but hidden from SPSA `print_params_ob` (poisoned /
 // tiny integer depths). Set to true if you know C_end is safe (>0.5) and you want
 // it in the tune.
 // ---------------------------------------------------------------------------
 #[rustfmt::skip]
 tunable_params! {
-    // Reverse Futility Pruning (RFP) — depth <= rfp_max_depth, margin = scale * (depth - improving)
+    // -----------------------------------------------------------------------
+    // Reverse Futility Pruning (RFP) — quadratic: margin = a*d^2 + b*d + c - improving*imp
+    // Original: 80*(d - improving) => a=0, b=80, c=0, imp=80
+    // -----------------------------------------------------------------------
     rfp_max_depth                = 6,   3..=9,              false;
-    rfp_scale                    = 80,  30..=150,           true;
+    rfp_a                        = 0,   -10..=20,           true;
+    rfp_b                        = 80,  20..=150,           true;
+    rfp_c                        = 0,   -50..=50,           true;
+    rfp_improving                = 80,  0..=150,            true;
 
-    // Razoring — if eval < alpha - razor_base - razor_scale * depth^2  => qsearch
-    razor_base                   = 200, 0..=400,            true;
-    razor_scale                  = 100, 30..=300,           true;
+    // -----------------------------------------------------------------------
+    // Razoring — quadratic: threshold = a*d^2 + b*d + c  (eval < alpha - threshold)
+    // Original: 200 + 100*d^2 => a=100, b=0, c=200
+    // -----------------------------------------------------------------------
+    razor_a                      = 100, 0..=300,            true;
+    razor_b                      = 0,   0..=100,            true;
+    razor_c                      = 200, 0..=400,            true;
 
-    // Null Move Pruning — depth >= nmp_min_depth, static_eval > beta, reduction = nmp_base + depth / nmp_divisor
+    // -----------------------------------------------------------------------
+    // Futility Pruning (quiet) — quadratic: bonus = a*d^2 + b*d + c
+    // Original: 80*d => a=0, b=80, c=0
+    // -----------------------------------------------------------------------
+    fp_max_depth                 = 5,   3..=8,              false;
+    fp_a                         = 0,   -10..=20,           true;
+    fp_b                         = 80,  20..=150,           true;
+    fp_c                         = 0,   -50..=50,           true;
+
+    // -----------------------------------------------------------------------
+    // SEE pruning — quadratic: threshold = a*d^2 + b*d + c  (negative)
+    // Original: -120 -50*d => a=0, b=-50, c=-120
+    // -----------------------------------------------------------------------
+    see_a                        = 0,   -10..=10,           true;
+    see_b                        = -50, -100..=-10,         true;
+    see_c                        = -120,-250..=0,           true;
+    qs_see_threshold             = 0,   -50..=50,           true;
+    mp_see_threshold             = 0,   -100..=100,         true; // movepicker bad-noisy SEE cut (was 0)
+
+    // -----------------------------------------------------------------------
+    // Null Move Pruning — reduction = base + depth / divisor
+    // -----------------------------------------------------------------------
     nmp_min_depth                = 3,   2..=5,              false;
     nmp_base                     = 2,   0..=4,              false;
     nmp_divisor                  = 4,   2..=8,              false;
 
-    // Futility Pruning (quiet) — depth <= fp_max_depth, eval + fp_scale * depth <= alpha
-    fp_max_depth                 = 5,   3..=8,              false;
-    fp_scale                     = 80,  20..=150,           true;
-
-    // Late Move Pruning — after lmp_base + depth^2 quiets, skip remaining quiets
+    // -----------------------------------------------------------------------
+    // Late Move Pruning — after lmp_base + lmp_scale*d^2 quiets, skip
+    // -----------------------------------------------------------------------
     lmp_base                     = 3,   0..=6,              true;
-    // lmp_scale multiplies depth^2 (1 == original: base + 1*depth^2). Keep small range.
     lmp_scale                    = 1,   1..=3,              false;
 
-    // SEE pruning — threshold = see_base + see_scale * depth  (both negative => threshold negative)
-    // default -120 -50*depth
-    see_base                     = -120, -250..=0,          true;
-    see_scale                    = -50,  -100..=-10,        true;
-    // QS SEE threshold (was hardcoded 0)
-    qs_see_threshold             = 0,   -50..=50,           true;
-
-    // History bonus — bonus = hist_scale * depth + hist_offset  (offset negative in original)
+    // -----------------------------------------------------------------------
+    // History bonus — base = scale*d + offset, then separate float multipliers
+    // float multipliers are scaled x100: 100 = 1.0, 0..200 => 0.0..2.0
+    // -----------------------------------------------------------------------
     hist_bonus_scale             = 300, 150..=500,          true;
     hist_bonus_offset            = -250, -500..=0,          true;
+    hist_beta_mult               = 100, 0..=200,            true; // beta cutoff
+    hist_alpha_mult              = 100, 0..=200,            true; // alpha raise (improve)
+    hist_malus_mult              = 100, 0..=200,            true; // penalty for quiets before cutoff
 
-    // LMR — reduction = reduce_lmr_by(depth,moves) - history / lmr_hist_div  (then /1024 clamped)
+    // -----------------------------------------------------------------------
+    // LMR — reduction = (0.99 + ln(d)*ln(m)/3.14)*1024 - history/div
+    // 0.99 and 3.14 are scaled x100 to keep int tuning: 99 and 314
+    // -----------------------------------------------------------------------
     lmr_min_depth                = 3,   2..=5,              false;
     lmr_min_moves                = 2,   1..=4,              false;
     lmr_hist_div                 = 8,   2..=16,             true;
+    lmr_base                     = 99,  50..=150,           true; // 0.99*100
+    lmr_div                      = 314, 200..=500,          true; // 3.14*100
 
-    // Aspiration window — initial delta, doubling on fail (original 50, *2 each retry, up to 3 tries)
+    // -----------------------------------------------------------------------
+    // TT replacement
+    // -----------------------------------------------------------------------
+    tt_age_weight                = 6,   0..=12,             true; // age diff * weight
+    tt_exact_bonus               = 1,   0..=4,              true; // Exact gets +1 depth
+
+    // -----------------------------------------------------------------------
+    // Time management — StopCondition
+    // -----------------------------------------------------------------------
+    tm_hard_percent              = 75,  50..=95,            true; // hard limit = time * percent/100
+    tm_alloc_div                 = 15,  8..=30,             true; // allocation = time/alloc_div + inc*inc_scale/100
+    tm_soft_div                  = 3,   2..=6,              true; // soft = allocation / soft_div
+    tm_inc_scale                 = 100, 0..=200,            true; // inc multiplier x100 (100=1.0)
+
+    // -----------------------------------------------------------------------
+    // History clamp
+    // -----------------------------------------------------------------------
+    max_history                  = 16384, 8192..=32768,     true;
+
+    // -----------------------------------------------------------------------
+    // LMP / Aspiration max tries (poisoned small ints -> spsa false)
+    // -----------------------------------------------------------------------
+    lmp_max_depth                = 12,  6..=20,             false; // LMP only if depth <= this (large = almost always). Set high to keep current behavior.
+    asp_max_tries                = 3,   2..=6,              false; // aspiration re-searches before fallback
+
+    // -----------------------------------------------------------------------
+    // Aspiration window
+    // -----------------------------------------------------------------------
     asp_delta                    = 50,  10..=100,           true;
-    // asp_fails not directly tuned; keep tries =3 hardcoded. If you want to tune multiplier, use asp_mult.
     asp_mult                     = 2,   2..=3,              false;
 }

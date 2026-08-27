@@ -1,8 +1,9 @@
 use coarsetime::{Instant};
 
 use crate::primitives::board::BoardPosition;
+use crate::tunable::{max_history, tm_alloc_div, tm_hard_percent, tm_inc_scale, tm_soft_div};
 use crate::primitives::shared::{Color, Move, Piece};
-use crate::primitives::consts::{MAX_HISTORY, MVV_LVA};
+use crate::primitives::consts::MVV_LVA;
 use crate::search_objs::config::EngineConfig;
 use crate::search_objs::move_stack::MoveStack;
 use crate::search_objs::pv_table::PrincipalVariationTable;
@@ -116,14 +117,15 @@ impl SearchState {
     }
 
     pub fn update_history(&mut self, board_position: &BoardPosition, mv: Move, bonus: i32) {
-        let clamped_bonus = bonus.clamp(-MAX_HISTORY, MAX_HISTORY) as i32;
+        let mh = max_history();
+        let clamped_bonus = bonus.clamp(-mh, mh) as i32;
         let piece = board_position.get_piece(mv) as usize;
         let source = mv.get_source_square();
         let target = mv.get_target_square();
         let side = board_position.side;
         if piece < 12 && target < 64 {
             let history_val = self.get_quiet_history(side, mv);           
-            self.history_moves[side][source as usize][target as usize] += (clamped_bonus - history_val as i32 * clamped_bonus.abs() / MAX_HISTORY) as i16 //second bonus should be abs
+            self.history_moves[side][source as usize][target as usize] += (clamped_bonus - history_val as i32 * clamped_bonus.abs() / mh) as i16 //second bonus should be abs
             //if mv.is_capture() {
             //    let history_val = self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target];
             //    self.capt_history_moves[self.board_position.mailbox[mv.get_target_square() as usize] as usize][piece][target] += clamped_bonus - history_val * clamped_bonus / MAX_HISTORY;
@@ -223,12 +225,13 @@ impl StopCondition {
         }
 
         if let Some(our_time) = self.our_time_ms {
-            if elapsed >= our_time * 3 / 4 {
+            if elapsed >= our_time * tm_hard_percent() as u64 / 100 {
                 return true;
             }
             
             let our_inc = if let Some(our_inc) = self.our_inc_ms {our_inc} else { 0 };
-            let allocation = our_time/15 + our_inc; 
+            let inc_part = our_inc * tm_inc_scale() as u64 / 100;
+            let allocation = our_time / tm_alloc_div() as u64 + inc_part; 
 
             if elapsed > allocation {
                 return true;
@@ -254,12 +257,13 @@ impl StopCondition {
         let elapsed = self.started_search.elapsed().as_millis();
 
         if let Some(our_time) = self.our_time_ms {
-            if elapsed >= our_time * 3 / 4 {
+            if elapsed >= our_time * tm_hard_percent() as u64 / 100 {
                 return true;
             }
             
             let our_inc = if let Some(our_inc) = self.our_inc_ms {our_inc} else { 0 };
-            let allocation = (our_time/15 + our_inc)/3; 
+            let inc_part = our_inc * tm_inc_scale() as u64 / 100;
+            let allocation = (our_time / tm_alloc_div() as u64 + inc_part) / tm_soft_div() as u64; 
 
             if elapsed > allocation {
                 return true;
