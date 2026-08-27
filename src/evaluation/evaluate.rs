@@ -11,7 +11,6 @@ pub fn evaltest(board_position: &BoardPosition, search_state: &SearchState) {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
     use crate::evaluation::evaluate::nnue_evaluate;
     use crate::gui::parse_position_command;
     use crate::search_objs::config::EngineConfig;
@@ -21,10 +20,6 @@ use crate::search_objs::search_state::SearchState;
 
     #[test]
     fn test_undoing() {
-        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-
         let command = "position startpos";
         let mut search_state = SearchState::new(&EngineConfig::thin());
         let board_position = parse_position_command(&mut search_state, command);
@@ -42,8 +37,5 @@ use crate::search_objs::search_state::SearchState;
 
         assert_eq!(eval1, eval3);
         assert_eq!(eval2, eval4);
-                })
-            .unwrap();
-        handler.join().unwrap();
     }
 }

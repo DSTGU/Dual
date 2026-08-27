@@ -289,15 +289,8 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
-    fn run_with_big_stack(f: impl FnOnce() + Send + 'static) {
-        let builder = std::thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder.spawn(f).unwrap();
-        handler.join().unwrap();
-    }
-
     #[test]
     fn test_generate_prints_expected_lines() {
-        run_with_big_stack(|| {
             let mut out = Cursor::new(Vec::new());
             let written = generate(5, 0x1234_5678_9ABC_DEF0, &[], &mut out).unwrap();
             assert_eq!(written, 5);
@@ -313,12 +306,10 @@ mod tests {
                 assert!(board.bitboards[Piece::K as usize] > 0);
                 assert!(board.bitboards[Piece::k as usize] > 0);
             }
-        });
     }
 
     #[test]
     fn test_generate_with_book() {
-        run_with_big_stack(|| {
             let book = vec![
                 "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_string(),
                 "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".to_string(),
@@ -326,7 +317,6 @@ mod tests {
             let mut out = Cursor::new(Vec::new());
             let written = generate(10, 7, &book, &mut out).unwrap();
             assert_eq!(written, 10);
-        });
     }
 
     #[test]

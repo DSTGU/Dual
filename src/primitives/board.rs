@@ -567,15 +567,8 @@ mod tests {
     use super::*;
     use crate::primitives::shared::MoveCode;
 
-    fn run_with_big_stack(f: impl FnOnce() + Send + 'static) {
-        let builder = std::thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder.spawn(f).unwrap();
-        handler.join().unwrap();
-    }
-
     #[test]
     fn test_to_fen_round_trip() {
-        run_with_big_stack(|| {
             let fens = [
                 "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
                 "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
@@ -594,23 +587,19 @@ mod tests {
                     fen
                 );
             }
-        });
     }
 
     #[test]
     fn test_to_fen_en_passant_and_fullmove() {
-        run_with_big_stack(|| {
             // After 1. e4 d5 the en passant target is d6.
             let fen = "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2";
             let board = BoardPosition::new(fen);
             assert_eq!(board.enpassant, 19); // d6
             assert_eq!(board.to_fen(2), fen);
-        });
     }
 
     #[test]
     fn test_to_fen_castled_king_side() {
-        run_with_big_stack(|| {
             // Castling removes the corresponding rights. After O-O the king moved,
             // so White loses both of its rights; Black keeps both.
             let board =
@@ -622,8 +611,6 @@ mod tests {
             assert!(after.castle & Castle::Bk as usize != 0);
             assert!(after.castle & Castle::Bq as usize != 0);
             assert_eq!(after.castle, Castle::Bk as usize | Castle::Bq as usize);
-        });
     }
 }
-
 

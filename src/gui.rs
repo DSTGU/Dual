@@ -190,46 +190,29 @@ mod tests {
     use crate::primitives::board::BoardPosition;
     use crate::search_objs::config::EngineConfig;
     use crate::search_objs::search_state::{SearchState};
-    use std::thread;
 
 
     #[test]
     fn test_position_fen_moves() {
-        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder.spawn(|| {
-            let board_pos = BoardPosition::new("r1bqkbnr/1p1ppppp/8/p1p5/3nP2P/5N2/PPPPQPP1/RNB1KB1R w KQkq - 2 5");
+        let board_pos = BoardPosition::new("r1bqkbnr/1p1ppppp/8/p1p5/3nP2P/5N2/PPPPQPP1/RNB1KB1R w KQkq - 2 5");
             let mut search_state = SearchState::new(&EngineConfig::thin());
             let created = parse_position_command(&mut search_state, "position fen r1bqkbnr/1p1ppppp/2n5/p1p5/4P2P/5N2/PPPP1PP1/RNBQKB1R w KQkq - 0 4 moves d1e2 c6d4");
             assert_eq!(board_pos, created);
-        }).unwrap();
-        handler.join().unwrap();
     }
 
     #[test]
     fn test_position_startpos_moves() {
-        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-                let board_pos = BoardPosition::new("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
+        let board_pos = BoardPosition::new("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
                 let mut search_state = SearchState::new(&EngineConfig::thin());
                 let created = parse_position_command(&mut search_state,"position startpos e2e4 d7d5");
                 assert_eq!(board_pos, created);
-            })
-            .unwrap();
-        handler.join().unwrap();
     }
 
     #[test]
     fn test_go() {
-        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-                let mut search_state = SearchState::new(&EngineConfig::thin());
+        let mut search_state = SearchState::new(&EngineConfig::thin());
                 let board_position = BoardPosition::new(START_POSITION);
                 parse_go(&board_position, &mut search_state,"go depth 6");
-            })
-            .unwrap();
-        handler.join().unwrap();
     }
 
     #[test]

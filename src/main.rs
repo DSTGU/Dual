@@ -10,7 +10,6 @@ mod datagen;
 
 use std::env;
 use std::io;
-use std::thread;
 use primitives::shared::{get_bit, pop_bit, print_bitboard, Piece};
 use movegen::attacks::PAWN_ATTACKS;
 use movegen::attacks::KNIGHT_ATTACKS;
@@ -89,32 +88,26 @@ pub fn uci_loop() {
 
 
 fn main() {
-    let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-    let handler = builder.spawn(|| {
+    let args: Vec<String> = env::args().collect();
 
-        let args: Vec<String> = env::args().collect();
+    if args.get(1).map(|s| s.as_str()) == Some("bench") {
+        let engine_config = EngineConfig::default();
+        let mut search_state = SearchState::new(&engine_config);
+        bench_engine(&mut search_state);
+        return;
+    }
 
-        if args.get(1).map(|s| s.as_str()) == Some("bench") {
-            let engine_config = EngineConfig::default();
-            let mut search_state = SearchState::new(&engine_config);
+    let tokens: Vec<&str> = args
+        .iter()
+        .skip(1)
+        .flat_map(|arg| arg.split_ascii_whitespace())
+        .collect();
 
-            bench_engine(&mut search_state);
-            return;
-        }
+    if tokens.first().is_some_and(|&token| token == "genfens") {
+        crate::datagen::run_genfens(tokens);
+        return;
+    }
 
-        let tokens: Vec<&str> = args
-            .iter()
-            .skip(1)
-            .flat_map(|arg| arg.split_ascii_whitespace())
-            .collect();
-
-        if tokens.first().is_some_and(|&token| token == "genfens") {
-            crate::datagen::run_genfens(tokens);
-            return;
-        }
-
-        print_identification();
-        uci_loop()
-    }).unwrap();
-    handler.join().unwrap();
+    print_identification();
+    uci_loop()
 }

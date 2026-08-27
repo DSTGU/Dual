@@ -311,7 +311,6 @@ pub enum Reporting {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
     use crate::gui::{parse_position_command, parse_ucinewgame};
     use crate::search::search; 
     use crate::search_objs::config::EngineConfig;
@@ -319,10 +318,7 @@ use crate::search_objs::search_state::{SearchState};
 
     #[test]
     fn test_clearing_persistent_data_correctly() {
-        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-                let mut search_state = SearchState::new(&EngineConfig::thin());
+        let mut search_state = SearchState::new(&EngineConfig::thin());
                 let mut board_position = parse_position_command(&mut search_state, "position startpos");
                 search_state.stop_condition.depth = Some(4);
                 let empty_history: [[[i16; 64]; 64]; 2] = [[[0; 64]; 64]; 2];
@@ -338,24 +334,17 @@ use crate::search_objs::search_state::{SearchState};
 
                 parse_ucinewgame(&mut search_state);
                 board_position = parse_position_command(&mut search_state,"position kiwipete");
-                search_state.stop_condition.depth = Some(7);
+                search_state.stop_condition.depth = Some(8);
                 assert_eq!(*search_state.history_moves, empty_history);
 
                 search(&board_position, &mut search_state);
                 assert_ne!(*search_state.history_moves, empty_history);
 
-            })
-            .unwrap();
-        handler.join().unwrap();
-
     }
 
     #[test]
     fn test_clear_data_applies_soft_nodes() {
-        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-                // Unlimited by default.
+        // Unlimited by default.
                 let mut search_state = SearchState::new(&EngineConfig::thin());
                 assert_eq!(search_state.stop_condition.soft_nodecount, None);
                 search_state.clear_data();
@@ -379,8 +368,5 @@ use crate::search_objs::search_state::{SearchState};
                 let mut search_state = SearchState::new(&config);
                 search_state.clear_data();
                 assert_eq!(search_state.stop_condition.soft_nodecount, None);
-            })
-            .unwrap();
-        handler.join().unwrap();
     }
 }

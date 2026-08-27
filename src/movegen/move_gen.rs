@@ -466,7 +466,6 @@ mod tests {
     use crate::primitives::board::BoardPosition;
     use crate::movegen::move_gen::is_square_attacked;
     use crate::primitives::shared::{coordinates_to_squares, print_bitboard};
-    use std::thread;
 
     pub fn run_through_attacks(board_position: &BoardPosition) -> u64 {
         let mut cnt = 0;
@@ -486,44 +485,26 @@ mod tests {
 
     #[test]
     fn test_attacked_squares_kiwipete() {
-        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-                let board_pos =
+        let board_pos =
                     BoardPosition::new("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
                 assert_eq!(run_through_attacks(&board_pos), 18437032593966828032);
-            })
-            .unwrap();
-        handler.join().unwrap();
     }
 
     #[test]
     fn test_rook_attacks_true() {
-        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-                let board_pos = BoardPosition::new("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
+        let board_pos = BoardPosition::new("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
                 assert_eq!(
                     is_square_attacked(coordinates_to_squares("d3"), &board_pos),
                     true
                 );
-            })
-            .unwrap();
-        handler.join().unwrap();
     }
 
     #[test]
     fn test_rook_attacks_false() {
-        let builder = thread::Builder::new().stack_size(8 * 1024 * 1024);
-        let handler = builder
-            .spawn(|| {
-                let board_pos = BoardPosition::new("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
+        let board_pos = BoardPosition::new("8/8/8/8/8/4R3/8/8 b - - 0 1"); //Rook on e3
                 assert_eq!(
                     is_square_attacked(coordinates_to_squares("b1"), &board_pos),
                     false
                 );
-            })
-            .unwrap();
-        handler.join().unwrap();
     }
 }
