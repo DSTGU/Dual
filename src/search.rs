@@ -344,12 +344,13 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
             reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / lmr_hist_div();
 
-            let reduction = (reduction / 1024).clamp(0, (depth - 1) as i32) as usize;
+            let reduction = (reduction / 1024).max(0) as usize;
+            let new_depth = depth.saturating_sub(1+reduction);
 
-            score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1-reduction );
+            score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha, new_depth);
 
             if score > new_alpha && reduction > 0 {
-                score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1 );
+                score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth.saturating_sub(1) );
             }
 
         }
