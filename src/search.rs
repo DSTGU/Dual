@@ -253,8 +253,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         !NODE::PV 
         {
             let r = nmp_base() as usize + depth / nmp_divisor() as usize; // NMP Reduction
-            let null_board = board_position.make_null_move();
-            let search_answer = -pvs::<NonPV>(&null_board, search_state, -beta, -(beta - 1), (depth - r - 1).max(0));
+            let null_board: BoardPosition = board_position.make_null_move();
+            let new_depth = depth.saturating_sub(r+1);
+
+            let search_answer = -pvs::<NonPV>(&null_board, search_state, -beta, -(beta - 1), new_depth);
 
             if search_answer >= beta {
                 return search_answer;
