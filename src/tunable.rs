@@ -141,6 +141,13 @@ tunable_params! {
     qs_see_threshold             = 0,   -50..=50,           true;
     mp_see_threshold             = 0,   -100..=100,         true; // movepicker bad-noisy SEE cut (was 0)
 
+    // SEE piece values
+    see_pawn                     = 100, 50..=200,           true;
+    see_knight                   = 300, 200..=500,          true;
+    see_bishop                   = 300, 200..=500,          true;
+    see_rook                     = 500, 300..=700,          true;
+    see_queen                    = 900, 700..=1200,         true;
+
     // -----------------------------------------------------------------------
     // Null Move Pruning — reduction = base + depth / divisor
     // -----------------------------------------------------------------------
@@ -191,7 +198,7 @@ tunable_params! {
     // -----------------------------------------------------------------------
     // History clamp
     // -----------------------------------------------------------------------
-    max_history                  = 16384, 8192..=32768,     true;
+    max_history                  = 16384, 8192..=32768,     false;
 
     // -----------------------------------------------------------------------
     // LMP / Aspiration max tries (poisoned small ints -> spsa false)

@@ -1,13 +1,14 @@
 use crate::{movegen::attacks::get_least_valuable_attacker, primitives::{board::BoardPosition, shared::{Move, Piece}}};
+use crate::tunable::{see_bishop, see_knight, see_pawn, see_queen, see_rook};
 
 
 pub fn value(pc: Piece) -> i32 {
     match pc {
-        Piece::P | Piece::p => 100,
-        Piece::N | Piece::n => 300,
-        Piece::B | Piece::b => 300,
-        Piece::R | Piece::r => 500,
-        Piece::Q | Piece::q => 900,
+        Piece::P | Piece::p => see_pawn(),
+        Piece::N | Piece::n => see_knight(),
+        Piece::B | Piece::b => see_bishop(),
+        Piece::R | Piece::r => see_rook(),
+        Piece::Q | Piece::q => see_queen(),
         Piece::K | Piece::k | Piece::NONE => 0,
     }
 }
