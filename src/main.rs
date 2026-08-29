@@ -7,6 +7,7 @@ mod primitives;
 mod bench;
 mod movepicker;
 mod datagen;
+pub mod tunable;
 
 use std::env;
 use std::io;
@@ -39,6 +40,8 @@ pub fn print_identification() {
     println!("option name Hash type spin default 256 min 0 max 1024");
     println!("option name SoftNodes type spin default 0 min 0 max 1000000000");
     println!("option name Threads type spin default 1 min 1 max 1");
+    #[cfg(feature = "tuning")]
+    crate::tunable::list_params();
     println!("uciok");
 }
 
@@ -70,15 +73,22 @@ pub fn uci_loop() {
             "ucinewgame" => {board_position = parse_ucinewgame(&mut search_state)},
             "uci" => print_identification(),
             "setoption" => {
-                parse_setoption(&mut engine_config, command);
-                search_state = SearchState::new(&engine_config);
-                board_position = parse_position_command(&mut search_state, "position startpos");
+                if parse_setoption(&mut engine_config, command) {
+                    search_state = SearchState::new(&engine_config);
+                    board_position = parse_position_command(&mut search_state, "position startpos");
+                }
             },
             "genfens" => run_genfens(words),
             "printboard" => board_position.print_board(),
             "printbitboard" => print_bitboard(words[1].parse().unwrap_or_default()),
             "isready" => println!("readyok"),
             "bench" => bench_engine(&mut search_state),
+            "print_params_ob" => {
+                #[cfg(feature = "tuning")]
+                crate::tunable::print_params_ob();
+                #[cfg(not(feature = "tuning"))]
+                println!("info error compile with --features tuning");
+            },
             //"see" => println!("See: {}", see_a_move(&board_position, parse_move(&board_position, words[1]).expect("Good Job. You've crashed the engine"))),
             // Add more commands here as needed
             _ => println!("Unknown command: {}", command),
@@ -108,6 +118,21 @@ fn main() {
         return;
     }
 
-    print_identification();
+    // --spsa helper: print OpenBench SPSA input for params with spsa=true
+    #[cfg(feature = "tuning")]
+    if args.get(1).map(|s| s.as_str()) == Some("--spsa") || args.get(1).map(|s| s.as_str()) == Some("print_params_ob") {
+        crate::tunable::print_params_ob();
+        return;
+    }
+    // Also allow UCI `print_params_ob` pseudo-command via arg
+    if args.get(1).map(|s| s.as_str()) == Some("spsa") {
+        #[cfg(feature = "tuning")]
+        crate::tunable::print_params_ob();
+        #[cfg(not(feature = "tuning"))]
+        eprintln!("Recompile with --features tuning to use SPSA output");
+        return;
+    }
+
+    //print_identification();
     uci_loop()
 }

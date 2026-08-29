@@ -151,33 +151,56 @@ pub fn parse_position_command(search_state: &mut SearchState, command: &str) -> 
 }
 
 
-pub fn parse_setoption(engine_config: &mut EngineConfig, command: &str) {
-    let words : Vec<&str> = command.split_ascii_whitespace().collect();
+/// Handles `setoption name <id> value <x>`.
+/// Returns `true` if `engine_config` changed and the caller should re-create
+/// `SearchState`/`BoardPosition` (Hash / SoftNodes). Tuning params are
+/// applied in-place via `crate::tunable::set_param` and return `false`.
+pub fn parse_setoption(engine_config: &mut EngineConfig, command: &str) -> bool {
+    let words: Vec<&str> = command.split_ascii_whitespace().collect();
 
     if words.len() < 3 {
-        return;
+        return false;
     }
+
+    // Tuning params are single-word names. Intercept them before the
+    // Hash / SoftNodes match so the UCI loop stays uncluttered.
+    // Expected form: `setoption name <param> value <val>`
+    #[cfg(feature = "tuning")]
+    {
+        if words.len() >= 5 && words[words.len() - 2] == "value" {
+            let name = words[2];
+            if name != "Hash" && name != "SoftNodes" && name != "Threads" {
+                if let Ok(val) = words[words.len() - 1].parse::<i32>() {
+                    crate::tunable::set_param(name, val);
+                    return false;
+                }
+            }
+        }
+    }
+
     //    0       1   2     3    4
     //setoption name <id> value <x>
     match words[2] {
         "Hash" => {
-            let val =  words[4..].concat();
-            let parse_result = val.parse::<usize>();
-            if let Ok(hash) = parse_result {
-                engine_config.hash = hash;
+            let val = words[4..].concat();
+            if let Ok(hash) = val.parse::<usize>() {
+                if engine_config.hash != hash {
+                    engine_config.hash = hash;
+                    return true;
+                }
             }
-        },
+        }
         "SoftNodes" => {
             let val = words[4..].concat();
-            let parse_result = val.parse::<u64>();
-            if let Ok(soft_nodes) = parse_result {
-                // 0 means "no soft node limit", any other value is a limit.
-                engine_config.soft_nodes = if soft_nodes == 0 { None } else { Some(soft_nodes) };
+            if let Ok(soft_nodes) = val.parse::<u64>() {
+                let new = if soft_nodes == 0 { None } else { Some(soft_nodes) };
+                engine_config.soft_nodes = new;
+                return false;
             }
-        },
+        }
         _ => (),
     }
-
+    false
 }
 
 
