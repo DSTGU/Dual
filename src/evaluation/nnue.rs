@@ -1,13 +1,13 @@
 use crate::primitives::shared::Piece;
 use std::arch::x86_64::*;
 
-pub const HIDDEN_SIZE: usize = 256;
+pub const HIDDEN_SIZE: usize = 512;
 const SCALE: i32 = 400;
 const QA: i16 = 255;
 const QB: i16 = 64;
 
 pub static NNUE: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../nets/quantised-256.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../nets/quantised-512.bin")) };
 
 #[inline]
 /// Square Clipped ReLU - Activation Function.
