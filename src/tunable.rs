@@ -135,17 +135,17 @@ tunable_params! {
     // -----------------------------------------------------------------------
     rfp_max_depth                = 9,   4..=12,             Granularity::Disabled;
     rfp_a                        = 5,   -10..=20,           Granularity::Fine; // TODO: Quantize
-    rfp_b                        = 53,  20..=150,           Granularity::Fine;
-    rfp_c                        = 1,   -50..=50,           Granularity::Coarse;
-    rfp_improving                = 38,  -10..=150,          Granularity::Coarse;
+    rfp_b                        = 52,  20..=150,           Granularity::Fine;
+    rfp_c                        = 0,   -50..=50,           Granularity::Coarse;
+    rfp_improving                = 36,  -10..=150,          Granularity::Coarse;
 
     // -----------------------------------------------------------------------
     // Razoring — quadratic: threshold = a*d^2 + b*d + c  (eval < alpha - threshold)
     // Original: 200 + 100*d^2 => a=100, b=0, c=200
     // -----------------------------------------------------------------------
-    razor_a                      = 108, -100..=300,         Granularity::Coarse;
+    razor_a                      = 124, -100..=300,         Granularity::Coarse;
     razor_b                      = -1,  -100..=100,         Granularity::Fine;
-    razor_c                      = 28,  -100..=400,         Granularity::Coarse;
+    razor_c                      = 23,  -100..=400,         Granularity::Coarse;
 
     // -----------------------------------------------------------------------
     // Futility Pruning (quiet) — quadratic: bonus = a*d^2 + b*d + c
@@ -153,25 +153,25 @@ tunable_params! {
     // -----------------------------------------------------------------------
     fp_max_depth                 = 6,    4..=12,             Granularity::Disabled;
     fp_a                         = -4,   -10..=20,           Granularity::Fine;
-    fp_b                         = 119,  20..=150,           Granularity::Fine;
-    fp_c                         = -10,  -50..=50,           Granularity::Coarse;
+    fp_b                         = 121,  20..=150,           Granularity::Fine;
+    fp_c                         = -6,  -50..=50,           Granularity::Coarse;
 
     // -----------------------------------------------------------------------
     // SEE pruning — quadratic: threshold = a*d^2 + b*d + c  (negative)
     // Original: -120 -50*d => a=0, b=-50, c=-120
     // -----------------------------------------------------------------------
-    see_a                        = -6,  -10..=10,           Granularity::Coarse;
-    see_b                        = -33, -100..=-10,         Granularity::Coarse;
-    see_c                        = -57, -250..=0,           Granularity::Coarse;
+    see_a                        = -4,  -10..=10,           Granularity::Coarse;
+    see_b                        = -39, -100..=-10,         Granularity::Coarse;
+    see_c                        = -67, -250..=0,           Granularity::Coarse;
     qs_see_threshold             = -12,   -50..=50,         Granularity::Coarse;
-    mp_see_threshold             = -19,   -100..=100,       Granularity::Coarse; // movepicker bad-noisy SEE cut (was 0)
+    mp_see_threshold             = -29,   -100..=100,       Granularity::Coarse; // movepicker bad-noisy SEE cut (was 0)
 
     // SEE piece values
-    see_pawn                     = 133, 50..=200,           Granularity::Coarse;
-    see_knight                   = 223, 200..=500,          Granularity::Coarse;
-    see_bishop                   = 363, 200..=500,          Granularity::Coarse;
-    see_rook                     = 627, 300..=700,          Granularity::Coarse;
-    see_queen                    = 750, 700..=1200,         Granularity::Coarse;
+    see_pawn                     = 131, 50..=200,           Granularity::Coarse;
+    see_knight                   = 237, 200..=500,          Granularity::Coarse;
+    see_bishop                   = 352, 200..=500,          Granularity::Coarse;
+    see_rook                     = 607, 300..=700,          Granularity::Coarse;
+    see_queen                    = 763, 700..=1200,         Granularity::Coarse;
 
     // -----------------------------------------------------------------------
     // Null Move Pruning — reduction = base + depth / divisor
@@ -190,11 +190,11 @@ tunable_params! {
     // History bonus — base = scale*d + offset, then separate float multipliers
     // float multipliers are scaled x100: 100 = 1.0, 0..200 => 0.0..2.0
     // -----------------------------------------------------------------------
-    hist_bonus_scale             = 384, 150..=500,          Granularity::Fine;
-    hist_bonus_offset            = -197, -500..=0,          Granularity::Fine;
-    hist_beta_mult               = 93, 0..=200,             Granularity::Coarse; // beta cutoff
-    hist_alpha_mult              = 81, 0..=200,             Granularity::Coarse; // alpha raise (improve)
-    hist_malus_mult              = 108, 0..=200,            Granularity::Coarse; // penalty for quiets before cutoff
+    hist_bonus_scale             = 385, 150..=500,          Granularity::Fine;
+    hist_bonus_offset            = -194, -500..=0,          Granularity::Fine;
+    hist_beta_mult               = 107, 0..=200,             Granularity::Coarse; // beta cutoff
+    hist_alpha_mult              = 73, 0..=200,             Granularity::Coarse; // alpha raise (improve)
+    hist_malus_mult              = 91, 0..=200,            Granularity::Coarse; // penalty for quiets before cutoff
 
     // -----------------------------------------------------------------------
     // LMR — reduction = (0.99 + ln(d)*ln(m)/3.14)*1024 - history/div
@@ -203,8 +203,8 @@ tunable_params! {
     lmr_min_depth                = 3,   2..=5,              Granularity::Disabled;
     lmr_min_moves                = 2,   1..=4,              Granularity::Disabled;
     lmr_hist_div                 = 10,   2..=16,            Granularity::Disabled;
-    lmr_base                     = 67,  50..=150,           Granularity::Fine; // 0.99*100
-    lmr_div                      = 224, 200..=500,          Granularity::Fine; // 3.14*100
+    lmr_base                     = 66,  50..=150,           Granularity::Fine; // 0.99*100
+    lmr_div                      = 226, 200..=500,          Granularity::Fine; // 3.14*100
 
     // -----------------------------------------------------------------------
     // TT replacement
@@ -215,7 +215,7 @@ tunable_params! {
     // -----------------------------------------------------------------------
     // Time management — StopCondition
     // -----------------------------------------------------------------------
-    tm_hard_percent              = 71,  50..=95,            Granularity::Fine; // hard limit = time * percent/100
+    tm_hard_percent              = 72,  50..=95,            Granularity::Fine; // hard limit = time * percent/100
     tm_alloc_div                 = 12,  8..=30,             Granularity::Fine; // allocation = time/alloc_div + inc*inc_scale/100
     tm_soft_div                  = 3,   2..=6,              Granularity::Disabled; // soft = allocation / soft_div // TODO: Quantize
     tm_inc_scale                 = 141, 0..=200,            Granularity::Fine; // inc multiplier x100 (100=1.0)
@@ -234,6 +234,6 @@ tunable_params! {
     // -----------------------------------------------------------------------
     // Aspiration window
     // -----------------------------------------------------------------------
-    asp_delta                    = 67,  10..=100,           Granularity::Coarse;
+    asp_delta                    = 65,  10..=100,           Granularity::Coarse;
     asp_mult                     = 2,   2..=4,              Granularity::Disabled; // TODO: Quantize
 }
