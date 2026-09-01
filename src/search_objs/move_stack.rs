@@ -84,16 +84,16 @@ impl MoveStack {
         false
     }
 
-    pub fn is_improving(&self, static_eval: i32) -> bool {
+    pub fn improvement(&self, static_eval: i32) -> i32 {
         let second_last = self.search_position_info.iter().rev().nth(1);
 
         if let Some(sl_pos) = second_last {
-            if static_eval > sl_pos.static_eval || sl_pos.static_eval == NO_SCORE {
-                return true;
+            if sl_pos.static_eval == NO_SCORE {
+                return static_eval - sl_pos.static_eval;
             }
         }
 
-        false
+        0
     }
 }
 
