@@ -195,10 +195,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                 }
             }
         }
-    } //else {
+    } else {
         // IIR
-        //depth = depth - 1;
-    //}
+        depth = depth - 1;
+    }
 
     // ------------------------------------------------------------
     // Static eval
