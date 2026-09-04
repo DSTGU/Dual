@@ -13,8 +13,8 @@ use crate::evaluation::network_state::NetworkState;
 
 /// Search state structure - encapsulates all search-related state
 pub struct SearchState {
-    pub max_depth: usize, // Of the search iteration, not in general
-    pub seldepth: usize,
+    pub max_depth: i32, // Of the search iteration, not in general
+    pub seldepth: i32,
     pub killer_moves: Box<[Move; 256]>,
     //only public for test purposes
     pub history_moves: Box<[[[i16; 64]; 64]; 2]>,
@@ -83,7 +83,7 @@ impl SearchState {
     }
 
     // ID
-    pub fn reset_for_new_iteration(&mut self, depth: usize) {
+    pub fn reset_for_new_iteration(&mut self, depth: i32) {
         self.max_depth = depth;
         self.seldepth = depth;
     }
@@ -193,7 +193,7 @@ pub struct StopCondition {
     pub movetime_deadline: Option<u64>,
     pub our_time_ms: Option<u64>,
     pub our_inc_ms: Option<u64>,
-    pub depth: Option<usize>,
+    pub depth: Option<i32>,
     pub hard_nodecount: Option<u64>,
     pub soft_nodecount: Option<u64>,
     pub started_search: Instant,
@@ -241,7 +241,7 @@ impl StopCondition {
         false
     }
     
-    pub fn should_soft_quit(&self, depth: usize, nodes: u64) -> bool {
+    pub fn should_soft_quit(&self, depth: i32, nodes: u64) -> bool {
         if let Some(max_depth) = self.depth {
             if max_depth == depth {
                 return true;

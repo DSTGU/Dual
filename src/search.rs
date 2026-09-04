@@ -15,20 +15,20 @@ use crate::tunable::*;
 
 // value is 1024 * depth
 #[allow(clippy::approx_constant)]
-pub fn reduce_lmr_by(depth: usize, moves: usize) -> i32 {
+pub fn reduce_lmr_by(depth: i32, moves: usize) -> i32 {
     // Obsidian function with tunable base/div (scaled x100: 99=0.99, 314=3.14)
     let base = lmr_base() as f32 / 100.0;
     let div = lmr_div() as f32 / 100.0;
     ((base + (depth as f32).ln() * (moves as f32).ln() / div) * 1024.0) as i32
 }
 
-fn lmp_threshold(depth: usize) -> usize {
-    (lmp_base() as usize) + (lmp_scale() as usize) * depth * depth
+fn lmp_threshold(depth: i32) -> i32 {
+    lmp_base() + lmp_scale() * depth * depth
 }
 
 pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> i32 {
 
-    search_state.seldepth = search_state.seldepth.max(ply);
+    search_state.seldepth = search_state.seldepth.max(ply as i32);
     search_state.nodes += 1;
 
     if search_state.has_occured_in_search(board_position.hash) || search_state.is_trifold_repetition(board_position.hash) || board_position.fifty_mr >= 100 {
@@ -139,7 +139,7 @@ impl NodeType for NonPV {
     const ROOT: bool = false;
 }
 
-pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, depth: usize) -> i32 {
+pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, mut depth: i32) -> i32 {
     
     if NODE::PV {
         search_state.pv_table.clear(search_state.ply as usize);
@@ -174,7 +174,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     };
     
     if let Some(entry) = probe {
-        if !NODE::ROOT && entry.depth as usize >= depth {
+        if !NODE::ROOT && entry.depth as i32 >= depth {
             let score = score_from_tt(entry.score, search_state.ply);
             match entry.flag {
 
@@ -195,7 +195,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                 }
             }
         }
-    }
+    } //else {
+        // IIR
+        //depth = depth - 1;
+    //}
 
     // ------------------------------------------------------------
     // Static eval
@@ -219,7 +222,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     //  we still exceed beta."
     // ------------------------------------------------------------
     if !NODE::PV
-       && depth <= rfp_max_depth() as usize
+       && depth <= rfp_max_depth()
        && !is_in_check {
 
         let d = depth as i32;
@@ -249,10 +252,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         board_position.has_pieces() &&
         static_eval > beta &&
         !is_in_check &&
-        depth >= nmp_min_depth() as usize &&
+        depth >= nmp_min_depth() &&
         !NODE::PV 
         {
-            let r = nmp_base() as usize + depth / nmp_divisor() as usize; // NMP Reduction
+            let r = nmp_base() + depth / nmp_divisor(); // NMP Reduction
             let null_board: BoardPosition = board_position.make_null_move();
             let new_depth = depth.saturating_sub(r+1);
 
@@ -286,7 +289,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // --------------------------------------------------------
         
         if !NODE::PV && 
-        depth <= fp_max_depth() as usize &&
+        depth <= fp_max_depth() &&
         legal_moves > 1 &&
         mv.is_quiet() &&
         !is_in_check {
@@ -300,10 +303,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // Late move pruning
         // --------------------------------------------------------
         if !NODE::PV 
-            && depth <= lmp_max_depth() as usize
+            && depth <= lmp_max_depth()
             && new_alpha.abs() <= MATE_THRESHOLD
             && mv.is_quiet()
-            && previous_quiet_moves.len()
+            && previous_quiet_moves.len() as i32
                 >= lmp_threshold(depth)
         {
             move_picker.skip_quiets();
@@ -335,7 +338,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         // --------------------------------------------------------
         // LMR (Late Move Reductions)
         // --------------------------------------------------------
-        if depth >= lmr_min_depth() as usize &&
+        if depth >= lmr_min_depth() &&
            legal_moves > lmr_min_moves() as usize &&
            mv.is_quiet() {
            // !NODE::PV {
@@ -346,13 +349,13 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
             reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / lmr_hist_div();
 
-            let reduction = (reduction / 1024).max(0) as usize;
-            let new_depth = depth.saturating_sub(1+reduction);
+            let reduction = (reduction / 1024).max(0);
+            let new_depth = depth - 1 - reduction;
 
             score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha, new_depth);
 
             if score > new_alpha && reduction > 0 {
-                score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth.saturating_sub(1) );
+                score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth - 1);
             }
 
         }
@@ -465,11 +468,11 @@ pub fn collect_pv(moves: &[Move]) -> String {
         .unwrap_or_default()
 }
 
-pub fn single_depth_search(board_position: &BoardPosition, search_state: &mut SearchState, depth: usize) -> i32 {
+pub fn single_depth_search(board_position: &BoardPosition, search_state: &mut SearchState, depth: i32) -> i32 {
     pvs::<Root>(board_position, search_state, -MATE_SCORE, MATE_SCORE, depth)
 }
 
-pub fn single_depth_search_aspirated(board_position: &BoardPosition, search_state: &mut SearchState, depth: usize, eval: i32) -> i32 {
+pub fn single_depth_search_aspirated(board_position: &BoardPosition, search_state: &mut SearchState, depth: i32, eval: i32) -> i32 {
     let mut aspiration_lower = asp_delta();
     let mut aspiration_higher = asp_delta();
 

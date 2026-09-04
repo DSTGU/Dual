@@ -6,7 +6,7 @@ use crate::primitives::shared::{ENDGAME_PERFT, KIWIPETE, START_POSITION};
 use crate::search_objs::search_state::{Reporting, SearchState};
 
 
-pub fn test_position(search_state: &mut SearchState, fen: &str, depth: usize) -> BenchResults { // nodes
+pub fn test_position(search_state: &mut SearchState, fen: &str, depth: i32) -> BenchResults { // nodes
     //let board_position = BoardPosition::new(fen);
     let board_position = parse_position_command(search_state, &("position fen ".to_owned() + fen));
     search_state.clear_data();
