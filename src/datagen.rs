@@ -23,7 +23,7 @@ use std::io::{self, Write};
 use crate::evaluation::nnue::NNUE;
 use crate::movegen::move_gen::generate_all_moves;
 use crate::primitives::board::BoardPosition;
-use crate::primitives::consts::MIN_DEPTH;
+use crate::primitives::consts::{DATAGEN_DEPTH};
 use crate::primitives::shared::{Move, Piece, START_POSITION};
 use crate::search::single_depth_search;
 use crate::search_objs::config::EngineConfig;
@@ -184,8 +184,8 @@ fn generate(n: usize, seed: u64, book: &[String], out: &mut dyn Write) -> io::Re
         };
 
         // 3. Fixed MIN_DEPTH search, fully quiet.
-        search_state.reset_for_new_iteration(MIN_DEPTH);
-        let result = single_depth_search(&board, &mut search_state, MIN_DEPTH);
+        search_state.reset_for_new_iteration(DATAGEN_DEPTH);
+        let result = single_depth_search(&board, &mut search_state, DATAGEN_DEPTH);
 
         // 4. Accept only positions whose |score| sits within 0.5-2.0 pawns.
         let score = result.abs();
