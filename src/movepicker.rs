@@ -180,7 +180,7 @@ impl MovePicker {
         }
 
         if search_state.ply < 256 {
-            if search_state.killer_moves[search_state.ply] == mv {
+            if search_state.killer_moves[search_state.ply as usize] == mv {
                 return FIRST_KILLER_BONUS;
             }
         }
