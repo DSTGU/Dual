@@ -259,7 +259,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         depth >= nmp_min_depth() &&
         !NODE::PV 
         {
-            let r = nmp_base() + depth / nmp_divisor(); // NMP Reduction
+            let r = nmp_base() + (depth / DEPTH_SCALE) / nmp_divisor() * DEPTH_SCALE; // NMP Reduction (quantized to whole plies for functional equivalence)
             let null_board: BoardPosition = board_position.make_null_move();
             let new_depth = depth.saturating_sub(r+DEPTH_SCALE);
 
@@ -347,7 +347,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
             reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / lmr_hist_div();
 
-            let reduction = reduction.max(0);
+            let reduction = (reduction / DEPTH_SCALE).max(0) * DEPTH_SCALE;
             let new_depth = depth - reduction - DEPTH_SCALE;
 
             score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha, new_depth);
