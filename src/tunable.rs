@@ -133,7 +133,7 @@ tunable_params! {
     // Reverse Futility Pruning (RFP) — quadratic: margin = a*d^2 + b*d + c - improving*imp
     // Original: 80*(d - improving) => a=0, b=80, c=0, imp=80
     // -----------------------------------------------------------------------
-    rfp_max_depth                = 9,   4..=12,             Granularity::Disabled;
+    rfp_max_depth                = 9216, 4000..=12000,             Granularity::Disabled;
     rfp_a                        = 5,   -10..=20,           Granularity::Fine; // TODO: Quantize
     rfp_b                        = 52,  20..=150,           Granularity::Fine;
     rfp_c                        = 0,   -50..=50,           Granularity::Coarse;
@@ -151,7 +151,7 @@ tunable_params! {
     // Futility Pruning (quiet) — quadratic: bonus = a*d^2 + b*d + c
     // Original: 80*d => a=0, b=80, c=0
     // -----------------------------------------------------------------------
-    fp_max_depth                 = 6,    4..=12,             Granularity::Disabled;
+    fp_max_depth                 = 6144,    4000..=12000,             Granularity::Disabled;
     fp_a                         = -4,   -10..=20,           Granularity::Fine;
     fp_b                         = 121,  20..=150,           Granularity::Fine;
     fp_c                         = -6,  -50..=50,           Granularity::Coarse;
@@ -176,9 +176,9 @@ tunable_params! {
     // -----------------------------------------------------------------------
     // Null Move Pruning — reduction = base + depth / divisor
     // -----------------------------------------------------------------------
-    nmp_min_depth                = 3,   2..=5,              Granularity::Disabled;
-    nmp_base                     = 3,   0..=4,              Granularity::Disabled; // TODO: Quantize
-    nmp_divisor                  = 4,   2..=8,              Granularity::Disabled; // TODO: Quantize
+    nmp_min_depth                = 3072,   2000..=5000,              Granularity::Disabled;
+    nmp_base                     = 3072,   0..=4000,              Granularity::Disabled; // TODO: Quantize
+    nmp_divisor                  = 4096,   2000..=8000,              Granularity::Disabled; // TODO: Quantize
 
     // -----------------------------------------------------------------------
     // Late Move Pruning — after lmp_base + lmp_scale*d^2 quiets, skip
@@ -200,7 +200,7 @@ tunable_params! {
     // LMR — reduction = (0.99 + ln(d)*ln(m)/3.14)*1024 - history/div
     // 0.99 and 3.14 are scaled x100 to keep int tuning: 99 and 314
     // -----------------------------------------------------------------------
-    lmr_min_depth                = 3,   2..=5,              Granularity::Disabled;
+    lmr_min_depth                = 3072,   2000..=5000,              Granularity::Disabled;
     lmr_min_moves                = 2,   1..=4,              Granularity::Disabled;
     lmr_hist_div                 = 10,   2..=16,            Granularity::Disabled;
     lmr_base                     = 66,  50..=150,           Granularity::Fine; // 0.99*100
@@ -228,7 +228,7 @@ tunable_params! {
     // -----------------------------------------------------------------------
     // LMP / Aspiration max tries (poisoned small ints -> spsa false)
     // -----------------------------------------------------------------------
-    lmp_max_depth                = 13,  6..=20,             Granularity::Disabled; // LMP only if depth <= this (large = almost always). Set high to keep current behavior.
+    lmp_max_depth                = 13312,  6000..=20000,             Granularity::Disabled; // LMP only if depth <= this (large = almost always). Set high to keep current behavior.
     asp_max_tries                = 3,   2..=6,              Granularity::Disabled; // aspiration re-searches before fallback
 
     // -----------------------------------------------------------------------
