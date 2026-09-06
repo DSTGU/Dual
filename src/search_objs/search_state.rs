@@ -82,10 +82,10 @@ impl SearchState {
         //self.capt_history_moves = [[[0; 64]; 12]; 12];
     }
 
-    // ID
+    // ID — depth is fractional (DEPTH_SCALE == one ply); max_depth/seldepth stay in plies for UCI reporting
     pub fn reset_for_new_iteration(&mut self, depth: i32) {
-        self.max_depth = depth;
-        self.seldepth = depth;
+        self.max_depth = depth / DEPTH_SCALE;
+        self.seldepth = depth / DEPTH_SCALE;
     }
 
     // make move during position command parsing

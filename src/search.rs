@@ -226,7 +226,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        && depth <= rfp_max_depth()
        && !is_in_check {
 
-        let d = depth as i32;
+        let d = depth / DEPTH_SCALE;
         let rfp_margin = static_eval - (rfp_a() * d * d + rfp_b() * d + rfp_c() - improving as i32 * rfp_improving());
         
         if rfp_margin >= beta {
@@ -238,10 +238,13 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // Razoring
     // ------------------------------------------------------------
     // sf: alpha - 512 - (293 * depth * depth) as i32
-    if !NODE::PV && static_eval < alpha - (razor_a() * depth / DEPTH_SCALE * depth / DEPTH_SCALE + razor_b() * depth / DEPTH_SCALE + razor_c()) { // likely a fail-low node ?
-        let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
-        if new_score < beta {
-            return new_score; // fail soft
+    if !NODE::PV {
+        let d = depth / DEPTH_SCALE;
+        if static_eval < alpha - (razor_a() * d * d + razor_b() * d + razor_c()) { // likely a fail-low node ?
+            let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
+            if new_score < beta {
+                return new_score; // fail soft
+            }
         }
     }
 
@@ -559,6 +562,7 @@ pub fn print_info_string(score: i32, search_state: &SearchState) {
 #[cfg(test)]
 mod tests {
     use crate::gui::parse_position_command;
+    use crate::primitives::consts::DEPTH_SCALE;
     use crate::search::{search, single_depth_search};
     use crate::search_objs::config::EngineConfig;
 use crate::search_objs::search_state::SearchState;
@@ -570,8 +574,8 @@ use crate::search_objs::search_state::SearchState;
                 let mut search_state = SearchState::new(&EngineConfig::thin());
                 
                 let board_position = parse_position_command(&mut search_state, command);
-                search_state.reset_for_new_iteration(4);       
-                let score = single_depth_search(&board_position, &mut search_state, 4); 
+                search_state.reset_for_new_iteration(4 * DEPTH_SCALE);       
+                let score = single_depth_search(&board_position, &mut search_state, 4 * DEPTH_SCALE); 
 
                 println!("{:?}", score);
 
@@ -591,12 +595,12 @@ use crate::search_objs::search_state::SearchState;
 
                 println!("{:?}", search_state.move_stack);
                 
-                search_state.reset_for_new_iteration(3);       
+                search_state.reset_for_new_iteration(3 * DEPTH_SCALE);       
                 
                 println!("{:?}", search_state.move_stack);
                 println!("{:?}", board_position.hash);
 
-                let score = single_depth_search(&board_position, &mut search_state, 3);
+                let score = single_depth_search(&board_position, &mut search_state, 3 * DEPTH_SCALE);
 
                 println!("{:?}", search_state.move_stack);
 
@@ -612,8 +616,8 @@ use crate::search_objs::search_state::SearchState;
         let command = "position fen q6k/8/8/8/8/8/7r/2K5 w - - 0 1 moves c1b1 a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
                 let mut search_state = SearchState::new(&EngineConfig::thin());
                 let board_position = parse_position_command(&mut search_state, command);
-                search_state.reset_for_new_iteration(4);       
-                let score = single_depth_search(&board_position, &mut search_state, 4);
+                search_state.reset_for_new_iteration(4 * DEPTH_SCALE);       
+                let score = single_depth_search(&board_position, &mut search_state, 4 * DEPTH_SCALE);
 
                 println!("{:?}", score);
 

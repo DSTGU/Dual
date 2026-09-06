@@ -178,7 +178,7 @@ tunable_params! {
     // -----------------------------------------------------------------------
     nmp_min_depth                = 3072,   2000..=5000,              Granularity::Disabled;
     nmp_base                     = 3072,   0..=4000,              Granularity::Disabled; // TODO: Quantize
-    nmp_divisor                  = 4096,   2000..=8000,              Granularity::Disabled; // TODO: Quantize
+    nmp_divisor                  = 4,   2..=8,              Granularity::Disabled; // TODO: Quantize (divisor stays in plies: r = base_scaled + depth_scaled / div)
 
     // -----------------------------------------------------------------------
     // Late Move Pruning — after lmp_base + lmp_scale*d^2 quiets, skip
