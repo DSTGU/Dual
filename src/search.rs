@@ -18,7 +18,7 @@ pub fn reduce_lmr_by(depth: i32, moves: usize) -> i32 {
     // Obsidian function with tunable base/div (scaled x100: 99=0.99, 314=3.14)
     let base = lmr_base() as f32;
     let ln_portion = lmr_ln_portion() as f32;
-    (base + (depth as f32).ln() * (moves as f32).ln() * ln_portion) as i32
+    (base + ((depth as f32).ln() - 6.93) * (moves as f32).ln() * ln_portion) as i32
 }
 
 fn lmp_threshold(depth: i32) -> i32 {
@@ -343,7 +343,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
            //and not inCheck
            //and not givesCheck:
 
-            let mut reduction = reduce_lmr_by(depth / DEPTH_SCALE, legal_moves);
+            let mut reduction = reduce_lmr_by(depth, legal_moves);
 
             reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / lmr_hist_div();
 
