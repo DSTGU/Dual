@@ -3,7 +3,7 @@ use coarsetime::{Instant};
 use crate::primitives::board::BoardPosition;
 use crate::tunable::{max_history, tm_alloc_div, tm_hard_percent, tm_inc_scale, tm_soft_div};
 use crate::primitives::shared::{Color, Move, Piece};
-use crate::primitives::consts::MVV_LVA;
+use crate::primitives::consts::{DEPTH_SCALE, MVV_LVA};
 use crate::search_objs::config::EngineConfig;
 use crate::search_objs::move_stack::MoveStack;
 use crate::search_objs::pv_table::PrincipalVariationTable;
@@ -82,10 +82,10 @@ impl SearchState {
         //self.capt_history_moves = [[[0; 64]; 12]; 12];
     }
 
-    // ID
+    // ID — depth is fractional (DEPTH_SCALE == one ply); max_depth/seldepth stay in plies for UCI reporting
     pub fn reset_for_new_iteration(&mut self, depth: i32) {
-        self.max_depth = depth;
-        self.seldepth = depth;
+        self.max_depth = depth / DEPTH_SCALE;
+        self.seldepth = depth / DEPTH_SCALE;
     }
 
     // make move during position command parsing
@@ -243,7 +243,7 @@ impl StopCondition {
     
     pub fn should_soft_quit(&self, depth: i32, nodes: u64) -> bool {
         if let Some(max_depth) = self.depth {
-            if max_depth == depth {
+            if max_depth <= depth / DEPTH_SCALE {
                 return true;
             }
         }

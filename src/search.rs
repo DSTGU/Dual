@@ -5,7 +5,7 @@ use crate::evaluation::evaluate::{nnue_evaluate};
 use crate::movegen::move_gen::{is_square_attacked};
 use crate::movepicker::MovePicker;
 use crate::primitives::board::{BoardPosition};
-use crate::primitives::consts::{DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH, NO_SCORE};
+use crate::primitives::consts::{DEPTH_SCALE, DRAW_SCORE, MATE_SCORE, MATE_THRESHOLD, MIN_DEPTH, NO_SCORE};
 use crate::primitives::shared::Color::White;
 use crate::primitives::shared::{Move, Piece, move_to_alg};
 use crate::search_objs::see::{see_a_move_threshold};
@@ -13,7 +13,6 @@ use crate::search_objs::tt::{TTFlag, score_from_tt};
 use crate::search_objs::search_state::{Reporting, SearchState};
 use crate::tunable::*;
 
-// value is 1024 * depth
 #[allow(clippy::approx_constant)]
 pub fn reduce_lmr_by(depth: i32, moves: usize) -> i32 {
     // Obsidian function with tunable base/div (scaled x100: 99=0.99, 314=3.14)
@@ -174,7 +173,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     };
     
     if let Some(entry) = probe {
-        if !NODE::ROOT && entry.depth as i32 >= depth {
+        if !NODE::ROOT && entry.depth as i32 >= depth / DEPTH_SCALE {
             let score = score_from_tt(entry.score, search_state.ply);
             match entry.flag {
 
@@ -197,8 +196,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         }
     } else {
         // IIR
-        if depth >= iir_depth() {
-            depth = depth - 1;
+        if depth >= iir_depth() * DEPTH_SCALE {
+            depth = depth - DEPTH_SCALE;
         }
     }
 
@@ -227,7 +226,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        && depth <= rfp_max_depth()
        && !is_in_check {
 
-        let d = depth as i32;
+        let d = depth / DEPTH_SCALE;
         let rfp_margin = static_eval - (rfp_a() * d * d + rfp_b() * d + rfp_c() - improving as i32 * rfp_improving());
         
         if rfp_margin >= beta {
@@ -239,10 +238,13 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // Razoring
     // ------------------------------------------------------------
     // sf: alpha - 512 - (293 * depth * depth) as i32
-    if !NODE::PV && static_eval < alpha - (razor_a() * depth as i32 * depth as i32 + razor_b() * depth as i32 + razor_c()) { // likely a fail-low node ?
-        let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
-        if new_score < beta {
-            return new_score; // fail soft
+    if !NODE::PV {
+        let d = depth / DEPTH_SCALE;
+        if static_eval < alpha - (razor_a() * d * d + razor_b() * d + razor_c()) { // likely a fail-low node ?
+            let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
+            if new_score < beta {
+                return new_score; // fail soft
+            }
         }
     }
 
@@ -257,9 +259,9 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         depth >= nmp_min_depth() &&
         !NODE::PV 
         {
-            let r = nmp_base() + depth / nmp_divisor(); // NMP Reduction
+            let r = nmp_base() + (depth / DEPTH_SCALE) / nmp_divisor() * DEPTH_SCALE; // NMP Reduction (quantized to whole plies for functional equivalence)
             let null_board: BoardPosition = board_position.make_null_move();
-            let new_depth = depth.saturating_sub(r+1);
+            let new_depth = depth.saturating_sub(r+DEPTH_SCALE);
 
             let search_answer = -pvs::<NonPV>(&null_board, search_state, -beta, -(beta - 1), new_depth);
 
@@ -274,7 +276,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
     let mut legal_moves = 0;
     let mut previous_quiet_moves = vec![]; // malus purposes
-    let hist_base = hist_bonus_scale() * depth as i32 + hist_bonus_offset();
+    let hist_base = hist_bonus_scale() * depth / DEPTH_SCALE + hist_bonus_offset();
     // separate float multipliers (x100): 100 = 1.0
     let hist_beta_bonus = hist_base * hist_beta_mult() / 100;
     let hist_alpha_bonus = hist_base * hist_alpha_mult() / 100;
@@ -295,7 +297,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         legal_moves > 1 &&
         mv.is_quiet() &&
         !is_in_check {
-            let d = depth as i32;
+            let d = depth / DEPTH_SCALE;
             if static_eval + (fp_a() * d * d + fp_b() * d + fp_c()) <= alpha {
                 continue;
             }
@@ -309,7 +311,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
             && new_alpha.abs() <= MATE_THRESHOLD
             && mv.is_quiet()
             && previous_quiet_moves.len() as i32
-                >= lmp_threshold(depth)
+                >= lmp_threshold(depth / DEPTH_SCALE)
         {
             move_picker.skip_quiets();
             continue;
@@ -317,15 +319,9 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
         // Static Exchange Evaluation Pruning (SEE Pruning) — quadratic
         if !NODE::ROOT && !is_in_check {
-            let d = depth as i32;
+            let d = depth / DEPTH_SCALE;
             let threshold= see_a() * d * d + see_b() * d + see_c();
             // Try out a history term
-            // let threshold: i32 = if mv.is_quiet() {
-            //     (-12 * depth as i32 * depth as i32 + 56 * depth as i32 + 27).min(0)
-            // } else {
-            //     (-7 * depth as i32 * depth as i32 - 36 * depth as i32 + 14).min(0)
-            // };
-
             if !see_a_move_threshold(board_position, mv, &new_board, threshold) {
                 continue;
             }
@@ -347,27 +343,27 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
            //and not inCheck
            //and not givesCheck:
 
-            let mut reduction = reduce_lmr_by(depth, legal_moves);
+            let mut reduction = reduce_lmr_by(depth / DEPTH_SCALE, legal_moves);
 
             reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / lmr_hist_div();
 
-            let reduction = (reduction / 1024).max(0);
-            let new_depth = depth - 1 - reduction;
+            let reduction = (reduction / DEPTH_SCALE).max(0) * DEPTH_SCALE;
+            let new_depth = depth - reduction - DEPTH_SCALE;
 
             score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha, new_depth);
 
             if score > new_alpha && reduction > 0 {
-                score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth - 1);
+                score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth - DEPTH_SCALE);
             }
 
         }
         // Fulldepth
         else if !NODE::PV || legal_moves >= 2 {
-            score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth-1 );
+            score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth- DEPTH_SCALE);
         }
         // PVS
         if NODE::PV && ( legal_moves == 1 || score > new_alpha) {
-            score = -pvs::<PV>( &new_board, search_state, -beta , -new_alpha , depth-1 );
+            score = -pvs::<PV>( &new_board, search_state, -beta , -new_alpha , depth - DEPTH_SCALE);
         }
 
         search_state.take_back();
@@ -383,7 +379,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
                 if score >= beta {
                     
                     search_state.store_tt(
-                        depth as u8,
+                        (depth / DEPTH_SCALE) as u8,
                         score,
                         static_eval,
                         TTFlag::Beta,
@@ -442,7 +438,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     };
 
     search_state.store_tt(
-        depth as u8,
+        (depth / DEPTH_SCALE) as u8,
         best_score,
         static_eval,
         flag,
@@ -509,18 +505,18 @@ pub fn search(board_position: &BoardPosition, search_state: &mut SearchState) {
 
     search_state.stop_condition.started_search = Instant::now();
 
-    search_state.reset_for_new_iteration(MIN_DEPTH);
+    search_state.reset_for_new_iteration(MIN_DEPTH * DEPTH_SCALE);
 
-    let mut score = single_depth_search(board_position, search_state, MIN_DEPTH);
+    let mut score = single_depth_search(board_position, search_state, MIN_DEPTH * DEPTH_SCALE);
         
     print_info_string(score, search_state);
         
-    let mut depth = MIN_DEPTH;
+    let mut depth = MIN_DEPTH * DEPTH_SCALE;
     let mut bestmove = search_state.pv_table.table[0][0];
     search_state.reset_for_new_iteration(depth);        
 
     while !search_state.stop_condition.should_soft_quit(depth, search_state.nodes) && !search_state.stop_condition.should_hard_quit(search_state.nodes) {
-        depth += 1;
+        depth += DEPTH_SCALE;
         search_state.reset_for_new_iteration(depth);        
         
         let new_score = single_depth_search_aspirated(board_position, search_state, depth, score);
@@ -566,6 +562,7 @@ pub fn print_info_string(score: i32, search_state: &SearchState) {
 #[cfg(test)]
 mod tests {
     use crate::gui::parse_position_command;
+    use crate::primitives::consts::DEPTH_SCALE;
     use crate::search::{search, single_depth_search};
     use crate::search_objs::config::EngineConfig;
 use crate::search_objs::search_state::SearchState;
@@ -577,8 +574,8 @@ use crate::search_objs::search_state::SearchState;
                 let mut search_state = SearchState::new(&EngineConfig::thin());
                 
                 let board_position = parse_position_command(&mut search_state, command);
-                search_state.reset_for_new_iteration(4);       
-                let score = single_depth_search(&board_position, &mut search_state, 4); 
+                search_state.reset_for_new_iteration(4 * DEPTH_SCALE);       
+                let score = single_depth_search(&board_position, &mut search_state, 4 * DEPTH_SCALE); 
 
                 println!("{:?}", score);
 
@@ -598,12 +595,12 @@ use crate::search_objs::search_state::SearchState;
 
                 println!("{:?}", search_state.move_stack);
                 
-                search_state.reset_for_new_iteration(3);       
+                search_state.reset_for_new_iteration(3 * DEPTH_SCALE);       
                 
                 println!("{:?}", search_state.move_stack);
                 println!("{:?}", board_position.hash);
 
-                let score = single_depth_search(&board_position, &mut search_state, 3);
+                let score = single_depth_search(&board_position, &mut search_state, 3 * DEPTH_SCALE);
 
                 println!("{:?}", search_state.move_stack);
 
@@ -619,8 +616,8 @@ use crate::search_objs::search_state::SearchState;
         let command = "position fen q6k/8/8/8/8/8/7r/2K5 w - - 0 1 moves c1b1 a8b8 b1a1 b8a8 a1b1 a8b8 b1a1 b8a8";
                 let mut search_state = SearchState::new(&EngineConfig::thin());
                 let board_position = parse_position_command(&mut search_state, command);
-                search_state.reset_for_new_iteration(4);       
-                let score = single_depth_search(&board_position, &mut search_state, 4);
+                search_state.reset_for_new_iteration(4 * DEPTH_SCALE);       
+                let score = single_depth_search(&board_position, &mut search_state, 4 * DEPTH_SCALE);
 
                 println!("{:?}", score);
 
