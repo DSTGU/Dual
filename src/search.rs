@@ -16,9 +16,9 @@ use crate::tunable::*;
 #[allow(clippy::approx_constant)]
 pub fn reduce_lmr_by(depth: i32, moves: usize) -> i32 {
     // Obsidian function with tunable base/div (scaled x100: 99=0.99, 314=3.14)
-    let base = lmr_base() as f32 / 100.0;
-    let div = lmr_div() as f32 / 100.0;
-    ((base + (depth as f32).ln() * (moves as f32).ln() / div) * 1024.0) as i32
+    let base = lmr_base() as f32;
+    let ln_portion = lmr_ln_portion() as f32;
+    (base + (depth as f32).ln() * (moves as f32).ln() * ln_portion) as i32
 }
 
 fn lmp_threshold(depth: i32) -> i32 {
