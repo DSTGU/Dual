@@ -203,7 +203,7 @@ tunable_params! {
     lmr_min_depth                = 3072,   2000..=5000,              Granularity::Disabled;
     lmr_min_moves                = 2,   1..=4,              Granularity::Disabled;
     lmr_hist_div                 = 10,   2..=16,            Granularity::Disabled;
-    lmr_base                     = 676,  500..=1500,           Granularity::Fine; 
+    lmr_base                     = 1700,  1000..=2500,           Granularity::Fine; 
     lmr_ln_portion               = 453, 200..=500,          Granularity::Fine;
 
     // -----------------------------------------------------------------------

@@ -347,12 +347,12 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
             reduction -= search_state.get_quiet_history(board_position.side, mv) as i32 / lmr_hist_div();
 
-            let reduction = (reduction / DEPTH_SCALE).max(0) * DEPTH_SCALE;
-            let new_depth = depth - reduction - DEPTH_SCALE;
+            let reduction = (reduction).max(DEPTH_SCALE);
+            let new_depth = depth - reduction;
 
             score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha, new_depth);
 
-            if score > new_alpha && reduction > 0 {
+            if score > new_alpha && reduction > DEPTH_SCALE {
                 score = -pvs::<NonPV>( &new_board, search_state, -new_alpha - 1 , -new_alpha , depth - DEPTH_SCALE);
             }
 
