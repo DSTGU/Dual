@@ -127,6 +127,8 @@ macro_rules! tunable_params {
 // tiny integer depths). Set to true if you know C_end is safe (>0.5) and you want
 // it in the tune.
 // ---------------------------------------------------------------------------
+//     // rfp_a                        = 5,   -10..=20,           Granularity::Fine; // TODO: Quantize
+
 #[rustfmt::skip]
 tunable_params! {
     // -----------------------------------------------------------------------
@@ -134,10 +136,9 @@ tunable_params! {
     // Original: 80*(d - improving) => a=0, b=80, c=0, imp=80
     // -----------------------------------------------------------------------
     rfp_max_depth                = 9216, 4000..=12000,             Granularity::Disabled;
-    rfp_a                        = 5,   -10..=20,           Granularity::Fine; // TODO: Quantize
-    rfp_b                        = 52,  20..=150,           Granularity::Fine;
-    rfp_c                        = 0,   -50..=50,           Granularity::Coarse;
-    rfp_improving                = 36,  -10..=150,          Granularity::Coarse;
+    rfp_b                        = 65,  20..=150,           Granularity::Fine;
+    rfp_c                        = 0,   -50000..=50000,           Granularity::Coarse;
+    rfp_improving                = 36864,  -10000..=15000,          Granularity::Coarse;
 
     // -----------------------------------------------------------------------
     // Razoring — quadratic: threshold = a*d^2 + b*d + c  (eval < alpha - threshold)
@@ -241,4 +242,12 @@ tunable_params! {
     // IIR
     // -----------------------------------------------------------------------
     iir_depth                    = 5,   2..=10,              Granularity::Disabled;
+
+
+    // 
+    // frac depth
+    //
+    qs_dropoff_depth             = 0,   0..=1024,              Granularity::Coarse;
+
+
 }
