@@ -136,9 +136,10 @@ tunable_params! {
     // Original: 80*(d - improving) => a=0, b=80, c=0, imp=80
     // -----------------------------------------------------------------------
     rfp_max_depth                = 9216, 4000..=12000,             Granularity::Disabled;
-    rfp_b                        = 65,  20..=150,           Granularity::Fine;
+    rfp_a                        = 5,   -10..=20,           Granularity::Fine; 
+    rfp_b                        = 52,  20..=150,           Granularity::Fine;
     rfp_c                        = 0,   -50000..=50000,           Granularity::Coarse;
-    rfp_improving                = 36864,  -10000..=15000,          Granularity::Coarse;
+    rfp_improving                = 36864,  -10000..=150000,          Granularity::Coarse;
 
     // -----------------------------------------------------------------------
     // Razoring — quadratic: threshold = a*d^2 + b*d + c  (eval < alpha - threshold)

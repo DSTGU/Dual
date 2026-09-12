@@ -227,9 +227,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        && !is_in_check {
 
         let d = depth;
-        let rfp_margin = static_eval - (rfp_b() * d + rfp_c() - improving as i32 * rfp_improving());
-        
-        if rfp_margin / 1024 >= beta {
+        //let rfp_margin = static_eval - (rfp_b() * d + rfp_c() - improving as i32 * rfp_improving());
+        let rfp_margin = static_eval - ((rfp_a() * d * d)/DEPTH_SCALE/DEPTH_SCALE + (rfp_b() * d)/DEPTH_SCALE + rfp_c() - improving as i32 * rfp_improving());
+    
+        if rfp_margin >= beta {
             return static_eval;
         }
     }
