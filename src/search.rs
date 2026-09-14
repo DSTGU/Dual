@@ -227,7 +227,6 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        && !is_in_check {
 
         let d = depth;
-        //let rfp_margin = static_eval - (rfp_b() * d + rfp_c() - improving as i32 * rfp_improving());
         let rfp_margin = static_eval - ((rfp_a() * d * d)/DEPTH_SCALE/DEPTH_SCALE + (rfp_b() * d)/DEPTH_SCALE + rfp_c() - improving as i32 * rfp_improving());
     
         if rfp_margin >= beta {
@@ -298,8 +297,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         legal_moves > 1 &&
         mv.is_quiet() &&
         !is_in_check {
-            let d = depth / DEPTH_SCALE;
-            if static_eval + (fp_a() * d * d + fp_b() * d + fp_c()) <= alpha {
+            let d = depth;
+            if static_eval + (fp_a() * d * d / DEPTH_SCALE / DEPTH_SCALE + fp_b() * d / DEPTH_SCALE + fp_c()) <= alpha {
                 continue;
             }
         }
