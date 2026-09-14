@@ -149,7 +149,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         return DRAW_SCORE;
     }
     
-    if depth <= 0 {
+    if depth <= qs_dropoff_depth() {
         return quiescence(board_position, search_state, alpha, beta, search_state.ply);
     }
 
@@ -226,9 +226,10 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
        && depth <= rfp_max_depth()
        && !is_in_check {
 
-        let d = depth / DEPTH_SCALE;
-        let rfp_margin = static_eval - (rfp_a() * d * d + rfp_b() * d + rfp_c() - improving as i32 * rfp_improving());
-        
+        let d = depth;
+        //let rfp_margin = static_eval - (rfp_b() * d + rfp_c() - improving as i32 * rfp_improving());
+        let rfp_margin = static_eval - ((rfp_a() * d * d)/DEPTH_SCALE/DEPTH_SCALE + (rfp_b() * d)/DEPTH_SCALE + rfp_c() - improving as i32 * rfp_improving());
+    
         if rfp_margin >= beta {
             return static_eval;
         }
