@@ -186,7 +186,7 @@ tunable_params! {
     // Late Move Pruning — after lmp_base + lmp_scale*d^2 quiets, skip
     // -----------------------------------------------------------------------
     lmp_base                     = 2,   0..=6,              Granularity::Disabled; // TODO: Quantize
-    lmp_depth_divisor            = 1048576,   500000..=1500000,              Granularity::Disabled; // TODO: Quantize
+    lmp_depth_divisor            = 1248576,   500000..=1500000,              Granularity::Disabled; // TODO: Quantize
 
     // -----------------------------------------------------------------------
     // History bonus — base = scale*d + offset, then separate float multipliers
