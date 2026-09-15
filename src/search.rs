@@ -22,7 +22,7 @@ pub fn reduce_lmr_by(depth: i32, moves: usize) -> i32 {
 }
 
 fn lmp_threshold(depth: i32) -> i32 {
-    lmp_base() + lmp_scale() * depth * depth / DEPTH_SCALE / DEPTH_SCALE
+    lmp_base() + depth * depth / lmp_depth_divisor()
 }
 
 pub fn quiescence(board_position: &BoardPosition, search_state: &mut SearchState, alpha: i32, beta: i32, ply: usize) -> i32 {
