@@ -259,7 +259,7 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
         depth >= nmp_min_depth() &&
         !NODE::PV 
         {
-            let r = nmp_base() + (depth / DEPTH_SCALE) / nmp_divisor() * DEPTH_SCALE; // NMP Reduction (quantized to whole plies for functional equivalence)
+            let r = nmp_base() + depth / nmp_divisor(); // NMP Reduction
             let null_board: BoardPosition = board_position.make_null_move();
             let new_depth = depth.saturating_sub(r+DEPTH_SCALE);
 
