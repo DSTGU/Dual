@@ -319,8 +319,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
 
         // Static Exchange Evaluation Pruning (SEE Pruning) — quadratic
         if !NODE::ROOT && !is_in_check {
-            let d = depth / DEPTH_SCALE;
-            let threshold= see_a() * d * d + see_b() * d + see_c();
+            let d = depth;
+            let threshold= (see_a() as i64 * d as i64 * d as i64 / DEPTH_SCALE as i64 / DEPTH_SCALE as i64) as i32 + see_b() * d / DEPTH_SCALE + see_c();
             // Try out a history term
             if !see_a_move_threshold(board_position, mv, &new_board, threshold) {
                 continue;
