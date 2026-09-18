@@ -239,8 +239,8 @@ pub fn pvs<NODE: NodeType>(board_position: &BoardPosition, search_state: &mut Se
     // ------------------------------------------------------------
     // sf: alpha - 512 - (293 * depth * depth) as i32
     if !NODE::PV {
-        let d = depth / DEPTH_SCALE;
-        if static_eval < alpha - (razor_a() * d * d + razor_b() * d + razor_c()) { // likely a fail-low node ?
+        let d = depth;
+        if static_eval < alpha - ((razor_a() as i64 * d as i64 * d as i64 / DEPTH_SCALE as i64 / DEPTH_SCALE as i64) as i32 + razor_b() * d / DEPTH_SCALE + razor_c()) { // likely a fail-low node ?
             let new_score = quiescence(board_position, search_state, alpha, beta, search_state.ply + 1);
             if new_score < beta {
                 return new_score; // fail soft
